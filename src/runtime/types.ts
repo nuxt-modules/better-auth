@@ -12,6 +12,11 @@ export type AuthMode = 'guest' | 'user'
 // Flexible matching - value OR array of values (OR logic for same field, AND logic between fields)
 export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
 
+export interface AppSession {
+  user: AuthUser
+  session: AuthSession
+}
+
 // Route auth meta
 export type AuthMeta = false | AuthMode | {
   only?: AuthMode

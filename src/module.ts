@@ -226,4 +226,4 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 })
 
 export { defineClientAuth, defineServerAuth } from './runtime/config'
-export type { Auth, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthUser, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'
+export type { AppSession, Auth, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthUser, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'

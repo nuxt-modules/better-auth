@@ -130,9 +130,18 @@ import type { AuthSession, AuthUser } from '${input.runtimeTypesAugmentPath}'
 import type { UserMatch } from '${input.runtimeTypesPath}'
 export * from '${input.runtimeTypesAugmentPath}'
 export type { AuthMeta, AuthMode, AuthRouteRules, UserMatch, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
+export interface AppSession {
+  user: AuthUser
+  session: AuthSession
+}
 export interface RequireSessionOptions {
   user?: UserMatch<AuthUser>
   rule?: (ctx: { user: AuthUser, session: AuthSession }) => boolean | Promise<boolean>
+}
+declare module 'h3' {
+  interface H3EventContext {
+    appSession?: AppSession | null
+  }
 }
 `,
   })
