@@ -1,0 +1,15 @@
+import { defineServerAuth } from '../../../../src/runtime/config'
+import { emailOTP } from 'better-auth/plugins'
+
+export default defineServerAuth({
+  appName: 'NuxtHub OTP Workaround Test',
+  emailAndPassword: { enabled: true },
+  plugins: [
+    emailOTP({
+      async sendVerificationOTP() {
+        // no-op for tests (we only need the endpoint to execute DB writes)
+      },
+    }),
+  ],
+})
+
