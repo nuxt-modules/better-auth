@@ -11,7 +11,8 @@ export default defineNuxtConfig({
   hooks: {
     'better-auth:database:providers': (providers: any) => {
       const provider = providers?.nuxthub
-      if (!provider) return
+      if (!provider)
+        return
 
       provider.buildDatabaseCode = ({ hubDialect, usePlural, camelCase }: any) => `import { db } from '@nuxthub/db'
 import * as schema from './schema.${hubDialect}.mjs'
@@ -23,4 +24,3 @@ export { db }`
     },
   },
 })
-

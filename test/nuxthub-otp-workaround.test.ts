@@ -19,4 +19,3 @@ describe('nuxthub otp schema workaround', async () => {
     expect(body.success).toBe(true)
   })
 })
-

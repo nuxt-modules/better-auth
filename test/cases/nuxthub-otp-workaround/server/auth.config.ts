@@ -1,5 +1,5 @@
-import { defineServerAuth } from '../../../../src/runtime/config'
 import { emailOTP } from 'better-auth/plugins'
+import { defineServerAuth } from '../../../../src/runtime/config'
 
 export default defineServerAuth({
   appName: 'NuxtHub OTP Workaround Test',
@@ -12,4 +12,3 @@ export default defineServerAuth({
     }),
   ],
 })
-
