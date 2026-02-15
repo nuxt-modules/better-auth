@@ -23,7 +23,8 @@ interface BuildDatabaseCodeInput {
 
 export function buildDatabaseCode(input: BuildDatabaseCodeInput): string {
   if (input.provider === 'nuxthub') {
-    return `import { db, schema } from '@nuxthub/db'
+    return `import { db } from '@nuxthub/db'
+import * as schema from './schema.${input.hubDialect}.mjs'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 const rawDialect = '${input.hubDialect}'
 const dialect = rawDialect === 'postgresql' ? 'pg' : rawDialect
