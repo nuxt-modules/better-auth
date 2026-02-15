@@ -47,4 +47,3 @@ export default defineNitroPlugin(async () => {
     updatedAt INTEGER
   )`)
 })
-
