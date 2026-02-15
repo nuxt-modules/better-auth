@@ -112,6 +112,9 @@ export async function setupBetterAuthSchema(
     const isProduction = !nuxt.options.dev
     if (isProduction)
       throw error
+
     consola.error('Failed to generate schema:', error)
+    // NuxtHub provider now relies on the generated schema file.
+    throw error
   }
 }
