@@ -1,15 +1,8 @@
-import type { AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { H3Event } from 'h3'
-import type { UserMatch } from '../../types'
+import type { AppSession, RequireSessionOptions } from '#nuxt-better-auth'
 import { createError } from 'h3'
 import { matchesUser } from '../../utils/match-user'
 import { serverAuth } from './auth'
-
-interface AppSession { user: AuthUser, session: AuthSession }
-interface RequireUserSessionOptions {
-  user?: UserMatch<AuthUser>
-  rule?: (ctx: { user: AuthUser, session: AuthSession }) => boolean | Promise<boolean>
-}
 
 const appSessionLoadKey = Symbol.for('nuxt-better-auth.appSessionLoad')
 
@@ -72,7 +65,7 @@ export async function getUserSession(event: H3Event): Promise<AppSession | null>
   return session as AppSession | null
 }
 
-export async function requireUserSession(event: H3Event, options?: RequireUserSessionOptions): Promise<AppSession> {
+export async function requireUserSession(event: H3Event, options?: RequireSessionOptions): Promise<AppSession> {
   const session = await getAppSession(event)
 
   if (!session)

@@ -54,6 +54,18 @@ export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
   interface AuthSession {
     id: string
   }
+
+  type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
+
+  interface AppSession {
+    user: AuthUser
+    session: AuthSession
+  }
+
+  interface RequireSessionOptions {
+    user?: UserMatch<AuthUser>
+    rule?: (ctx: { user: AuthUser, session: AuthSession }) => boolean | Promise<boolean>
+  }
 }
 `)
 

@@ -46,3 +46,15 @@ export interface UserSessionComposable {
   signOut: (options?: { onSuccess?: () => void | Promise<void> }) => Promise<void>
   updateUser: (updates: Partial<AuthUser>) => Promise<void>
 }
+
+export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
+
+export interface AppSession {
+  user: AuthUser
+  session: AuthSession
+}
+
+export interface RequireSessionOptions {
+  user?: UserMatch<AuthUser>
+  rule?: (ctx: { user: AuthUser, session: AuthSession }) => boolean | Promise<boolean>
+}

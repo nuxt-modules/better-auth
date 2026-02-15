@@ -126,23 +126,14 @@ export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesIn
   addTypeTemplate({
     filename: 'types/nuxt-better-auth.d.ts',
     getContents: () => `
-import type { AuthSession, AuthUser } from '${input.runtimeTypesAugmentPath}'
-import type { UserMatch } from '${input.runtimeTypesPath}'
-export * from '${input.runtimeTypesAugmentPath}'
-export type { AuthMeta, AuthMode, AuthRouteRules, UserMatch, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
-export interface AppSession {
-  user: AuthUser
-  session: AuthSession
-}
-export interface RequireSessionOptions {
-  user?: UserMatch<AuthUser>
-  rule?: (ctx: { user: AuthUser, session: AuthSession }) => boolean | Promise<boolean>
-}
-declare module 'h3' {
-  interface H3EventContext {
-    appSession?: AppSession | null
+  import type { AppSession } from '${input.runtimeTypesAugmentPath}'
+  export * from '${input.runtimeTypesAugmentPath}'
+  export type { AuthMeta, AuthMode, AuthRouteRules, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
+  declare module 'h3' {
+    interface H3EventContext {
+      appSession?: AppSession | null
+    }
   }
-}
 `,
   })
 
