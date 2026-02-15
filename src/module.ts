@@ -74,6 +74,8 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     serverConfig: 'server/auth.config',
     clientConfig: 'app/auth.config',
     redirects: { login: '/login', guest: '/' },
+    preserveRedirect: true,
+    redirectQueryKey: 'redirect',
     secondaryStorage: false,
   },
   async onInstall(nuxt) {

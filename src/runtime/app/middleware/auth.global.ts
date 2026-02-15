@@ -1,3 +1,4 @@
+import type { AuthRuntimeConfig } from '../../config'
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
 import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useNuxtApp, useRequestHeaders, useRuntimeConfig, useUserSession } from '#imports'
 import { matchesUser } from '../../utils/match-user'
@@ -38,7 +39,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (auth === undefined || auth === false)
     return
 
-  const config = useRuntimeConfig().public.auth as { redirects: { login: string, guest: string } } | undefined
+  const config = useRuntimeConfig().public.auth as AuthRuntimeConfig | undefined
   const { fetchSession, user, loggedIn } = useUserSession()
 
   // Always fetch session if not logged in - state may not have synced yet
@@ -56,11 +57,65 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
   }
 
-  if (!loggedIn.value)
-    return navigateTo(redirectTo ?? config?.redirects?.login ?? '/login')
+  if (!loggedIn.value) {
+    const resolved = resolveLoginRedirect({
+      route: to,
+      loginTarget: redirectTo ?? config?.redirects?.login ?? '/login',
+      config,
+    })
+    return resolved.external ? navigateTo(resolved.to, { external: true }) : navigateTo(resolved.to)
+  }
 
   if (typeof auth === 'object' && auth.user) {
     if (!user.value || !matchesUser(user.value, auth.user))
       throw createError({ statusCode: 403, statusMessage: 'Access denied' })
   }
 })
+
+function resolveLoginRedirect(input: {
+  route: { fullPath: string }
+  loginTarget: string
+  config?: Pick<AuthRuntimeConfig, 'preserveRedirect' | 'redirectQueryKey'>
+}): { to: Parameters<typeof navigateTo>[0], external: boolean } {
+  const { route, loginTarget, config } = input
+
+  const preserveRedirect = config?.preserveRedirect ?? true
+  const redirectQueryKey = config?.redirectQueryKey ?? 'redirect'
+
+  if (!preserveRedirect)
+    return { to: loginTarget, external: false }
+
+  // Only append for internal app routes: a single-leading-slash path.
+  // Avoid protocol-relative/external URLs and avoid munging non-path targets.
+  if (!loginTarget.startsWith('/') || loginTarget.startsWith('//'))
+    return { to: loginTarget, external: false }
+
+  const [beforeHash, hash = ''] = loginTarget.split('#', 2)
+  const [path, query = ''] = beforeHash.split('?', 2)
+
+  try {
+    const params = new URLSearchParams(query)
+    if (params.has(redirectQueryKey))
+      return { to: loginTarget, external: false }
+  }
+  catch {
+    return { to: loginTarget, external: false }
+  }
+
+  // Server: use an external redirect so the Location header keeps the encoded value.
+  if (import.meta.server) {
+    const separator = query ? '&' : ''
+    const encodedRedirect = encodeURIComponent(route.fullPath)
+    const url = `${path}?${query}${separator}${redirectQueryKey}=${encodedRedirect}${hash ? `#${hash}` : ''}`
+    return { to: url, external: true }
+  }
+
+  // Client: return a route location object to avoid a full reload.
+  const params = new URLSearchParams(query)
+  const queryObj: Record<string, string> = {}
+  for (const [k, v] of params.entries())
+    queryObj[k] = v
+  queryObj[redirectQueryKey] = route.fullPath
+
+  return { to: { path, query: queryObj, ...(hash ? { hash: `#${hash}` } : {}) }, external: false }
+}
