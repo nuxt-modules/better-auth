@@ -1,5 +1,5 @@
-import type { H3Event } from 'h3'
 import type { AppSession, RequireSessionOptions } from '#nuxt-better-auth'
+import type { H3Event } from 'h3'
 import { createError } from 'h3'
 import { matchesUser } from '../../utils/match-user'
 import { serverAuth } from './auth'
@@ -52,7 +52,7 @@ export async function getAppSession(event: H3Event): Promise<AppSession | null> 
 }
 
 export async function getUserSession(event: H3Event): Promise<AppSession | null> {
-  // Reuse request cache if it already exists, but don't memoize here.
+  // Preserve historical behavior: don't memoize, but reuse request cache if present.
   const context = getAppSessionContext(event)
   if (context.appSession !== undefined)
     return context.appSession
