@@ -6,4 +6,3 @@ export default defineEventHandler(() => {
     hasVerification: Boolean(schema?.verification),
   }
 })
-

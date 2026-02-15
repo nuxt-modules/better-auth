@@ -13,4 +13,3 @@ describe('#auth/schema export', async () => {
     expect(res.hasVerification).toBe(true)
   })
 })
-

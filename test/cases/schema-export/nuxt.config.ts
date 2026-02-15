@@ -8,4 +8,3 @@ export default defineNuxtConfig({
     public: { siteUrl: 'http://localhost:3000' },
   },
 })
-
