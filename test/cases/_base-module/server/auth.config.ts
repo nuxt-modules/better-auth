@@ -6,4 +6,3 @@ export default defineServerAuth({
     github: { clientId: 'test', clientSecret: 'test' },
   },
 })
-

@@ -14,4 +14,3 @@ describe('route protection preserveRedirect disabled', async () => {
     expect(response.headers.get('location')).not.toContain('redirect=')
   })
 })
-

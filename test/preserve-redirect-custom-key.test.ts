@@ -15,4 +15,3 @@ describe('route protection preserveRedirect with custom query key', async () => 
     expect(location).not.toContain('redirect=')
   })
 })
-

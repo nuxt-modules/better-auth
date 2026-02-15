@@ -17,4 +17,3 @@ export default defineNuxtConfig({
     redirects: { login: '/login', guest: '/' },
   },
 })
-

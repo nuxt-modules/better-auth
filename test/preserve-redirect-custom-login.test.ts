@@ -13,4 +13,3 @@ describe('route protection preserveRedirect with custom login', async () => {
     expect(response.headers.get('location')).toContain('/custom-login?redirect=%2Fprotected%3Ffoo%3D1')
   })
 })
-
