@@ -2,6 +2,7 @@ import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
 import { createError, defineEventHandler, getRequestURL } from 'h3'
 import { getRouteRules } from 'nitropack/runtime'
 import { matchesUser } from '../../utils/match-user'
+import { getUserSession, requireUserSession } from '../utils/session'
 
 export default defineEventHandler(async (event) => {
   const path = getRequestURL(event).pathname

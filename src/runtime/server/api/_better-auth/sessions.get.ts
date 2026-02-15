@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
     ])
 
     // Return only safe fields (allowlist approach for security)
-    const safeSessions = sessions.map(s => ({
+    const safeSessions = sessions.map((s: any) => ({
       id: s.id,
       userId: s.userId,
       createdAt: s.createdAt,

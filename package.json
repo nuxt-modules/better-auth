@@ -55,6 +55,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "vue-tsc --noEmit",
+    "typecheck:runtime-server": "tsc --noEmit --pretty false -p src/runtime/server/tsconfig.json",
     "typecheck:playground": "cd playground && vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest watch"

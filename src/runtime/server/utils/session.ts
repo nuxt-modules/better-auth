@@ -59,7 +59,17 @@ export async function getAppSession(event: H3Event): Promise<AppSession | null> 
 }
 
 export async function getUserSession(event: H3Event): Promise<AppSession | null> {
-  return getAppSession(event)
+  // Reuse request cache if it already exists, but don't memoize here.
+  const context = getAppSessionContext(event)
+  if (context.appSession !== undefined)
+    return context.appSession
+
+  if (context[appSessionLoadKey])
+    return context[appSessionLoadKey]
+
+  const auth = serverAuth(event)
+  const session = await auth.api.getSession({ headers: event.headers })
+  return session as AppSession | null
 }
 
 export async function requireUserSession(event: H3Event, options?: RequireUserSessionOptions): Promise<AppSession> {
