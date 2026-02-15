@@ -8,7 +8,13 @@ export default defineEventHandler(async (event) => {
     const options = auth.options
     const authContext = await ((auth as { $context?: Promise<{ trustedOrigins?: string[] }> | { trustedOrigins?: string[] } }).$context)
     const runtimeConfig = useRuntimeConfig()
-    const publicAuth = runtimeConfig.public?.auth as { redirects?: { login?: string, guest?: string }, useDatabase?: boolean, databaseProvider?: 'none' | 'nuxthub' | 'convex' } | undefined
+    const publicAuth = runtimeConfig.public?.auth as {
+      redirects?: { login?: string, guest?: string }
+      preserveRedirect?: boolean
+      redirectQueryKey?: string
+      useDatabase?: boolean
+      databaseProvider?: 'none' | 'nuxthub' | 'convex'
+    } | undefined
     const privateAuth = runtimeConfig.auth as { secondaryStorage?: boolean } | undefined
     const configuredTrustedOrigins = Array.isArray(options.trustedOrigins) ? options.trustedOrigins : []
     const effectiveTrustedOrigins = authContext?.trustedOrigins || configuredTrustedOrigins
@@ -23,6 +29,8 @@ export default defineEventHandler(async (event) => {
         // Module config (nuxt.config.ts)
         module: {
           redirects: publicAuth?.redirects || { login: '/login', guest: '/' },
+          preserveRedirect: publicAuth?.preserveRedirect ?? true,
+          redirectQueryKey: publicAuth?.redirectQueryKey ?? 'redirect',
           secondaryStorage: privateAuth?.secondaryStorage ?? false,
           useDatabase: publicAuth?.useDatabase ?? false,
           databaseProvider: publicAuth?.databaseProvider ?? 'none',
