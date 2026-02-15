@@ -138,4 +138,3 @@ describe('useUserSignUp', () => {
     expect(signUpEmail.status.value).toBe('error')
   })
 })
-
