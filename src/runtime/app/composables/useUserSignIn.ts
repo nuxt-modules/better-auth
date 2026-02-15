@@ -61,6 +61,7 @@ function createActionHandle<T extends AnyAsyncFn>(getMethod: () => T): UserAuthA
 }
 
 export function useUserSignIn(): ActionHandleMap<NonNullable<AppAuthClient>['signIn']> {
+  const { signIn } = useUserSession()
   const handles = new Map<PropertyKey, UserAuthActionHandle<AnyAsyncFn>>()
 
   return new Proxy({} as ActionHandleMap<NonNullable<AppAuthClient>['signIn']>, {
@@ -69,11 +70,14 @@ export function useUserSignIn(): ActionHandleMap<NonNullable<AppAuthClient>['sig
       if (prop === 'then')
         return undefined
 
+      // Avoid creating handles for inspection symbols.
+      if (typeof prop === 'symbol')
+        return undefined
+
       if (handles.has(prop))
         return handles.get(prop)
 
       const handle = createActionHandle(() => {
-        const { signIn } = useUserSession()
         return (signIn as any)[prop] as AnyAsyncFn
       })
 
