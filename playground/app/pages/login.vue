@@ -1,19 +1,20 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
-const { signIn } = useUserSession()
+const signIn = useUserSignIn()
+const signInEmail = signIn.email
+const signInSocial = signIn.social
+const signInPasskey = signIn.passkey
+
 const { t } = useI18n()
 const toast = useToast()
 
 const email = ref('')
 const password = ref('')
 const rememberMe = ref(false)
-const loading = ref(false)
-const passkeyLoading = ref(false)
 
 async function handleSignIn() {
-  loading.value = true
-  await signIn.email(
+  await signInEmail.execute(
     { email: email.value, password: password.value, rememberMe: rememberMe.value },
     {
       onSuccess: () => {
@@ -25,12 +26,11 @@ async function handleSignIn() {
       },
     },
   )
-  loading.value = false
 }
 
 async function handleSocialSignIn(provider: string) {
   try {
-    await signIn.social({ provider, callbackURL: '/app' })
+    await signInSocial.execute({ provider, callbackURL: '/app' })
   }
   catch (e: any) {
     toast.add({ title: 'Error', description: e.message || `${provider} sign in failed`, color: 'error' })
@@ -38,8 +38,7 @@ async function handleSocialSignIn(provider: string) {
 }
 
 async function handlePasskeySignIn() {
-  passkeyLoading.value = true
-  await signIn.passkey({
+  await signInPasskey.execute({
     fetchOptions: {
       onSuccess: async () => {
         toast.add({ title: 'Success', description: t('login.success'), color: 'success' })
@@ -50,7 +49,6 @@ async function handlePasskeySignIn() {
       },
     },
   })
-  passkeyLoading.value = false
 }
 </script>
 
@@ -83,17 +81,17 @@ async function handlePasskeySignIn() {
 
       <UCheckbox id="remember" v-model="rememberMe" :label="t('login.rememberMe')" />
 
-      <UButton block :loading="loading" @click="handleSignIn">
+      <UButton block :loading="signInEmail.pending" @click="handleSignIn">
         {{ t('common.login') }}
       </UButton>
 
       <div class="w-full gap-2 flex items-center justify-between flex-col">
-        <UButton variant="outline" block @click="handleSocialSignIn('github')">
+        <UButton variant="outline" block :loading="signInSocial.pending" @click="handleSocialSignIn('github')">
           <UIcon name="i-simple-icons-github" />
           <span>Sign in with GitHub</span>
         </UButton>
 
-        <UButton variant="outline" block :loading="passkeyLoading" @click="handlePasskeySignIn">
+        <UButton variant="outline" block :loading="signInPasskey.pending" @click="handlePasskeySignIn">
           <UIcon name="i-lucide-key-round" />
           <span>Sign in with Passkey</span>
         </UButton>
