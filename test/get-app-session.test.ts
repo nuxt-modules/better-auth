@@ -27,6 +27,12 @@ function createEvent() {
   } as any
 }
 
+function createEventWithoutContext() {
+  return {
+    headers: new Headers(),
+  } as any
+}
+
 describe('getAppSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -68,6 +74,29 @@ describe('getAppSession', () => {
     const [first, second] = await Promise.all([p1, p2])
     expect(first).toEqual(second)
     expect(getSessionMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('memoizes and deduplicates when event.context is unavailable', async () => {
+    let resolveSession: ((value: unknown) => void) | undefined
+    getSessionMock.mockImplementation(() => new Promise((resolve) => {
+      resolveSession = resolve
+    }))
+
+    const { getAppSession } = await import('../src/runtime/server/utils/session')
+    const event = createEventWithoutContext()
+
+    const p1 = getAppSession(event)
+    const p2 = getAppSession(event)
+
+    resolveSession?.({ user: { id: 'u1' }, session: { id: 's1' } })
+
+    const [first, second] = await Promise.all([p1, p2])
+    const third = await getAppSession(event)
+
+    expect(first).toEqual(second)
+    expect(third).toEqual(first)
+    expect(getSessionMock).toHaveBeenCalledTimes(1)
+    expect('context' in event).toBe(false)
   })
 })
 
