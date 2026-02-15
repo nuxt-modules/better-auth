@@ -20,6 +20,7 @@ export default defineNuxtConfig({
     '/admin': { auth: { user: { role: 'admin' } } },
     '/login': { auth: 'guest' },
     '/custom-protected': { auth: { only: 'user', redirectTo: '/custom-login' } },
+    '/custom-protected-has-redirect': { auth: { only: 'user', redirectTo: '/custom-login?redirect=/' } },
     '/dynamic/protected': { auth: 'user' },
     '/dynamic/guest': { auth: 'guest' },
   },

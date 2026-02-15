@@ -32,6 +32,12 @@ describe('nuxt-better-auth module', async () => {
       expect(html).toContain('login')
     })
 
+    it('preserves requested url in redirect query by default', async () => {
+      const response = await fetch(url('/protected?foo=1'), { redirect: 'manual' })
+      expect(response.status).toBe(302)
+      expect(response.headers.get('location')).toContain('/login?redirect=%2Fprotected%3Ffoo%3D1')
+    })
+
     it('allows access to guest routes when unauthenticated', async () => {
       const html = await $fetch('/login')
       expect(html).toContain('Login')
@@ -40,13 +46,26 @@ describe('nuxt-better-auth module', async () => {
     it('redirects to custom login when redirectTo is set', async () => {
       const response = await fetch(url('/custom-protected'), { redirect: 'manual' })
       expect(response.status).toBe(302)
-      expect(response.headers.get('location')).toContain('/custom-login')
+      expect(response.headers.get('location')).toContain('/custom-login?redirect=%2Fcustom-protected')
+    })
+
+    it('preserves requested url for object auth rules (e.g. role-based)', async () => {
+      const response = await fetch(url('/admin?foo=1'), { redirect: 'manual' })
+      expect(response.status).toBe(302)
+      expect(response.headers.get('location')).toContain('/login?redirect=%2Fadmin%3Ffoo%3D1')
     })
 
     it('applies auth from route rules to dynamic catch-all routes', async () => {
       const response = await fetch(url('/dynamic/protected'), { redirect: 'manual' })
       expect(response.status).toBe(302)
-      expect(response.headers.get('location')).toContain('/login')
+      expect(response.headers.get('location')).toContain('/login?redirect=%2Fdynamic%2Fprotected')
+    })
+
+    it('does not override redirect query if already present in redirectTo', async () => {
+      const response = await fetch(url('/custom-protected-has-redirect?foo=1'), { redirect: 'manual' })
+      expect(response.status).toBe(302)
+      expect(response.headers.get('location')).toContain('/custom-login?redirect=/')
+      expect(response.headers.get('location')).not.toContain('%2Fcustom-protected-has-redirect%3Ffoo%3D1')
     })
   })
 
