@@ -227,3 +227,12 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 
 export { defineClientAuth, defineServerAuth } from './runtime/config'
 export type { Auth, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthUser, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'
+export {
+  analyzeAuthSchemaDrift,
+  assertNoAuthSchemaDrift,
+  checkAuthSchemaDrift,
+  createMySqlSchemaIntrospector,
+  createPostgresSchemaIntrospector,
+  createSqliteSchemaIntrospector,
+  formatAuthSchemaDriftReport,
+} from './schema-diagnostics'

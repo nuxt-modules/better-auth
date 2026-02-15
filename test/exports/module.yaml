@@ -2,6 +2,13 @@
   default: function
   defineClientAuth: function
   defineServerAuth: function
+  analyzeAuthSchemaDrift: function
+  assertNoAuthSchemaDrift: function
+  checkAuthSchemaDrift: function
+  createMySqlSchemaIntrospector: function
+  createPostgresSchemaIntrospector: function
+  createSqliteSchemaIntrospector: function
+  formatAuthSchemaDriftReport: function
 ./config:
   defineClientAuth: function
   defineServerAuth: function
