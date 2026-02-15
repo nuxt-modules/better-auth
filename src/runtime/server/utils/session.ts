@@ -13,13 +13,24 @@ interface RequireUserSessionOptions {
 
 const appSessionLoadKey = Symbol.for('nuxt-better-auth.appSessionLoad')
 
-type AppSessionContext = H3Event['context'] & {
+type AppSessionContext = {
   appSession?: AppSession | null
   [appSessionLoadKey]?: Promise<AppSession | null>
 }
 
+const fallbackAppSessionContext = new WeakMap<object, AppSessionContext>()
+
 function getAppSessionContext(event: H3Event): AppSessionContext {
-  return event.context as AppSessionContext
+  const eventWithContext = event as H3Event & { context?: unknown }
+  if (eventWithContext.context && typeof eventWithContext.context === 'object')
+    return eventWithContext.context as AppSessionContext
+
+  let context = fallbackAppSessionContext.get(event as object)
+  if (!context) {
+    context = {}
+    fallbackAppSessionContext.set(event as object, context)
+  }
+  return context
 }
 
 export async function getAppSession(event: H3Event): Promise<AppSession | null> {
