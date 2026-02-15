@@ -56,7 +56,8 @@ function ensureSessionSignalListener(client: AppAuthClient, onSignal: () => Prom
     return
 
   _sessionSignalListenerBound = true
-  ;(listen as (signal: string, cb: () => void | Promise<void>) => unknown)('$sessionSignal', async () => {
+  const listenFn = listen as (signal: string, cb: () => void | Promise<void>) => unknown
+  listenFn('$sessionSignal', async () => {
     try {
       await onSignal()
     }
