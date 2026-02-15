@@ -8,7 +8,7 @@ import { getRequestHost, getRequestProtocol } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime'
 import { withoutProtocol } from 'ufo'
 
-type AuthInstance = Auth<ReturnType<typeof createServerAuth>>
+type AuthInstance = Auth<BetterAuthOptions>
 
 const _authCache = new Map<string, AuthInstance>()
 let _baseURLInferenceLogged = false

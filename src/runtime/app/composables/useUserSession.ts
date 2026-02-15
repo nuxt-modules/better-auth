@@ -26,6 +26,10 @@ export interface UseUserSessionReturn {
 let _client: AppAuthClient | null = null
 interface UpdateUserResponse { error?: unknown }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object')
+}
+
 function getClient(baseURL: string): AppAuthClient {
   if (!_client)
     _client = createAppAuthClient(baseURL)
@@ -43,12 +47,16 @@ function ensureSessionSignalListener(client: AppAuthClient, onSignal: () => Prom
   if (_sessionSignalListenerBound)
     return
 
-  const store = (client as any).$store as { listen?: (signal: string, cb: () => void | Promise<void>) => unknown } | undefined
-  if (!store?.listen)
+  const store = (client as unknown as { $store?: unknown }).$store
+  if (!isRecord(store))
+    return
+
+  const listen = (store as { listen?: unknown }).listen
+  if (typeof listen !== 'function')
     return
 
   _sessionSignalListenerBound = true
-  store.listen('$sessionSignal', async () => {
+  ;(listen as (signal: string, cb: () => void | Promise<void>) => unknown)('$sessionSignal', async () => {
     try {
       await onSignal()
     }
@@ -191,15 +199,34 @@ export function useUserSession(): UseUserSessionReturn {
 
   function wrapAuthMethod<T extends (...args: unknown[]) => Promise<unknown>>(method: T): T {
     return (async (...args: unknown[]) => {
-      const [data, options] = args as [Record<string, any> | undefined, Record<string, any> | undefined]
+      const data = args[0]
+      const options = args[1]
+      const dataRecord = isRecord(data) ? data : undefined
+      const optionsRecord = isRecord(options) ? options : undefined
+
+      type OnSuccess = (ctx: unknown) => void | Promise<void>
+      const fetchOptions = isRecord(dataRecord?.fetchOptions) ? dataRecord.fetchOptions : undefined
+      const nestedOnSuccess = fetchOptions?.onSuccess
+      const topLevelOnSuccess = optionsRecord?.onSuccess
 
       // Passkey pattern: onSuccess in data.fetchOptions
-      if (data?.fetchOptions?.onSuccess) {
-        return method({ ...data, fetchOptions: { ...data.fetchOptions, onSuccess: wrapOnSuccess(data.fetchOptions.onSuccess) } }, options)
+      if (typeof nestedOnSuccess === 'function') {
+        const nextData = {
+          ...dataRecord,
+          fetchOptions: {
+            ...fetchOptions,
+            onSuccess: wrapOnSuccess(nestedOnSuccess as OnSuccess),
+          },
+        }
+        return method(nextData as unknown as Parameters<T>[0], options as unknown as Parameters<T>[1])
       }
       // Email/social pattern: onSuccess in options
-      if (options?.onSuccess) {
-        return method(data, { ...options, onSuccess: wrapOnSuccess(options.onSuccess) })
+      if (typeof topLevelOnSuccess === 'function') {
+        const nextOptions = {
+          ...optionsRecord,
+          onSuccess: wrapOnSuccess(topLevelOnSuccess as OnSuccess),
+        }
+        return method(data as unknown as Parameters<T>[0], nextOptions as unknown as Parameters<T>[1])
       }
       return method(data, options)
     }) as T

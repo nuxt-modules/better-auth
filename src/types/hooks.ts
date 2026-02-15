@@ -1,3 +1,4 @@
+import type { ModuleCustomTab } from '@nuxt/devtools-kit/types'
 import type { Nuxt } from '@nuxt/schema'
 import type { BetterAuthOptions } from 'better-auth'
 import type { DbDialect } from '../module/hub'
@@ -28,6 +29,8 @@ export interface BetterAuthDatabaseProviderDefinition {
 
 declare module '@nuxt/schema' {
   interface NuxtHooks {
+    'devtools:customTabs': (tabs: ModuleCustomTab[]) => void
+
     /**
      * Extend better-auth config with additional plugins or options.
      * Called after user's auth.config.ts is loaded.
