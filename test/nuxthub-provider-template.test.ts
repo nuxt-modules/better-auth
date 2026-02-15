@@ -26,4 +26,3 @@ describe('nuxthub provider database template', () => {
     expect(code).toContain(`const dialect = rawDialect === 'postgresql' ? 'pg' : rawDialect`)
   })
 })
-
