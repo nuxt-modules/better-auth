@@ -13,7 +13,7 @@ interface RequireUserSessionOptions {
 
 const appSessionLoadKey = Symbol.for('nuxt-better-auth.appSessionLoad')
 
-type AppSessionContext = {
+interface AppSessionContext {
   appSession?: AppSession | null
   [appSessionLoadKey]?: Promise<AppSession | null>
 }
