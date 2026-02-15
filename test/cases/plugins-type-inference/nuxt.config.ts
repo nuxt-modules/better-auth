@@ -1,8 +1,14 @@
+import { fileURLToPath } from 'node:url'
+
+const serverConfig = fileURLToPath(new URL('./server/auth.config', import.meta.url))
+
 export default defineNuxtConfig({
-  modules: ['../../../src/module'],
+  extends: ['../_base-module'],
   runtimeConfig: {
-    betterAuthSecret: 'test-secret-for-testing-only-32chars!',
     public: { siteUrl: 'http://localhost:3000' },
+  },
+  auth: {
+    serverConfig,
   },
   routeRules: {
     '/admin/**': { auth: { user: { role: 'admin', internalCode: 'x' } } },

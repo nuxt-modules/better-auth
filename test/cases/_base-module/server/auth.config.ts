@@ -1,9 +1,9 @@
 import { defineServerAuth } from '../../../../src/runtime/config'
 
 export default defineServerAuth({
-  appName: 'Database-less Test App',
-  // OAuth only - email/password needs database
+  appName: 'Base Test App',
   socialProviders: {
     github: { clientId: 'test', clientSecret: 'test' },
   },
 })
+

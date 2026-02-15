@@ -1,7 +1,6 @@
 export default defineNuxtConfig({
-  modules: ['../../../src/module'],
+  extends: ['../_base-module'],
   runtimeConfig: {
-    betterAuthSecret: 'test-secret-for-testing-only-32chars!',
     public: {
       siteUrl: 'https://foo.workers.dev',
     },
