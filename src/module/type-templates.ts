@@ -35,6 +35,25 @@ declare module '#auth/database' {
   }, { nitro: true, node: true })
 
   addTypeTemplate({
+    filename: 'types/auth-schema.d.ts',
+    getContents: () => `
+declare module '#auth/schema' {
+  export const user: any
+  export const session: any
+  export const account: any
+  export const verification: any
+  export const schema: {
+    user: any
+    session: any
+    account: any
+    verification: any
+    [key: string]: any
+  } | undefined
+}
+`,
+  }, { nitro: true, node: true })
+
+  addTypeTemplate({
     filename: 'types/nuxt-better-auth-infer.d.ts',
     getContents: () => `
 import type { BetterAuthOptions, BetterAuthPlugin, InferPluginTypes, UnionToIntersection } from 'better-auth'

@@ -3,8 +3,9 @@ import { paginationQuerySchema, sanitizeSearchPattern } from './_schema'
 
 export default defineEventHandler(async (event) => {
   try {
-    const { db, schema } = await import('@nuxthub/db')
-    if (!schema.user)
+    const { db } = await import('@nuxthub/db')
+    const { schema } = await import('#auth/schema')
+    if (!schema?.user)
       return { users: [], total: 0, error: 'User table not found' }
 
     const query = paginationQuerySchema.parse(getQuery(event))

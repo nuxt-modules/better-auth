@@ -6,8 +6,9 @@ type SafeSession = Pick<Session, 'id' | 'userId' | 'createdAt' | 'updatedAt' | '
 
 export default defineEventHandler(async (event) => {
   try {
-    const { db, schema } = await import('@nuxthub/db')
-    if (!schema.session)
+    const { db } = await import('@nuxthub/db')
+    const { schema } = await import('#auth/schema')
+    if (!schema?.session)
       return { sessions: [], total: 0, error: 'Session table not found' }
 
     const query = paginationQuerySchema.parse(getQuery(event))

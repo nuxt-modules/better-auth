@@ -202,6 +202,21 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       })
       nuxt.options.alias['#auth/database'] = databaseTemplate.dst
 
+      const schemaTemplate = addTemplate({
+        filename: 'better-auth/schema.mjs',
+        getContents: () => {
+          if (!hasHubDb)
+            return 'export const schema = undefined\n'
+
+          return `export * from './schema.${hubDialect}.mjs'
+import * as schema from './schema.${hubDialect}.mjs'
+export { schema }
+`
+        },
+        write: true,
+      })
+      nuxt.options.alias['#auth/schema'] = schemaTemplate.dst
+
       registerServerTypeTemplates({
         serverConfigPath,
         hasHubDb,
