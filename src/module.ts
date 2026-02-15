@@ -65,7 +65,7 @@ export default defineClientAuth({})
   }
 }
 
-export type { BetterAuthModuleOptions } from './runtime/config'
+export type { AppSession, AppSessionEnrich, AppSessionEnrichResult, BetterAuthModuleOptions } from './runtime/config'
 
 export default defineNuxtModule<BetterAuthModuleOptions>({
   meta: { name: '@onmax/nuxt-better-auth', version, configKey: 'auth', compatibility: { nuxt: '>=4.0.0' } },
