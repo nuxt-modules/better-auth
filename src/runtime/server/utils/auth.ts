@@ -1,11 +1,9 @@
 import type { Auth, BetterAuthOptions } from 'better-auth'
 import type { H3Event } from 'h3'
-import type { AppSession, AppSessionEnrichResult, ServerAuthConfig } from '../../config'
 import { createDatabase, db } from '#auth/database'
 import { createSecondaryStorage } from '#auth/secondary-storage'
 import createServerAuth from '#auth/server'
 import { betterAuth } from 'better-auth'
-import { customSession } from 'better-auth/plugins/custom-session'
 import { getRequestHost, getRequestProtocol } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime'
 import { withoutProtocol } from 'ufo'
@@ -209,16 +207,6 @@ function getRequestOrigin(request?: Request): string | undefined {
   }
 }
 
-function mergeAppSession(baseSession: AppSession, enrichment: AppSessionEnrichResult | null | void): AppSession {
-  if (!enrichment)
-    return baseSession
-
-  return {
-    user: { ...baseSession.user, ...(enrichment.user || {}) },
-    session: { ...baseSession.session, ...(enrichment.session || {}) },
-  }
-}
-
 function withDevTrustedOrigins(
   trustedOrigins: BetterAuthOptions['trustedOrigins'] | undefined,
   hasExplicitSiteUrl: boolean,
@@ -264,27 +252,11 @@ export function serverAuth(event?: H3Event): AuthInstance {
     return cached
 
   const database = createDatabase()
-  const userConfig = createServerAuth({ runtimeConfig, db }) as ServerAuthConfig
-  const userPlugins = [...(userConfig.plugins || [])]
-  const appSession = userConfig.appSession
-
-  if (appSession?.enrich) {
-    if (userPlugins.some(plugin => plugin.id === 'custom-session')) {
-      throw new Error('[nuxt-better-auth] appSession.enrich cannot be used with a manually configured custom-session plugin')
-    }
-
-    userPlugins.push(customSession(async (session, ctx) => {
-      const enrichment = await appSession.enrich?.(session as AppSession, ctx)
-      return mergeAppSession(session as AppSession, enrichment)
-    }))
-  }
-
-  const { appSession: _appSession, plugins: _plugins, ...baseConfig } = userConfig
-  const trustedOrigins = withDevTrustedOrigins(baseConfig.trustedOrigins, Boolean(hasExplicitSiteUrl))
+  const userConfig = createServerAuth({ runtimeConfig, db })
+  const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins, Boolean(hasExplicitSiteUrl))
 
   const auth = betterAuth({
-    ...baseConfig,
-    plugins: userPlugins,
+    ...userConfig,
     ...(database && { database }),
     secondaryStorage: createSecondaryStorage(),
     secret: runtimeConfig.betterAuthSecret,

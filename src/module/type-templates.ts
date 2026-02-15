@@ -83,12 +83,8 @@ interface _AugmentedServerAuthContext {
 
 declare module '@onmax/nuxt-better-auth/config' {
   import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
-  import type { AuthSession, AuthUser } from '#nuxt-better-auth'
   type ServerAuthConfig = Omit<BetterAuthOptions, 'secret' | 'baseURL'> & {
     plugins?: readonly BetterAuthPlugin[]
-    appSession?: {
-      enrich?: (session: { user: AuthUser, session: AuthSession }, ctx: unknown) => Promise<{ user?: Partial<AuthUser>, session?: Partial<AuthSession> } | null | void> | { user?: Partial<AuthUser>, session?: Partial<AuthSession> } | null | void
-    }
   }
   export function defineServerAuth<const R>(config: (ctx: _AugmentedServerAuthContext) => R & ServerAuthConfig): (ctx: _AugmentedServerAuthContext) => R
   export function defineServerAuth<const R>(config: R & ServerAuthConfig): (ctx: _AugmentedServerAuthContext) => R

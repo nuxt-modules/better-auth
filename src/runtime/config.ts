@@ -1,7 +1,7 @@
 import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import type { BetterAuthClientOptions } from 'better-auth/client'
 import type { CasingOption } from '../schema-generator'
-import type { AuthSession, AuthUser, ServerAuthContext } from './types/augment'
+import type { ServerAuthContext } from './types/augment'
 import { createAuthClient } from 'better-auth/vue'
 
 // Re-export for declaration merging with generated types
@@ -11,23 +11,8 @@ export interface ClientAuthContext {
   siteUrl: string
 }
 
-export interface AppSession {
-  user: AuthUser
-  session: AuthSession
-}
-
-export interface AppSessionEnrichResult {
-  user?: Partial<AuthUser>
-  session?: Partial<AuthSession>
-}
-
-export type AppSessionEnrich = (session: AppSession, ctx: unknown) => Promise<AppSessionEnrichResult | null | void> | AppSessionEnrichResult | null | void
-
 export type ServerAuthConfig = Omit<BetterAuthOptions, 'secret' | 'baseURL'> & {
   plugins?: readonly BetterAuthPlugin[]
-  appSession?: {
-    enrich?: AppSessionEnrich
-  }
 }
 export type ClientAuthConfig = Omit<BetterAuthClientOptions, 'baseURL'> & { baseURL?: string }
 
