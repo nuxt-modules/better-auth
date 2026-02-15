@@ -1,5 +1,8 @@
+import type { Session } from 'better-auth/types'
 import { defineEventHandler, getQuery } from 'h3'
 import { paginationQuerySchema, sanitizeSearchPattern } from './_schema'
+
+type SafeSession = Pick<Session, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'expiresAt' | 'ipAddress' | 'userAgent'>
 
 export default defineEventHandler(async (event) => {
   try {
@@ -34,11 +37,11 @@ export default defineEventHandler(async (event) => {
     ])
 
     // Return only safe fields (allowlist approach for security)
-    const safeSessions = sessions.map((s: any) => ({
+    const safeSessions: SafeSession[] = sessions.map((s: Session) => ({
       id: s.id,
       userId: s.userId,
       createdAt: s.createdAt,
-      updatedAt: (s as Record<string, unknown>).updatedAt,
+      updatedAt: s.updatedAt,
       expiresAt: s.expiresAt,
       ipAddress: s.ipAddress,
       userAgent: s.userAgent,
