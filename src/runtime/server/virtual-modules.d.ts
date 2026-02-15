@@ -16,4 +16,3 @@ declare module '@nuxthub/db' {
   export const db: any
   export const schema: any
 }
-
