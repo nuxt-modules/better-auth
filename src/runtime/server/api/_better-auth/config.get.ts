@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
       preserveRedirect?: boolean
       redirectQueryKey?: string
       useDatabase?: boolean
-      databaseProvider?: 'none' | 'nuxthub' | 'convex'
+      databaseProvider?: 'none' | 'nuxthub'
     } | undefined
     const privateAuth = runtimeConfig.auth as { secondaryStorage?: boolean } | undefined
     const configuredTrustedOrigins = Array.isArray(options.trustedOrigins) ? options.trustedOrigins : []

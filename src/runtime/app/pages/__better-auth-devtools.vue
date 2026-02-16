@@ -412,7 +412,7 @@ function getAccountActions(row: AccountRow) {
                 </div>
                 <div class="config-row">
                   <span class="config-label">DB</span><UBadge :color="configData.config.module?.databaseProvider === 'none' ? 'neutral' : 'success'" variant="subtle" size="sm">
-                    {{ configData.config.module?.databaseProvider === 'nuxthub' ? 'Hub' : configData.config.module?.databaseProvider === 'convex' ? 'Convex' : 'Off' }}
+                    {{ configData.config.module?.databaseProvider === 'nuxthub' ? 'Hub' : 'Off' }}
                   </UBadge>
                 </div>
                 <div class="config-row">

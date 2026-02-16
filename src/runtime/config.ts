@@ -20,7 +20,6 @@ export type ServerAuthConfigFn = (ctx: ServerAuthContext) => ServerAuthConfig
 export type ClientAuthConfigFn = (ctx: ClientAuthContext) => ClientAuthConfig
 export type ModuleDatabaseProviderId = 'none' | 'nuxthub' | (string & {})
 export type EffectiveDatabaseProviderId = 'user' | ModuleDatabaseProviderId
-export type DatabaseSource = 'module' | 'user'
 
 // Module options for nuxt.config.ts
 export interface BetterAuthModuleOptions {
@@ -75,7 +74,6 @@ export interface AuthRuntimeConfig {
   redirectQueryKey: string
   useDatabase: boolean
   databaseProvider: EffectiveDatabaseProviderId
-  databaseSource: DatabaseSource
   clientOnly: boolean
   session: { skipHydratedSsrGetSession: boolean }
 }

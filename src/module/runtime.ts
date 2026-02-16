@@ -45,7 +45,6 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryS
     redirectQueryKey: options.redirectQueryKey ?? 'redirect',
     useDatabase: databaseProvider !== 'none',
     databaseProvider,
-    databaseSource: 'module',
     clientOnly,
     session: {
       skipHydratedSsrGetSession: options.session?.skipHydratedSsrGetSession ?? false,

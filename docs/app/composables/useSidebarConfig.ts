@@ -60,7 +60,7 @@ export function useSidebarConfig() {
         { title: 'NuxtHub', href: '/integrations/nuxthub', icon: 'i-simple-icons-nuxtdotjs' },
         { title: 'DevTools', href: '/integrations/devtools', icon: 'i-solar-tuning-square-bold' },
         { title: 'i18n', href: '/integrations/i18n', icon: 'i-lucide-languages' },
-        { title: 'Convex', href: '/integrations/convex', icon: 'i-custom-convex' },
+        { title: 'Convex (Status)', href: '/integrations/convex', icon: 'i-custom-convex' },
       ],
     },
     {
