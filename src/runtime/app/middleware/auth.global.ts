@@ -53,14 +53,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   if (mode === 'guest') {
     if (loggedIn.value)
-      return navigateTo(redirectTo ?? config?.redirects?.guest ?? '/')
+      return navigateTo(redirectTo ?? '/')
     return
   }
 
   if (!loggedIn.value) {
     const resolved = resolveLoginRedirect({
       route: to,
-      loginTarget: redirectTo ?? config?.redirects?.login ?? '/login',
+      loginTarget: redirectTo ?? '/login',
       config,
     })
     return resolved.external ? navigateTo(resolved.to, { external: true }) : navigateTo(resolved.to)

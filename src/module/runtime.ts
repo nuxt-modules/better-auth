@@ -40,7 +40,6 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryS
     nuxt.options.runtimeConfig.public.siteUrl = process.env.NUXT_PUBLIC_SITE_URL
 
   nuxt.options.runtimeConfig.public.auth = defu(nuxt.options.runtimeConfig.public.auth as Record<string, unknown>, {
-    redirects: { login: options.redirects?.login ?? '/login', guest: options.redirects?.guest ?? '/' },
     preserveRedirect: options.preserveRedirect ?? true,
     redirectQueryKey: options.redirectQueryKey ?? 'redirect',
     useDatabase: databaseProvider !== 'none',

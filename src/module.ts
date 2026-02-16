@@ -73,7 +73,6 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     clientOnly: false,
     serverConfig: 'server/auth.config',
     clientConfig: 'app/auth.config',
-    redirects: { login: '/login', guest: '/' },
     preserveRedirect: true,
     redirectQueryKey: 'redirect',
     secondaryStorage: false,
@@ -89,6 +88,27 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     const resolver = createResolver(import.meta.url)
 
     resolveDefaultClientConfig(options, nuxt.options.rootDir, nuxt.options.srcDir)
+    const deprecatedRedirects = (options as BetterAuthModuleOptions & { redirects?: unknown }).redirects
+    const configuredRedirects = (nuxt.options as unknown as { auth?: { redirects?: unknown } }).auth?.redirects
+    const hasRedirectsInLayers = nuxt.options._layers.some((layer) => {
+      const layerAuth = (layer.config as { auth?: { redirects?: unknown } }).auth
+      return layerAuth?.redirects !== undefined
+    })
+
+    if (deprecatedRedirects !== undefined || configuredRedirects !== undefined || hasRedirectsInLayers) {
+      throw new Error(
+        `[nuxt-better-auth] \`auth.redirects\` has been removed. Use \`routeRules.auth.redirectTo\` (or page meta \`auth.redirectTo\`) for redirect targets.
+
+Before:
+auth: { redirects: { login: '/login', guest: '/app' } }
+
+After:
+routeRules: {
+  '/app/**': { auth: { only: 'user', redirectTo: '/login' } },
+  '/login': { auth: { only: 'guest', redirectTo: '/app' } }
+}`,
+      )
+    }
 
     const clientOnly = options.clientOnly!
     const serverConfigFile = options.serverConfig!

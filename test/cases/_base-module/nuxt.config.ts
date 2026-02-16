@@ -14,6 +14,5 @@ export default defineNuxtConfig({
     // Absolute paths are required because the module validates existence relative to rootDir.
     serverConfig,
     clientConfig,
-    redirects: { login: '/login', guest: '/' },
   },
 })

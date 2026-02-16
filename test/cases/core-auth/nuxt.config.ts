@@ -8,13 +8,6 @@ export default defineNuxtConfig({
     public: { siteUrl: 'http://localhost:3000' },
   },
 
-  auth: {
-    redirects: {
-      login: '/login',
-      guest: '/',
-    },
-  },
-
   routeRules: {
     '/protected': { auth: 'user' },
     '/admin': { auth: { user: { role: 'admin' } } },

@@ -405,12 +405,6 @@ function getAccountActions(row: AccountRow) {
                   <UIcon name="i-lucide-settings-2" class="size-4" /><span>Module</span>
                 </div>
                 <div class="config-row">
-                  <span class="config-label">Login</span><span class="font-mono">{{ configData.config.module?.redirects?.login }}</span>
-                </div>
-                <div class="config-row">
-                  <span class="config-label">Guest</span><span class="font-mono">{{ configData.config.module?.redirects?.guest }}</span>
-                </div>
-                <div class="config-row">
                   <span class="config-label">DB</span><UBadge :color="configData.config.module?.databaseProvider === 'none' ? 'neutral' : 'success'" variant="subtle" size="sm">
                     {{ configData.config.module?.databaseProvider === 'nuxthub' ? 'Hub' : 'Off' }}
                   </UBadge>

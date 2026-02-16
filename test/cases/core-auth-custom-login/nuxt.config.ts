@@ -4,9 +4,9 @@ export default defineNuxtConfig({
   auth: {
     serverConfig: '../core-auth/server/auth.config',
     clientConfig: '../core-auth/app/auth.config',
-    redirects: {
-      login: '/custom-login',
-      guest: '/',
-    },
+  },
+
+  routeRules: {
+    '/protected': { auth: { only: 'user', redirectTo: '/custom-login' } },
   },
 })
