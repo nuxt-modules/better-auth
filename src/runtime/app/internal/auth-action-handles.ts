@@ -1,5 +1,5 @@
-import type { AuthActionError, AuthActionResult } from '../../types'
 import type { ComputedRef, Ref } from 'vue'
+import type { AuthActionError, AuthActionResult } from '../../types'
 import { computed, ref } from '#imports'
 import { normalizeAuthActionError } from './auth-action-error'
 
