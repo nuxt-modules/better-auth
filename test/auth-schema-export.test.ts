@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 describe('#auth/schema export', async () => {
   await setup({
-    rootDir: fileURLToPath(new URL('./cases/schema-export', import.meta.url)),
+    rootDir: fileURLToPath(new URL('./cases/auth-schema-export', import.meta.url)),
   })
 
   it('exports stable auth tables (user + verification)', async () => {

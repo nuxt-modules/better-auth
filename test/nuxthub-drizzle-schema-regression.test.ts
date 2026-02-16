@@ -2,9 +2,9 @@ import { fileURLToPath } from 'node:url'
 import { setup, url } from '@nuxt/test-utils/e2e'
 import { describe, expect, it } from 'vitest'
 
-describe('nuxthub otp schema', async () => {
+describe('nuxthub drizzle schema regression', async () => {
   await setup({
-    rootDir: fileURLToPath(new URL('./cases/nuxthub-otp-workaround', import.meta.url)),
+    rootDir: fileURLToPath(new URL('./cases/nuxthub-drizzle-schema-regression', import.meta.url)),
   })
 
   it('send-verification-otp succeeds (verification table present)', async () => {
