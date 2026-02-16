@@ -43,8 +43,7 @@ describe('useUserSignIn', () => {
     }
 
     const useUserSignIn = await loadUseUserSignIn()
-    const signIn = useUserSignIn()
-    const signInEmail = signIn.email
+    const signInEmail = useUserSignIn('email')
 
     const p = signInEmail.execute({} as any)
     expect(signInEmail.status.value).toBe('pending')
@@ -75,7 +74,7 @@ describe('useUserSignIn', () => {
     }
 
     const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn().email
+    const signInEmail = useUserSignIn('email')
 
     const p1 = signInEmail.execute({} as any)
     d1.resolve({ ok: true })
@@ -102,7 +101,7 @@ describe('useUserSignIn', () => {
     }
 
     const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn().email
+    const signInEmail = useUserSignIn('email')
 
     await expect(signInEmail.execute({} as any)).resolves.toBeUndefined()
     expect(signInEmail.status.value).toBe('error')
@@ -121,7 +120,7 @@ describe('useUserSignIn', () => {
     }
 
     const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn().email
+    const signInEmail = useUserSignIn('email')
 
     await expect(signInEmail.execute({} as any)).resolves.toBeUndefined()
     expect(signInEmail.status.value).toBe('error')
@@ -149,7 +148,7 @@ describe('useUserSignIn', () => {
     }
 
     const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn().email
+    const signInEmail = useUserSignIn('email')
 
     const p1 = signInEmail.execute({} as any)
     const p2 = signInEmail.execute({} as any)
@@ -177,7 +176,7 @@ describe('useUserSignIn', () => {
     }
 
     const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn().email
+    const signInEmail = useUserSignIn('email')
 
     expect(signInEmail.status.value).toBe('idle')
     await expect(signInEmail.execute({} as any)).resolves.toBeUndefined()
@@ -186,5 +185,46 @@ describe('useUserSignIn', () => {
     expect(signInEmail.error.value).toMatchObject({
       message: 'server access',
     })
+  })
+
+  it('returns a keyed action handle with the expected shape', async () => {
+    sessionMock = {
+      signIn: {
+        email: vi.fn(async () => ({ ok: true })),
+      },
+    }
+
+    const useUserSignIn = await loadUseUserSignIn()
+    const signInEmail = useUserSignIn('email')
+
+    expect(typeof signInEmail.execute).toBe('function')
+    expect(signInEmail.status.value).toBe('idle')
+    expect(signInEmail.pending.value).toBe(false)
+    expect(signInEmail.data.value).toBeNull()
+    expect(signInEmail.error.value).toBeNull()
+    expect(signInEmail.errorMessage.value).toBeNull()
+  })
+
+  it('throws when method key is missing', async () => {
+    sessionMock = { signIn: {} }
+    const useUserSignIn = await loadUseUserSignIn()
+    expect(() => useUserSignIn(undefined as any)).toThrowError(TypeError)
+    expect(() => useUserSignIn(undefined as any)).toThrow('requires a sign-in method key')
+  })
+
+  it('sets error state for invalid method key', async () => {
+    sessionMock = {
+      signIn: {
+        email: vi.fn(async () => ({ ok: true })),
+      },
+    }
+
+    const useUserSignIn = await loadUseUserSignIn()
+    const invalid = useUserSignIn('invalid' as any)
+
+    await expect(invalid.execute({} as any)).resolves.toBeUndefined()
+    expect(invalid.status.value).toBe('error')
+    expect(invalid.error.value?.raw).toBeInstanceOf(TypeError)
+    expect(invalid.errorMessage.value).toBe('signIn.invalid() is not a function')
   })
 })
