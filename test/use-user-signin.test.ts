@@ -56,6 +56,7 @@ describe('useUserSignIn', () => {
     expect(signInEmail.status.value).toBe('success')
     expect(signInEmail.pending.value).toBe(false)
     expect(signInEmail.error.value).toBeNull()
+    expect(signInEmail.errorMessage.value).toBeNull()
   })
 
   it('sets error and rethrows when the method throws', async () => {
@@ -72,22 +73,92 @@ describe('useUserSignIn', () => {
 
     await expect(signInEmail.execute({} as any)).rejects.toThrow('boom')
     expect(signInEmail.status.value).toBe('error')
-    expect((signInEmail.error.value as Error).message).toBe('boom')
+    expect(signInEmail.error.value).toMatchObject({ message: 'boom' })
+    expect((signInEmail.error.value as any).raw).toBeInstanceOf(Error)
+    expect(signInEmail.errorMessage.value).toBe('boom')
   })
 
   it('sets error status for { error } responses without throwing', async () => {
     sessionMock = {
       signIn: {
-        email: vi.fn(async () => ({ error: 'invalid credentials' })),
+        email: vi.fn(async () => ({ error: { message: 'invalid credentials', code: 'INVALID_EMAIL_OR_PASSWORD', statusCode: 401 } })),
       },
     }
 
     const useUserSignIn = await loadUseUserSignIn()
     const signInEmail = useUserSignIn().email
 
-    await expect(signInEmail.execute({} as any)).resolves.toEqual({ error: 'invalid credentials' })
+    await expect(signInEmail.execute({} as any)).resolves.toEqual({ error: { message: 'invalid credentials', code: 'INVALID_EMAIL_OR_PASSWORD', statusCode: 401 } })
     expect(signInEmail.status.value).toBe('error')
-    expect(signInEmail.error.value).toBe('invalid credentials')
+    expect(signInEmail.error.value).toMatchObject({
+      message: 'invalid credentials',
+      code: 'INVALID_EMAIL_OR_PASSWORD',
+      status: 401,
+    })
+    expect(signInEmail.errorMessage.value).toBe('invalid credentials')
+  })
+
+  it('executeSafe returns ok=true on success', async () => {
+    sessionMock = {
+      signIn: {
+        email: vi.fn(async () => ({ ok: true })),
+      },
+    }
+
+    const useUserSignIn = await loadUseUserSignIn()
+    const signInEmail = useUserSignIn().email
+
+    await expect(signInEmail.executeSafe({} as any)).resolves.toEqual({ ok: true, data: { ok: true } })
+    expect(signInEmail.status.value).toBe('success')
+    expect(signInEmail.error.value).toBeNull()
+    expect(signInEmail.errorMessage.value).toBeNull()
+  })
+
+  it('executeSafe returns ok=false for thrown errors', async () => {
+    sessionMock = {
+      signIn: {
+        email: vi.fn(() => {
+          throw new Error('boom-safe')
+        }),
+      },
+    }
+
+    const useUserSignIn = await loadUseUserSignIn()
+    const signInEmail = useUserSignIn().email
+
+    const result = await signInEmail.executeSafe({} as any)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.message).toBe('boom-safe')
+      expect(result.error.raw).toBeInstanceOf(Error)
+    }
+    expect(signInEmail.status.value).toBe('error')
+    expect(signInEmail.errorMessage.value).toBe('boom-safe')
+  })
+
+  it('executeSafe returns ok=false for { error } responses', async () => {
+    const apiError = { message: 'invalid credentials', code: 'INVALID_EMAIL_OR_PASSWORD', statusCode: 401 }
+    sessionMock = {
+      signIn: {
+        email: vi.fn(async () => ({ error: apiError })),
+      },
+    }
+
+    const useUserSignIn = await loadUseUserSignIn()
+    const signInEmail = useUserSignIn().email
+
+    const result = await signInEmail.executeSafe({} as any)
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        message: 'invalid credentials',
+        code: 'INVALID_EMAIL_OR_PASSWORD',
+        status: 401,
+        raw: apiError,
+      },
+    })
+    expect(signInEmail.status.value).toBe('error')
+    expect(signInEmail.errorMessage.value).toBe('invalid credentials')
   })
 
   it('is race-safe (only latest call updates state)', async () => {

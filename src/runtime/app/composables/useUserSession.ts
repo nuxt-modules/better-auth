@@ -2,6 +2,7 @@ import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { ComputedRef, Ref } from 'vue'
 import createAppAuthClient from '#auth/client'
 import { computed, nextTick, useNuxtApp, useRequestHeaders, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
+import { normalizeAuthActionError } from '../internal/auth-action-error'
 
 export interface SignOutOptions { onSuccess?: () => void | Promise<void> }
 interface RuntimeFlags { client: boolean, server: boolean }
@@ -123,17 +124,18 @@ export function useUserSession(): UseUserSessionReturn {
       const clientWithUpdateUser = client as AppAuthClient & { updateUser: (updates: Partial<AuthUser>) => Promise<UpdateUserResponse> }
       const result = await clientWithUpdateUser.updateUser(updates)
       if (result?.error) {
-        if (typeof result.error === 'string')
-          throw new Error(result.error)
         if (result.error instanceof Error)
           throw result.error
-        if (typeof result.error === 'object' && result.error && 'message' in result.error && typeof result.error.message === 'string')
-          throw new Error(result.error.message)
-        throw new Error('Failed to update user')
+        const normalizedError = normalizeAuthActionError(result.error)
+        throw new Error(normalizedError.message)
       }
     }
     catch (error) {
       user.value = previousUser
+      if (!(error instanceof Error)) {
+        const normalizedError = normalizeAuthActionError(error)
+        throw new Error(normalizedError.message)
+      }
       throw error
     }
   }

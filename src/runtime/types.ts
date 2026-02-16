@@ -7,6 +7,15 @@ export type { AppSession, AuthSession, AuthUser, RequireSessionOptions, ServerAu
 // Re-export better-auth types for $Infer access
 export type { Auth, InferPluginTypes, InferSessionFromClient as InferSession, InferUserFromClient as InferUser } from 'better-auth'
 
+export interface AuthActionError {
+  message: string
+  code?: string
+  status?: number
+  raw: unknown
+}
+
+export type AuthActionResult<T> = { ok: true, data: T } | { ok: false, error: AuthActionError }
+
 export type AuthMode = 'guest' | 'user'
 
 // Route auth meta
