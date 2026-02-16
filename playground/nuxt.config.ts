@@ -41,13 +41,6 @@ export default defineNuxtConfig({
     },
   },
 
-  auth: {
-    redirects: {
-      login: '/login',
-      guest: '/',
-    },
-  },
-
   routeRules: {
     '/app/**': { auth: 'user' },
     '/admin/**': { auth: { user: { role: 'admin' } } },

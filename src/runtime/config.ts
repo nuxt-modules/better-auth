@@ -29,10 +29,6 @@ export interface BetterAuthModuleOptions {
   serverConfig?: string
   /** Client config path relative to rootDir. Default: 'app/auth.config' */
   clientConfig?: string
-  redirects?: {
-    login?: string // default: '/login'
-    guest?: string // default: '/'
-  }
   /**
    * When redirecting unauthenticated users to the login route, append a query param
    * containing the originally requested path (for safe "return-to" redirects).
@@ -69,7 +65,6 @@ export interface BetterAuthModuleOptions {
 
 // Runtime config type for public.auth
 export interface AuthRuntimeConfig {
-  redirects: { login: string, guest: string }
   preserveRedirect: boolean
   redirectQueryKey: string
   useDatabase: boolean

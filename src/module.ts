@@ -73,7 +73,6 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     clientOnly: false,
     serverConfig: 'server/auth.config',
     clientConfig: 'app/auth.config',
-    redirects: { login: '/login', guest: '/' },
     preserveRedirect: true,
     redirectQueryKey: 'redirect',
     secondaryStorage: false,
@@ -89,7 +88,6 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     const resolver = createResolver(import.meta.url)
 
     resolveDefaultClientConfig(options, nuxt.options.rootDir, nuxt.options.srcDir)
-
     const clientOnly = options.clientOnly!
     const serverConfigFile = options.serverConfig!
     const clientConfigFile = options.clientConfig!
