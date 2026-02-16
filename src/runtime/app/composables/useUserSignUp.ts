@@ -5,10 +5,10 @@ import { createActionHandles } from '../internal/auth-action-handles'
 
 type SignUp = NonNullable<AppAuthClient>['signUp']
 
-export function useUserSignUp<TMethod extends keyof SignUp>(method: TMethod): ActionHandleFor<SignUp[TMethod]> {
+export function useUserSignUp<MethodKey extends keyof SignUp>(method: MethodKey): ActionHandleFor<SignUp[MethodKey]> {
   if (method === undefined || method === null)
     throw new TypeError('useUserSignUp(method) requires a sign-up method key')
 
   const handles = createActionHandles(() => useUserSession().signUp, 'signUp') as ActionHandleMap<SignUp>
-  return handles[method] as ActionHandleFor<SignUp[TMethod]>
+  return handles[method] as ActionHandleFor<SignUp[MethodKey]>
 }
