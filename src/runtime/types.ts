@@ -14,8 +14,6 @@ export interface AuthActionError {
   raw: unknown
 }
 
-export type AuthActionResult<T> = { ok: true, data: T } | { ok: false, error: AuthActionError }
-
 export type AuthMode = 'guest' | 'user'
 
 // Route auth meta
