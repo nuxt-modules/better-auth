@@ -57,6 +57,7 @@ export async function setupBetterAuthSchema(
   serverConfigPath: string,
   options: BetterAuthModuleOptions,
   consola: ConsolaInstance,
+  secondaryStorageEnabled: boolean,
 ): Promise<void> {
   const hub = (nuxt.options as { hub?: NuxtHubOptions }).hub
   const dialect = getHubDialect(hub)
@@ -72,7 +73,7 @@ export async function setupBetterAuthSchema(
     const authOptions = {
       ...userConfig,
       plugins,
-      secondaryStorage: options.secondaryStorage
+      secondaryStorage: secondaryStorageEnabled
         ? { get: async (_key: string) => null, set: async (_key: string, _value: string, _ttl?: number) => {}, delete: async (_key: string) => {} }
         : undefined,
     }

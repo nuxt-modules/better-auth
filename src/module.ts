@@ -222,7 +222,7 @@ export { schema }
       })
 
       if (hasHubDb)
-        await setupBetterAuthSchema(nuxt, serverConfigPath, options, consola)
+        await setupBetterAuthSchema(nuxt, serverConfigPath, options, consola, secondaryStorageEnabled)
     }
 
     registerSharedTypeTemplates({

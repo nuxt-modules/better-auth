@@ -73,7 +73,7 @@ auth: {
 }
 ```
 
-Requires `hub.kv: true` in config. Improves session lookup performance.
+Requires `hub.kv: true` in config. Build fails if KV is not enabled. Improves session lookup performance.
 
 ## Server Config with DB
 

@@ -77,3 +77,67 @@ describe('setupRuntimeConfig siteUrl hydration', () => {
     expect(consola.warn).toHaveBeenCalledWith('clientOnly mode: set runtimeConfig.public.siteUrl (or NUXT_PUBLIC_SITE_URL) to your frontend URL')
   })
 })
+
+describe('setupRuntimeConfig secondaryStorage validation', () => {
+  it('throws when secondaryStorage enabled in clientOnly mode', () => {
+    const nuxt = createNuxtWithRuntimeConfig()
+    const consola = createConsolaMock()
+
+    expect(() => setupRuntimeConfig({
+      nuxt,
+      options: { secondaryStorage: true },
+      clientOnly: true,
+      databaseProvider: 'none',
+      hasNuxtHub: true,
+      hub: { kv: true },
+      consola,
+    })).toThrow('secondaryStorage is not available in clientOnly mode')
+  })
+
+  it('throws when secondaryStorage enabled without NuxtHub', () => {
+    const nuxt = createNuxtWithRuntimeConfig()
+    const consola = createConsolaMock()
+
+    expect(() => setupRuntimeConfig({
+      nuxt,
+      options: { secondaryStorage: true },
+      clientOnly: false,
+      databaseProvider: 'nuxthub',
+      hasNuxtHub: false,
+      consola,
+    })).toThrow('secondaryStorage requires @nuxthub/core with hub.kv: true')
+  })
+
+  it('throws when secondaryStorage enabled without hub.kv', () => {
+    const nuxt = createNuxtWithRuntimeConfig()
+    const consola = createConsolaMock()
+
+    expect(() => setupRuntimeConfig({
+      nuxt,
+      options: { secondaryStorage: true },
+      clientOnly: false,
+      databaseProvider: 'nuxthub',
+      hasNuxtHub: true,
+      hub: { kv: false },
+      consola,
+    })).toThrow('secondaryStorage requires @nuxthub/core with hub.kv: true')
+  })
+
+  it('returns secondaryStorageEnabled true when properly configured', () => {
+    const nuxt = createNuxtWithRuntimeConfig()
+    ;(nuxt.options as any).runtimeConfig.betterAuthSecret = 'a]3kf9$mP!xR7vL2nQ8wE5tY0uI4oH6j'
+    const consola = createConsolaMock()
+
+    const { secondaryStorageEnabled } = setupRuntimeConfig({
+      nuxt,
+      options: { secondaryStorage: true },
+      clientOnly: false,
+      databaseProvider: 'nuxthub',
+      hasNuxtHub: true,
+      hub: { kv: true },
+      consola,
+    })
+
+    expect(secondaryStorageEnabled).toBe(true)
+  })
+})

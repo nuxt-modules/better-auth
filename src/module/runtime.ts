@@ -19,12 +19,10 @@ function resolveSecondaryStorageEnabled(input: SetupRuntimeConfigInput): boolean
 
   let secondaryStorageEnabled = options.secondaryStorage ?? false
   if (secondaryStorageEnabled && clientOnly) {
-    consola.warn('secondaryStorage is not available in clientOnly mode. Disabling.')
-    secondaryStorageEnabled = false
+    throw new Error('[nuxt-better-auth] secondaryStorage is not available in clientOnly mode. Either disable clientOnly or remove auth.secondaryStorage.')
   }
   else if (secondaryStorageEnabled && (!hasNuxtHub || !hub?.kv)) {
-    consola.warn('secondaryStorage requires @nuxthub/core with hub.kv: true. Disabling.')
-    secondaryStorageEnabled = false
+    throw new Error('[nuxt-better-auth] secondaryStorage requires @nuxthub/core with hub.kv: true. Either add hub.kv: true to your nuxt.config or remove auth.secondaryStorage.')
   }
 
   return secondaryStorageEnabled
