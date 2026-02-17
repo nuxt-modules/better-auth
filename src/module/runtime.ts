@@ -15,9 +15,9 @@ interface SetupRuntimeConfigInput {
 }
 
 function resolveSecondaryStorageEnabled(input: SetupRuntimeConfigInput): boolean {
-  const { options, clientOnly, hasNuxtHub, hub, consola } = input
+  const { options, clientOnly, hasNuxtHub, hub } = input
 
-  let secondaryStorageEnabled = options.secondaryStorage ?? false
+  const secondaryStorageEnabled = options.secondaryStorage ?? false
   if (secondaryStorageEnabled && clientOnly) {
     throw new Error('[nuxt-better-auth] secondaryStorage is not available in clientOnly mode. Either disable clientOnly or remove auth.secondaryStorage.')
   }
