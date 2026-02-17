@@ -43,13 +43,14 @@ describe('useUserSignUp', () => {
 
     const useUserSignUp = await loadUseUserSignUp()
     const signUpEmail = useUserSignUp('email')
+    const isPending = () => signUpEmail.status.value === 'pending'
 
     expect(typeof signUpEmail.execute).toBe('function')
     expect(signUpEmail.status.value).toBe('idle')
-    expect(signUpEmail.pending.value).toBe(false)
+    expect(isPending()).toBe(false)
     expect(signUpEmail.data.value).toBeNull()
     expect(signUpEmail.error.value).toBeNull()
-    expect(signUpEmail.errorMessage.value).toBeNull()
+    expect(signUpEmail.error.value?.message).toBeUndefined()
   })
 
   it('sets success state, data and clears error on success', async () => {
@@ -62,20 +63,21 @@ describe('useUserSignUp', () => {
 
     const useUserSignUp = await loadUseUserSignUp()
     const signUpEmail = useUserSignUp('email')
+    const isPending = () => signUpEmail.status.value === 'pending'
 
     const p = signUpEmail.execute({} as any)
     expect(signUpEmail.status.value).toBe('pending')
-    expect(signUpEmail.pending.value).toBe(true)
+    expect(isPending()).toBe(true)
     expect(signUpEmail.data.value).toBeNull()
 
     d.resolve({ ok: true })
     await expect(p).resolves.toBeUndefined()
 
     expect(signUpEmail.status.value).toBe('success')
-    expect(signUpEmail.pending.value).toBe(false)
+    expect(isPending()).toBe(false)
     expect(signUpEmail.data.value).toEqual({ ok: true })
     expect(signUpEmail.error.value).toBeNull()
-    expect(signUpEmail.errorMessage.value).toBeNull()
+    expect(signUpEmail.error.value?.message).toBeUndefined()
   })
 
   it('does not throw and sets error state for thrown method errors', async () => {
@@ -95,7 +97,7 @@ describe('useUserSignUp', () => {
     expect(signUpEmail.data.value).toBeNull()
     expect(signUpEmail.error.value).toMatchObject({ message: 'boom' })
     expect(signUpEmail.error.value!.raw).toBeInstanceOf(Error)
-    expect(signUpEmail.errorMessage.value).toBe('boom')
+    expect(signUpEmail.error.value?.message).toBe('boom')
   })
 
   it('throws when method key is missing', async () => {

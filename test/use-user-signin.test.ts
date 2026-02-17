@@ -55,7 +55,7 @@ describe('useUserSignIn', () => {
     expect(signInEmail.status.value).toBe('success')
     expect(signInEmail.data.value).toEqual({ ok: true })
     expect(signInEmail.error.value).toBeNull()
-    expect(signInEmail.errorMessage.value).toBeNull()
+    expect(signInEmail.error.value?.message).toBeUndefined()
   })
 
   it('clears previous data when a new execute starts', async () => {
@@ -106,7 +106,7 @@ describe('useUserSignIn', () => {
     expect(signInEmail.data.value).toBeNull()
     expect(signInEmail.error.value).toMatchObject({ message: 'boom' })
     expect(signInEmail.error.value!.raw).toBeInstanceOf(Error)
-    expect(signInEmail.errorMessage.value).toBe('boom')
+    expect(signInEmail.error.value?.message).toBe('boom')
   })
 
   it('does not throw and sets error state for { error } responses', async () => {
@@ -128,7 +128,7 @@ describe('useUserSignIn', () => {
       code: 'INVALID_EMAIL_OR_PASSWORD',
       status: 401,
     })
-    expect(signInEmail.errorMessage.value).toBe('invalid credentials')
+    expect(signInEmail.error.value?.message).toBe('invalid credentials')
   })
 
   it('is race-safe (only latest call updates state)', async () => {
@@ -194,13 +194,14 @@ describe('useUserSignIn', () => {
 
     const useUserSignIn = await loadUseUserSignIn()
     const signInEmail = useUserSignIn('email')
+    const isPending = () => signInEmail.status.value === 'pending'
 
     expect(typeof signInEmail.execute).toBe('function')
     expect(signInEmail.status.value).toBe('idle')
-    expect(signInEmail.pending.value).toBe(false)
+    expect(isPending()).toBe(false)
     expect(signInEmail.data.value).toBeNull()
     expect(signInEmail.error.value).toBeNull()
-    expect(signInEmail.errorMessage.value).toBeNull()
+    expect(signInEmail.error.value?.message).toBeUndefined()
   })
 
   it('throws when method key is missing', async () => {
@@ -223,6 +224,6 @@ describe('useUserSignIn', () => {
     await expect(invalid.execute({} as any)).resolves.toBeUndefined()
     expect(invalid.status.value).toBe('error')
     expect(invalid.error.value?.raw).toBeInstanceOf(TypeError)
-    expect(invalid.errorMessage.value).toBe('signIn.invalid() is not a function')
+    expect(invalid.error.value?.message).toBe('signIn.invalid() is not a function')
   })
 })
