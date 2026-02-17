@@ -1,10 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
-const signIn = useUserSignIn()
-const signInEmail = signIn.email
-const signInSocial = signIn.social
-const signInPasskey = signIn.passkey
+const signInEmail = useUserSignIn('email')
+const signInSocial = useUserSignIn('social')
+const signInPasskey = useUserSignIn('passkey')
 
 const { t } = useI18n()
 const toast = useToast()
