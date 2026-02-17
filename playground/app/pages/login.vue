@@ -81,17 +81,17 @@ async function handlePasskeySignIn() {
 
       <UCheckbox id="remember" v-model="rememberMe" :label="t('login.rememberMe')" />
 
-      <UButton block :loading="signInEmail.pending" @click="handleSignIn">
+      <UButton block :loading="signInEmail.status.value === 'pending'" @click="handleSignIn">
         {{ t('common.login') }}
       </UButton>
 
       <div class="w-full gap-2 flex items-center justify-between flex-col">
-        <UButton variant="outline" block :loading="signInSocial.pending" @click="handleSocialSignIn('github')">
+        <UButton variant="outline" block :loading="signInSocial.status.value === 'pending'" @click="handleSocialSignIn('github')">
           <UIcon name="i-simple-icons-github" />
           <span>Sign in with GitHub</span>
         </UButton>
 
-        <UButton variant="outline" block :loading="signInPasskey.pending" @click="handlePasskeySignIn">
+        <UButton variant="outline" block :loading="signInPasskey.status.value === 'pending'" @click="handlePasskeySignIn">
           <UIcon name="i-lucide-key-round" />
           <span>Sign in with Passkey</span>
         </UButton>

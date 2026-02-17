@@ -1,4 +1,4 @@
-import type { ComputedRef, Ref } from 'vue'
+import type { Ref } from 'vue'
 import type { AuthActionError } from '../../types'
 import { computed, ref } from '#imports'
 import { normalizeAuthActionError } from './auth-action-error'
@@ -8,7 +8,6 @@ export type UserAuthActionStatus = 'idle' | 'pending' | 'success' | 'error'
 export interface UserAuthActionHandle<TArgs extends unknown[], TResult> {
   execute: (...args: TArgs) => Promise<void>
   status: Ref<UserAuthActionStatus>
-  pending: ComputedRef<boolean>
   data: Ref<TResult | null>
   error: Ref<AuthActionError | null>
   errorMessage: ComputedRef<string | null>
@@ -40,7 +39,6 @@ function createActionHandle<TArgs extends unknown[], TResult>(
   const status = ref<UserAuthActionStatus>('idle')
   const data = ref<TResult | null>(null)
   const error = ref<AuthActionError | null>(null)
-  const pending = computed(() => status.value === 'pending')
   const errorMessage = computed(() => error.value?.message ?? null)
 
   let latestCallId = 0
@@ -86,7 +84,6 @@ function createActionHandle<TArgs extends unknown[], TResult>(
   return {
     execute,
     status,
-    pending,
     data,
     error,
     errorMessage,

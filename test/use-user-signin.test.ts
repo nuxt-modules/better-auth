@@ -48,14 +48,12 @@ describe('useUserSignIn', () => {
 
     const p = signInEmail.execute({} as any)
     expect(signInEmail.status.value).toBe('pending')
-    expect(signInEmail.pending.value).toBe(true)
     expect(signInEmail.data.value).toBeNull()
 
     d.resolve({ ok: true })
     await expect(p).resolves.toBeUndefined()
 
     expect(signInEmail.status.value).toBe('success')
-    expect(signInEmail.pending.value).toBe(false)
     expect(signInEmail.data.value).toEqual({ ok: true })
     expect(signInEmail.error.value).toBeNull()
     expect(signInEmail.errorMessage.value).toBeNull()
