@@ -79,7 +79,8 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     secondaryStorage: false,
   },
   async onInstall(nuxt) {
-    const generatedSecret = await promptForSecret(nuxt.options.rootDir, consola)
+    const configuredSecret = nuxt.options.runtimeConfig?.betterAuthSecret as string | undefined
+    const generatedSecret = await promptForSecret(nuxt.options.rootDir, consola, { configuredSecret, prepare: Boolean(nuxt.options._prepare) })
     if (generatedSecret)
       process.env.BETTER_AUTH_SECRET = generatedSecret
 

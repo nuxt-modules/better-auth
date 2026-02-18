@@ -25,15 +25,30 @@ function appendSecretToEnv(rootDir: string, secret: string): void {
   writeFileSync(envPath, content, 'utf-8')
 }
 
-export async function promptForSecret(rootDir: string, consola: ConsolaInstance): Promise<string | undefined> {
+export interface PromptForSecretOptions {
+  configuredSecret?: string
+  prepare?: boolean
+}
+
+export async function promptForSecret(rootDir: string, consola: ConsolaInstance, options: PromptForSecretOptions = {}): Promise<string | undefined> {
+  const configuredSecret = options.configuredSecret?.trim()
+  if (configuredSecret)
+    return undefined
+
   if (process.env.BETTER_AUTH_SECRET || hasEnvSecret(rootDir))
     return undefined
 
   if (isCI || isTest) {
     const secret = generateSecret()
     appendSecretToEnv(rootDir, secret)
-    consola.info('Generated BETTER_AUTH_SECRET and added to .env (CI mode)')
+    consola.info('Generated BETTER_AUTH_SECRET and added to .env (CI/test mode)')
     return secret
+  }
+
+  const hasTty = Boolean(process.stdin.isTTY && process.stdout.isTTY)
+  if (options.prepare || !hasTty) {
+    consola.warn('[nuxt-better-auth] Skipping BETTER_AUTH_SECRET prompt (non-interactive). Set BETTER_AUTH_SECRET or NUXT_BETTER_AUTH_SECRET.')
+    return undefined
   }
 
   consola.box('BETTER_AUTH_SECRET is required for authentication.\nThis will be appended to your .env file.')
