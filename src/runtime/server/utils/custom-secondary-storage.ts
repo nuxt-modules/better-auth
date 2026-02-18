@@ -14,4 +14,3 @@ export function resolveCustomSecondaryStorageRequirement(
   const message = '[nuxt-better-auth] hubSecondaryStorage: "custom" requires secondaryStorage in defineServerAuth().'
   return { shouldThrow: !isDev, shouldWarn: isDev, message }
 }
-

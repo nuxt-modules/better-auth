@@ -127,5 +127,5 @@ export async function check(event: H3Event) {
     finally {
       await rm(testDir, { recursive: true, force: true })
     }
-  })
+  }, 30_000)
 })

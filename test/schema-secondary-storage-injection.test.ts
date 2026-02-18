@@ -29,4 +29,3 @@ describe('resolveSchemaSecondaryStorageInjection', () => {
     expect(resolveSchemaSecondaryStorageInjection(undefined, true, true)).toEqual({ inject: false })
   })
 })
-
