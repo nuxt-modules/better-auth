@@ -1,8 +1,12 @@
 {
   "compilerOptions": {
     "target": "ESNext",
+    "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "paths": {
+      "#nuxt-better-auth": ["./src/runtime/types/augment"]
+    },
     "resolveJsonModule": true,
     "types": ["node"],
     "strict": true,

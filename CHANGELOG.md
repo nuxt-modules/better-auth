@@ -6,7 +6,6 @@ This changelog is incomplete for alpha releases. Use the GitHub Releases page fo
 
 ### Breaking Changes
 
-- Removed `auth.redirects`. Use `routeRules.auth.redirectTo` (or page meta `auth.redirectTo`) for redirect targets.
 - Removed `errorMessage` from `useUserSignIn()` and `useUserSignUp()` action handles. Use `error.value?.message`.
 
   Migration:
@@ -18,6 +17,10 @@ This changelog is incomplete for alpha releases. Use the GitHub Releases page fo
   // after
   const message = error.value?.message ?? 'Please try again.'
   ```
+
+### Fixed
+
+- Restored `auth.redirects` as global redirect fallbacks (route-level `redirectTo` still takes precedence).
 
 ## 0.0.2-alpha.0
 

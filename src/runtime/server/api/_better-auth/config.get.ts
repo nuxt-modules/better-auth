@@ -9,6 +9,7 @@ export default defineEventHandler(async (event) => {
     const authContext = await ((auth as { $context?: Promise<{ trustedOrigins?: string[] }> | { trustedOrigins?: string[] } }).$context)
     const runtimeConfig = useRuntimeConfig()
     const publicAuth = runtimeConfig.public?.auth as {
+      redirects?: { login?: string, guest?: string }
       preserveRedirect?: boolean
       redirectQueryKey?: string
       useDatabase?: boolean
@@ -27,6 +28,7 @@ export default defineEventHandler(async (event) => {
       config: {
         // Module config (nuxt.config.ts)
         module: {
+          redirects: { login: publicAuth?.redirects?.login ?? '/login', guest: publicAuth?.redirects?.guest ?? '/' },
           preserveRedirect: publicAuth?.preserveRedirect ?? true,
           redirectQueryKey: publicAuth?.redirectQueryKey ?? 'redirect',
           secondaryStorage: privateAuth?.secondaryStorage ?? false,

@@ -1,5 +1,5 @@
+import type { AuthUser, UserMatch } from '#nuxt-better-auth'
 import type { NitroRouteRules } from 'nitropack/types'
-import type { AuthUser, UserMatch } from './types/augment'
 
 // Re-export augmentable types
 export type { AppSession, AuthSession, AuthUser, RequireSessionOptions, ServerAuthContext, UserMatch, UserSessionComposable } from './types/augment'
