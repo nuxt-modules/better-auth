@@ -21,6 +21,7 @@ const runtimeConfig = {
       session: {
         skipHydratedSsrGetSession: false,
       },
+      redirects: {} as Record<string, unknown>,
     },
   },
 }
@@ -28,6 +29,7 @@ const runtimeConfig = {
 const requestURL = { origin: 'http://localhost:3000' }
 let requestHeaders: HeadersInit | undefined = { cookie: 'session=test' }
 const state = new Map<string, ReturnType<typeof ref>>()
+const navigateTo = vi.fn(async () => {})
 
 const sessionAtom = ref<SessionState>({
   data: null,
@@ -55,6 +57,7 @@ vi.mock('#imports', async () => {
   const vue = await import('vue')
   return {
     computed: vue.computed,
+    navigateTo,
     nextTick: vue.nextTick,
     watch: vue.watch,
     useNuxtApp: () => ({ payload }),
@@ -96,6 +99,8 @@ describe('useUserSession hydration bootstrap', () => {
     requestURL.origin = 'http://localhost:3000'
     runtimeConfig.public.siteUrl = 'http://localhost:3000'
     runtimeConfig.public.auth.session.skipHydratedSsrGetSession = false
+    runtimeConfig.public.auth.redirects = {}
+    navigateTo.mockClear()
 
     sessionAtom.value = {
       data: null,
@@ -279,5 +284,38 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.getSession).toHaveBeenCalledOnce()
     expect(auth.session.value).toEqual({ id: 'session-3', ipAddress: '127.0.0.1' })
     expect(auth.user.value).toEqual({ id: 'user-3', email: 'user3@example.com' })
+  })
+
+  it('signOut navigates to redirects.logout when configured (and no onSuccess)', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await auth.signOut()
+
+    expect(navigateTo).toHaveBeenCalledWith('/logged-out')
+  })
+
+  it('signOut does not auto-navigate when onSuccess is provided', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    const onSuccess = vi.fn()
+    await auth.signOut({ onSuccess })
+
+    expect(onSuccess).toHaveBeenCalledOnce()
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('signOut does not auto-navigate when redirects.logout is not configured', async () => {
+    runtimeConfig.public.auth.redirects = {}
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await auth.signOut()
+
+    expect(navigateTo).not.toHaveBeenCalled()
   })
 })

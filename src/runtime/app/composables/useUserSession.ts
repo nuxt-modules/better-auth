@@ -1,7 +1,7 @@
 import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { ComputedRef, Ref } from 'vue'
 import createAppAuthClient from '#auth/client'
-import { computed, nextTick, useNuxtApp, useRequestHeaders, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
+import { computed, navigateTo, nextTick, useNuxtApp, useRequestHeaders, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 
 export interface SignOutOptions { onSuccess?: () => void | Promise<void> }
@@ -311,8 +311,15 @@ export function useUserSession(): UseUserSessionReturn {
       throw new Error('signOut can only be called on client-side')
     await client.signOut()
     clearSession()
-    if (options?.onSuccess)
+    if (options?.onSuccess) {
       await options.onSuccess()
+      return
+    }
+
+    const authConfig = runtimeConfig.public.auth as { redirects?: { logout?: string } } | undefined
+    const logoutRedirect = authConfig?.redirects?.logout
+    if (logoutRedirect)
+      await navigateTo(logoutRedirect)
   }
 
   return {

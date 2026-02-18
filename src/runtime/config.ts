@@ -34,6 +34,8 @@ export interface BetterAuthModuleOptions {
     login?: string
     /** Where to redirect authenticated users on guest-only routes. Default: '/' */
     guest?: string
+    /** Where to navigate after logout. Default: no automatic navigation */
+    logout?: string
   }
   /**
    * When redirecting unauthenticated users to the login route, append a query param
@@ -71,7 +73,7 @@ export interface BetterAuthModuleOptions {
 
 // Runtime config type for public.auth
 export interface AuthRuntimeConfig {
-  redirects: { login: string, guest: string }
+  redirects: { login: string, guest: string, logout?: string }
   preserveRedirect: boolean
   redirectQueryKey: string
   useDatabase: boolean
