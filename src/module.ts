@@ -75,7 +75,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     clientConfig: 'app/auth.config',
     preserveRedirect: true,
     redirectQueryKey: 'redirect',
-    secondaryStorage: false,
+    hubSecondaryStorage: false,
   },
   async onInstall(nuxt) {
     const generatedSecret = await promptForSecret(nuxt.options.rootDir, consola)
@@ -164,7 +164,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       databaseProvider = resolvedProvider.id
       hasHubDb = databaseProvider === 'nuxthub'
 
-      const { secondaryStorageEnabled } = setupRuntimeConfig({
+      const { useHubKV, secondaryStorageEnabled } = setupRuntimeConfig({
         nuxt,
         options,
         clientOnly,
@@ -174,13 +174,13 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
         consola,
       })
 
-      if (secondaryStorageEnabled && !nuxt.options.alias['hub:kv']) {
+      if (useHubKV && !nuxt.options.alias['hub:kv']) {
         throw new Error('[nuxt-better-auth] hub:kv not found. Ensure @nuxthub/core is loaded before this module and hub.kv is enabled.')
       }
 
       const secondaryStorageTemplate = addTemplate({
         filename: 'better-auth/secondary-storage.mjs',
-        getContents: () => buildSecondaryStorageCode(secondaryStorageEnabled),
+        getContents: () => buildSecondaryStorageCode(useHubKV),
         write: true,
       })
       nuxt.options.alias['#auth/secondary-storage'] = secondaryStorageTemplate.dst

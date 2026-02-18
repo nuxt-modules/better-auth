@@ -410,8 +410,8 @@ function getAccountActions(row: AccountRow) {
                   </UBadge>
                 </div>
                 <div class="config-row">
-                  <span class="config-label">KV</span><UBadge :color="configData.config.module?.secondaryStorage ? 'success' : 'neutral'" variant="subtle" size="sm">
-                    {{ configData.config.module?.secondaryStorage ? 'On' : 'Off' }}
+                  <span class="config-label">KV</span><UBadge :color="configData.config.module?.hubSecondaryStorage ? 'success' : 'neutral'" variant="subtle" size="sm">
+                    {{ configData.config.module?.hubSecondaryStorage ? (configData.config.module.hubSecondaryStorage === 'custom' ? 'Custom' : 'On') : 'Off' }}
                   </UBadge>
                 </div>
               </div>

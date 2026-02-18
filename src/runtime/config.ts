@@ -52,8 +52,13 @@ export interface BetterAuthModuleOptions {
      */
     skipHydratedSsrGetSession?: boolean
   }
-  /** Enable KV secondary storage for sessions. Requires hub.kv: true */
-  secondaryStorage?: boolean
+  /**
+   * Enable secondary storage for sessions.
+   * - `true`: Use NuxtHub KV (requires hub.kv: true)
+   * - `'custom'`: User provides own secondaryStorage in defineServerAuth()
+   * - `false` (default): No secondary storage from module
+   */
+  hubSecondaryStorage?: boolean | 'custom'
   /** Schema generation options. Must match drizzleAdapter config. */
   schema?: {
     /** Plural table names: user → users. Default: false */
@@ -75,7 +80,7 @@ export interface AuthRuntimeConfig {
 
 // Private runtime config (server-only)
 export interface AuthPrivateRuntimeConfig {
-  secondaryStorage: boolean
+  hubSecondaryStorage: boolean | 'custom'
 }
 
 export function defineServerAuth<const R>(config: (ctx: ServerAuthContext) => R & ServerAuthConfig): (ctx: ServerAuthContext) => R

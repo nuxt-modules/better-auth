@@ -14,23 +14,26 @@ interface SetupRuntimeConfigInput {
   consola: ConsolaInstance
 }
 
-function resolveSecondaryStorageEnabled(input: SetupRuntimeConfigInput): boolean {
+function resolveSecondaryStorage(input: SetupRuntimeConfigInput): { useHubKV: boolean, secondaryStorageEnabled: boolean } {
   const { options, clientOnly, hasNuxtHub, hub } = input
 
-  const secondaryStorageEnabled = options.secondaryStorage ?? false
+  const opt = options.hubSecondaryStorage ?? false
+  const useHubKV = opt === true
+  const secondaryStorageEnabled = opt === true || opt === 'custom'
+
   if (secondaryStorageEnabled && clientOnly) {
-    throw new Error('[nuxt-better-auth] secondaryStorage is not available in clientOnly mode. Either disable clientOnly or remove auth.secondaryStorage.')
+    throw new Error('[nuxt-better-auth] hubSecondaryStorage is not available in clientOnly mode. Either disable clientOnly or remove auth.hubSecondaryStorage.')
   }
-  else if (secondaryStorageEnabled && (!hasNuxtHub || !hub?.kv)) {
-    throw new Error('[nuxt-better-auth] secondaryStorage requires @nuxthub/core with hub.kv: true. Either add hub.kv: true to your nuxt.config or remove auth.secondaryStorage.')
+  if (useHubKV && (!hasNuxtHub || !hub?.kv)) {
+    throw new Error('[nuxt-better-auth] hubSecondaryStorage: true requires @nuxthub/core with hub.kv: true. Either add hub.kv: true to your nuxt.config or remove auth.hubSecondaryStorage.')
   }
 
-  return secondaryStorageEnabled
+  return { useHubKV, secondaryStorageEnabled }
 }
 
-export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryStorageEnabled: boolean } {
+export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { useHubKV: boolean, secondaryStorageEnabled: boolean } {
   const { nuxt, options, clientOnly, databaseProvider, consola } = input
-  const secondaryStorageEnabled = resolveSecondaryStorageEnabled(input)
+  const { useHubKV, secondaryStorageEnabled } = resolveSecondaryStorage(input)
 
   nuxt.options.runtimeConfig.public = nuxt.options.runtimeConfig.public || {}
   const configuredSiteUrl = nuxt.options.runtimeConfig.public.siteUrl as string | undefined
@@ -53,7 +56,7 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryS
     if (!siteUrl)
       consola.warn('clientOnly mode: set runtimeConfig.public.siteUrl (or NUXT_PUBLIC_SITE_URL) to your frontend URL')
     consola.info('clientOnly mode enabled - server utilities (serverAuth, getAppSession, getUserSession, requireUserSession) are not available')
-    return { secondaryStorageEnabled }
+    return { useHubKV, secondaryStorageEnabled }
   }
 
   const currentSecret = nuxt.options.runtimeConfig.betterAuthSecret as string | undefined
@@ -68,8 +71,8 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryS
   }
 
   nuxt.options.runtimeConfig.auth = defu(nuxt.options.runtimeConfig.auth as Record<string, unknown>, {
-    secondaryStorage: secondaryStorageEnabled,
+    hubSecondaryStorage: options.hubSecondaryStorage ?? false,
   }) as AuthPrivateRuntimeConfig
 
-  return { secondaryStorageEnabled }
+  return { useHubKV, secondaryStorageEnabled }
 }

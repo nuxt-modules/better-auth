@@ -8,7 +8,7 @@ export default defineNuxtConfig({
   modules: ['@nuxthub/core', '@onmax/nuxt-better-auth'],
   hub: { database: true },
   auth: {
-    secondaryStorage: true,  // Optional: KV for session caching
+    hubSecondaryStorage: true,  // Optional: KV for session caching
     schema: {
       usePlural: false,      // user vs users
       casing: 'camelCase'    // camelCase or snake_case
@@ -69,7 +69,7 @@ Enable session caching with KV:
 
 ```ts
 auth: {
-  secondaryStorage: true
+  hubSecondaryStorage: true
 }
 ```
 

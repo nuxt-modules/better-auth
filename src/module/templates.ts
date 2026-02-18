@@ -1,7 +1,7 @@
 import type { DbDialect } from './hub'
 
-export function buildSecondaryStorageCode(enabled: boolean): string {
-  if (!enabled)
+export function buildSecondaryStorageCode(useHubKV: boolean): string {
+  if (!useHubKV)
     return 'export function createSecondaryStorage() { return undefined }'
 
   return `import { kv } from '@nuxthub/kv'

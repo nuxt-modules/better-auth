@@ -120,7 +120,7 @@ export default defineNuxtConfig({
   modules: ['@nuxthub/core', '@onmax/nuxt-better-auth'],
   hub: { database: true },
   auth: {
-    secondaryStorage: true  // Enable KV for session caching
+    hubSecondaryStorage: true  // Enable KV for session caching
   }
 })
 ```

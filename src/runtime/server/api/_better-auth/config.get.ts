@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
       useDatabase?: boolean
       databaseProvider?: 'none' | 'nuxthub'
     } | undefined
-    const privateAuth = runtimeConfig.auth as { secondaryStorage?: boolean } | undefined
+    const privateAuth = runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' } | undefined
     const configuredTrustedOrigins = Array.isArray(options.trustedOrigins) ? options.trustedOrigins : []
     const effectiveTrustedOrigins = authContext?.trustedOrigins || configuredTrustedOrigins
 
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
         module: {
           preserveRedirect: publicAuth?.preserveRedirect ?? true,
           redirectQueryKey: publicAuth?.redirectQueryKey ?? 'redirect',
-          secondaryStorage: privateAuth?.secondaryStorage ?? false,
+          hubSecondaryStorage: privateAuth?.hubSecondaryStorage ?? false,
           useDatabase: publicAuth?.useDatabase ?? false,
           databaseProvider: publicAuth?.databaseProvider ?? 'none',
         },

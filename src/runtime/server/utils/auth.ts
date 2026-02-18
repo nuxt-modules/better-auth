@@ -12,6 +12,7 @@ type AuthInstance = Auth<ReturnType<typeof createServerAuth>>
 
 const _authCache = new Map<string, AuthInstance>()
 let _baseURLInferenceLogged = false
+let _githubProviderMisconfigWarned = false
 
 function normalizeLoopbackOrigin(origin: string): string {
   if (!import.meta.dev)
@@ -240,6 +241,41 @@ function withDevTrustedOrigins(
   }
 }
 
+function validateGitHubProviderConfig(userConfig: BetterAuthOptions): void {
+  const github = (userConfig.socialProviders as Record<string, any> | undefined)?.github
+  if (!github)
+    return
+
+  const clientId = typeof github.clientId === 'string' ? github.clientId.trim() : ''
+  const clientSecret = typeof github.clientSecret === 'string' ? github.clientSecret.trim() : ''
+  if (typeof github.clientId === 'string')
+    github.clientId = clientId
+  if (typeof github.clientSecret === 'string')
+    github.clientSecret = clientSecret
+
+  const missingMessage = '[nuxt-better-auth] socialProviders.github is missing clientId/clientSecret. This often surfaces as a GitHub 404 on /login/oauth/authorize due to an empty/invalid client_id. Check your deployment env vars.'
+  if (!clientId || !clientSecret) {
+    if (!import.meta.dev)
+      throw new Error(missingMessage)
+    if (!_githubProviderMisconfigWarned) {
+      _githubProviderMisconfigWarned = true
+      console.warn(missingMessage)
+    }
+    return
+  }
+
+  // Common GitHub App misconfig: using numeric "App ID" instead of the "Client ID" (Iv1..., Iv23...).
+  if (/^\d+$/.test(clientId)) {
+    const message = `[nuxt-better-auth] socialProviders.github.clientId looks like a numeric App ID ("${clientId}"). Use the GitHub App "Client ID" instead (often starts with "Iv1" or "Iv23").`
+    if (!import.meta.dev)
+      throw new Error(message)
+    if (!_githubProviderMisconfigWarned) {
+      _githubProviderMisconfigWarned = true
+      console.warn(message)
+    }
+  }
+}
+
 /** Returns Better Auth instance. Caches per resolved host (or single instance when siteUrl is explicit). */
 export function serverAuth(event?: H3Event): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
@@ -253,12 +289,14 @@ export function serverAuth(event?: H3Event): AuthInstance {
 
   const database = createDatabase()
   const userConfig = createServerAuth({ runtimeConfig, db })
+  validateGitHubProviderConfig(userConfig)
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins, Boolean(hasExplicitSiteUrl))
 
+  const hubSecondaryStorage = (runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' })?.hubSecondaryStorage
   const auth = betterAuth({
     ...userConfig,
     ...(database && { database }),
-    secondaryStorage: createSecondaryStorage(),
+    ...(hubSecondaryStorage === true && { secondaryStorage: createSecondaryStorage() }),
     secret: runtimeConfig.betterAuthSecret,
     baseURL: siteUrl,
     trustedOrigins,
