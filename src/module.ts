@@ -164,7 +164,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       databaseProvider = resolvedProvider.id
       hasHubDb = databaseProvider === 'nuxthub'
 
-      const { useHubKV, secondaryStorageEnabled } = setupRuntimeConfig({
+      const { useHubKV } = setupRuntimeConfig({
         nuxt,
         options,
         clientOnly,
@@ -222,7 +222,7 @@ export { schema }
       })
 
       if (hasHubDb)
-        await setupBetterAuthSchema(nuxt, serverConfigPath, options, consola, secondaryStorageEnabled)
+        await setupBetterAuthSchema(nuxt, serverConfigPath, options, consola, options.hubSecondaryStorage ?? false)
     }
 
     registerSharedTypeTemplates({

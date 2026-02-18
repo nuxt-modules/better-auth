@@ -15,6 +15,29 @@ interface SchemaContext {
   serverConfigPath: string
 }
 
+type HubSecondaryStorageMode = BetterAuthModuleOptions['hubSecondaryStorage']
+
+export function resolveSchemaSecondaryStorageInjection(
+  hubSecondaryStorage: HubSecondaryStorageMode,
+  userHasSecondaryStorage: boolean,
+  isProduction: boolean,
+): { inject: boolean, warn?: string, error?: string } {
+  if (hubSecondaryStorage === true)
+    return { inject: true }
+
+  if (hubSecondaryStorage !== 'custom')
+    return { inject: false }
+
+  if (userHasSecondaryStorage)
+    return { inject: true }
+
+  const message = '[nuxt-better-auth] hubSecondaryStorage: "custom" requires secondaryStorage in defineServerAuth() to omit the session table from the generated schema.'
+  if (isProduction)
+    return { inject: false, error: message }
+
+  return { inject: false, warn: message }
+}
+
 function isInsideNodeModules(path: string): boolean {
   return path.split(/[\\/]/).includes('node_modules')
 }
@@ -57,7 +80,7 @@ export async function setupBetterAuthSchema(
   serverConfigPath: string,
   options: BetterAuthModuleOptions,
   consola: ConsolaInstance,
-  secondaryStorageEnabled: boolean,
+  hubSecondaryStorage: HubSecondaryStorageMode,
 ): Promise<void> {
   const hub = (nuxt.options as { hub?: NuxtHubOptions }).hub
   const dialect = getHubDialect(hub)
@@ -70,10 +93,17 @@ export async function setupBetterAuthSchema(
 
   try {
     const { userConfig, plugins } = await loadAuthOptions(context)
+    const userHasSecondaryStorage = userConfig.secondaryStorage != null
+    const secondaryStorageResolution = resolveSchemaSecondaryStorageInjection(hubSecondaryStorage, userHasSecondaryStorage, !nuxt.options.dev)
+    if (secondaryStorageResolution.error)
+      throw new Error(secondaryStorageResolution.error)
+    if (secondaryStorageResolution.warn)
+      consola.warn(secondaryStorageResolution.warn)
+
     const authOptions = {
       ...userConfig,
       plugins,
-      secondaryStorage: secondaryStorageEnabled
+      secondaryStorage: secondaryStorageResolution.inject
         ? { get: async (_key: string) => null, set: async (_key: string, _value: string, _ttl?: number) => {}, delete: async (_key: string) => {} }
         : undefined,
     }
