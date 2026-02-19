@@ -5,9 +5,9 @@ import { createActionHandles } from '../internal/auth-action-handles'
 
 type SignIn = NonNullable<AppAuthClient>['signIn']
 
-export function useUserSignIn<MethodKey extends keyof SignIn>(method: MethodKey): ActionHandleFor<SignIn[MethodKey]> {
+export function useSignIn<MethodKey extends keyof SignIn>(method: MethodKey): ActionHandleFor<SignIn[MethodKey]> {
   if (method === undefined || method === null)
-    throw new TypeError('useUserSignIn(method) requires a sign-in method key')
+    throw new TypeError('useSignIn(method) requires a sign-in method key')
 
   const handles = createActionHandles(() => useUserSession().signIn, 'signIn') as ActionHandleMap<SignIn>
   return handles[method] as ActionHandleFor<SignIn[MethodKey]>

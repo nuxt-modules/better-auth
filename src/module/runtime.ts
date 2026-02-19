@@ -61,7 +61,7 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { useHubKV: 
     const siteUrl = nuxt.options.runtimeConfig.public.siteUrl as string | undefined
     if (!siteUrl)
       consola.warn('clientOnly mode: set runtimeConfig.public.siteUrl (or NUXT_PUBLIC_SITE_URL) to your frontend URL')
-    consola.info('clientOnly mode enabled - server utilities (serverAuth, getAppSession, getUserSession, requireUserSession) are not available')
+    consola.info('clientOnly mode enabled - server utilities (serverAuth, getRequestSession, getUserSession, requireUserSession) are not available')
     return { useHubKV, secondaryStorageEnabled }
   }
 

@@ -6,11 +6,27 @@ This changelog is incomplete for alpha releases. Use the GitHub Releases page fo
 
 ### Breaking Changes
 
-- Removed `errorMessage` from `useUserSignIn()` and `useUserSignUp()` action handles. Use `error.value?.message`.
+- Renamed `useUserSignIn()` to `useSignIn()`.
+- Renamed `useUserSignUp()` to `useSignUp()`.
+- Renamed `getAppSession()` to `getRequestSession()`.
+- Renamed memoized request context key from `event.context.appSession` to `event.context.requestSession`.
+- Removed `errorMessage` from `useSignIn()` and `useSignUp()` action handles. Use `error.value?.message`.
 
   Migration:
 
   ```ts
+  // before
+  const signInEmail = useUserSignIn('email')
+  const signUpEmail = useUserSignUp('email')
+  const appSession = await getAppSession(event)
+  const memoized = event.context.appSession
+
+  // after
+  const signInEmail = useSignIn('email')
+  const signUpEmail = useSignUp('email')
+  const requestSession = await getRequestSession(event)
+  const memoized = event.context.requestSession
+
   // before
   const message = errorMessage.value ?? 'Please try again.'
 

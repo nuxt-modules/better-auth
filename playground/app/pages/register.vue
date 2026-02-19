@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
-const signUpEmail = useUserSignUp('email')
+const signUpEmail = useSignUp('email')
 const { resolvePostAuthRedirect } = usePostAuthRedirect()
 const { t } = useI18n()
 const toast = useToast()

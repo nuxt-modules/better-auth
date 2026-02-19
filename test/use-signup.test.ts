@@ -27,13 +27,13 @@ vi.mock('#imports', async () => {
   }
 })
 
-async function loadUseUserSignUp() {
+async function loadUseSignUp() {
   vi.resetModules()
-  const mod = await import('../src/runtime/app/composables/useUserSignUp')
-  return mod.useUserSignUp
+  const mod = await import('../src/runtime/app/composables/useSignUp')
+  return mod.useSignUp
 }
 
-describe('useUserSignUp', () => {
+describe('useSignUp', () => {
   it('returns a keyed action handle with the expected shape', async () => {
     sessionMock = {
       signUp: {
@@ -41,8 +41,8 @@ describe('useUserSignUp', () => {
       },
     }
 
-    const useUserSignUp = await loadUseUserSignUp()
-    const signUpEmail = useUserSignUp('email')
+    const useSignUp = await loadUseSignUp()
+    const signUpEmail = useSignUp('email')
     const isPending = () => signUpEmail.status.value === 'pending'
 
     expect(typeof signUpEmail.execute).toBe('function')
@@ -61,8 +61,8 @@ describe('useUserSignUp', () => {
       },
     }
 
-    const useUserSignUp = await loadUseUserSignUp()
-    const signUpEmail = useUserSignUp('email')
+    const useSignUp = await loadUseSignUp()
+    const signUpEmail = useSignUp('email')
     const isPending = () => signUpEmail.status.value === 'pending'
 
     const p = signUpEmail.execute({} as any)
@@ -89,8 +89,8 @@ describe('useUserSignUp', () => {
       },
     }
 
-    const useUserSignUp = await loadUseUserSignUp()
-    const signUpEmail = useUserSignUp('email')
+    const useSignUp = await loadUseSignUp()
+    const signUpEmail = useSignUp('email')
 
     await expect(signUpEmail.execute({} as any)).resolves.toBeUndefined()
     expect(signUpEmail.status.value).toBe('error')
@@ -102,8 +102,8 @@ describe('useUserSignUp', () => {
 
   it('throws when method key is missing', async () => {
     sessionMock = { signUp: {} }
-    const useUserSignUp = await loadUseUserSignUp()
-    expect(() => useUserSignUp(undefined as any)).toThrowError(TypeError)
-    expect(() => useUserSignUp(undefined as any)).toThrow('requires a sign-up method key')
+    const useSignUp = await loadUseSignUp()
+    expect(() => useSignUp(undefined as any)).toThrowError(TypeError)
+    expect(() => useSignUp(undefined as any)).toThrow('requires a sign-up method key')
   })
 })

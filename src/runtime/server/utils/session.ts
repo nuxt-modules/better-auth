@@ -4,24 +4,24 @@ import { createError } from 'h3'
 import { matchesUser } from '../../utils/match-user'
 import { serverAuth } from './auth'
 
-const appSessionLoadKey = Symbol.for('nuxt-better-auth.appSessionLoad')
+const requestSessionLoadKey = Symbol.for('nuxt-better-auth.requestSessionLoad')
 
-interface AppSessionContext {
-  appSession?: AppSession | null
-  [appSessionLoadKey]?: Promise<AppSession | null>
+interface RequestSessionContext {
+  requestSession?: AppSession | null
+  [requestSessionLoadKey]?: Promise<AppSession | null>
 }
 
-const fallbackAppSessionContext = new WeakMap<object, AppSessionContext>()
+const fallbackRequestSessionContext = new WeakMap<object, RequestSessionContext>()
 
-function getAppSessionContext(event: H3Event): AppSessionContext {
+function getRequestSessionContext(event: H3Event): RequestSessionContext {
   const eventWithContext = event as H3Event & { context?: unknown }
   if (eventWithContext.context && typeof eventWithContext.context === 'object')
-    return eventWithContext.context as AppSessionContext
+    return eventWithContext.context as RequestSessionContext
 
-  let context = fallbackAppSessionContext.get(event as object)
+  let context = fallbackRequestSessionContext.get(event as object)
   if (!context) {
     context = {}
-    fallbackAppSessionContext.set(event as object, context)
+    fallbackRequestSessionContext.set(event as object, context)
   }
   return context
 }
@@ -31,34 +31,34 @@ function loadSession(event: H3Event): Promise<AppSession | null> {
   return auth.api.getSession({ headers: event.headers }) as Promise<AppSession | null>
 }
 
-export async function getAppSession(event: H3Event): Promise<AppSession | null> {
-  const context = getAppSessionContext(event)
-  if (context.appSession !== undefined)
-    return context.appSession
+export async function getRequestSession(event: H3Event): Promise<AppSession | null> {
+  const context = getRequestSessionContext(event)
+  if (context.requestSession !== undefined)
+    return context.requestSession
 
-  const inFlight = context[appSessionLoadKey]
+  const inFlight = context[requestSessionLoadKey]
   if (inFlight)
     return inFlight
 
   const load = loadSession(event)
 
-  context[appSessionLoadKey] = load
+  context[requestSessionLoadKey] = load
   try {
     const session = await load
-    context.appSession = session
+    context.requestSession = session
     return session
   }
   finally {
-    delete context[appSessionLoadKey]
+    delete context[requestSessionLoadKey]
   }
 }
 
 export async function getUserSession(event: H3Event): Promise<AppSession | null> {
-  const context = getAppSessionContext(event)
-  if (context.appSession !== undefined)
-    return context.appSession
+  const context = getRequestSessionContext(event)
+  if (context.requestSession !== undefined)
+    return context.requestSession
 
-  const inFlight = context[appSessionLoadKey]
+  const inFlight = context[requestSessionLoadKey]
   if (inFlight)
     return inFlight
 
@@ -66,7 +66,7 @@ export async function getUserSession(event: H3Event): Promise<AppSession | null>
 }
 
 export async function requireUserSession(event: H3Event, options?: RequireSessionOptions): Promise<AppSession> {
-  const session = await getAppSession(event)
+  const session = await getRequestSession(event)
 
   if (!session)
     throw createError({ statusCode: 401, statusMessage: 'Authentication required' })

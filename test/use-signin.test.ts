@@ -27,13 +27,13 @@ vi.mock('#imports', async () => {
   }
 })
 
-async function loadUseUserSignIn() {
+async function loadUseSignIn() {
   vi.resetModules()
-  const mod = await import('../src/runtime/app/composables/useUserSignIn')
-  return mod.useUserSignIn
+  const mod = await import('../src/runtime/app/composables/useSignIn')
+  return mod.useSignIn
 }
 
-describe('useUserSignIn', () => {
+describe('useSignIn', () => {
   it('sets success state, data and clears error on success', async () => {
     const d = deferred<{ ok: true }>()
     sessionMock = {
@@ -42,8 +42,8 @@ describe('useUserSignIn', () => {
       },
     }
 
-    const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn('email')
+    const useSignIn = await loadUseSignIn()
+    const signInEmail = useSignIn('email')
 
     const p = signInEmail.execute({} as any)
     expect(signInEmail.status.value).toBe('pending')
@@ -71,8 +71,8 @@ describe('useUserSignIn', () => {
       },
     }
 
-    const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn('email')
+    const useSignIn = await loadUseSignIn()
+    const signInEmail = useSignIn('email')
 
     const p1 = signInEmail.execute({} as any)
     d1.resolve({ ok: true })
@@ -98,8 +98,8 @@ describe('useUserSignIn', () => {
       },
     }
 
-    const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn('email')
+    const useSignIn = await loadUseSignIn()
+    const signInEmail = useSignIn('email')
 
     await expect(signInEmail.execute({} as any)).resolves.toBeUndefined()
     expect(signInEmail.status.value).toBe('error')
@@ -117,8 +117,8 @@ describe('useUserSignIn', () => {
       },
     }
 
-    const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn('email')
+    const useSignIn = await loadUseSignIn()
+    const signInEmail = useSignIn('email')
 
     await expect(signInEmail.execute({} as any)).resolves.toBeUndefined()
     expect(signInEmail.status.value).toBe('error')
@@ -145,8 +145,8 @@ describe('useUserSignIn', () => {
       },
     }
 
-    const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn('email')
+    const useSignIn = await loadUseSignIn()
+    const signInEmail = useSignIn('email')
 
     const p1 = signInEmail.execute({} as any)
     const p2 = signInEmail.execute({} as any)
@@ -173,8 +173,8 @@ describe('useUserSignIn', () => {
       }),
     }
 
-    const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn('email')
+    const useSignIn = await loadUseSignIn()
+    const signInEmail = useSignIn('email')
 
     expect(signInEmail.status.value).toBe('idle')
     await expect(signInEmail.execute({} as any)).resolves.toBeUndefined()
@@ -192,8 +192,8 @@ describe('useUserSignIn', () => {
       },
     }
 
-    const useUserSignIn = await loadUseUserSignIn()
-    const signInEmail = useUserSignIn('email')
+    const useSignIn = await loadUseSignIn()
+    const signInEmail = useSignIn('email')
     const isPending = () => signInEmail.status.value === 'pending'
 
     expect(typeof signInEmail.execute).toBe('function')
@@ -206,9 +206,9 @@ describe('useUserSignIn', () => {
 
   it('throws when method key is missing', async () => {
     sessionMock = { signIn: {} }
-    const useUserSignIn = await loadUseUserSignIn()
-    expect(() => useUserSignIn(undefined as any)).toThrowError(TypeError)
-    expect(() => useUserSignIn(undefined as any)).toThrow('requires a sign-in method key')
+    const useSignIn = await loadUseSignIn()
+    expect(() => useSignIn(undefined as any)).toThrowError(TypeError)
+    expect(() => useSignIn(undefined as any)).toThrow('requires a sign-in method key')
   })
 
   it('sets error state for invalid method key', async () => {
@@ -218,8 +218,8 @@ describe('useUserSignIn', () => {
       },
     }
 
-    const useUserSignIn = await loadUseUserSignIn()
-    const invalid = useUserSignIn('invalid' as any)
+    const useSignIn = await loadUseSignIn()
+    const invalid = useSignIn('invalid' as any)
 
     await expect(invalid.execute({} as any)).resolves.toBeUndefined()
     expect(invalid.status.value).toBe('error')

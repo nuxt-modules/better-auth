@@ -150,7 +150,7 @@ export * from '${input.runtimeTypesAugmentPath}'
 export type { AuthMeta, AuthMode, AuthRouteRules, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
 declare module 'h3' {
   interface H3EventContext {
-    appSession?: AppSession | null
+    requestSession?: AppSession | null
   }
 }
 `,

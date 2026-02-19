@@ -33,7 +33,7 @@ function createEventWithoutContext() {
   } as any
 }
 
-describe('getAppSession', () => {
+describe('getRequestSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     getSessionMock.mockReset()
@@ -41,20 +41,20 @@ describe('getAppSession', () => {
     matchesUserMock.mockReturnValue(true)
   })
 
-  it('memoizes session on event.context.appSession', async () => {
+  it('memoizes session on event.context.requestSession', async () => {
     getSessionMock.mockResolvedValue({
       user: { id: 'u1' },
       session: { id: 's1' },
     })
-    const { getAppSession } = await import('../src/runtime/server/utils/session')
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
     const event = createEvent()
 
-    const first = await getAppSession(event)
-    const second = await getAppSession(event)
+    const first = await getRequestSession(event)
+    const second = await getRequestSession(event)
 
     expect(first).toEqual(second)
     expect(getSessionMock).toHaveBeenCalledTimes(1)
-    expect(event.context.appSession).toEqual(first)
+    expect(event.context.requestSession).toEqual(first)
   })
 
   it('deduplicates concurrent resolution within a single request', async () => {
@@ -63,11 +63,11 @@ describe('getAppSession', () => {
       resolveSession = resolve
     }))
 
-    const { getAppSession } = await import('../src/runtime/server/utils/session')
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
     const event = createEvent()
 
-    const p1 = getAppSession(event)
-    const p2 = getAppSession(event)
+    const p1 = getRequestSession(event)
+    const p2 = getRequestSession(event)
 
     resolveSession?.({ user: { id: 'u1' }, session: { id: 's1' } })
 
@@ -82,16 +82,16 @@ describe('getAppSession', () => {
       resolveSession = resolve
     }))
 
-    const { getAppSession } = await import('../src/runtime/server/utils/session')
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
     const event = createEventWithoutContext()
 
-    const p1 = getAppSession(event)
-    const p2 = getAppSession(event)
+    const p1 = getRequestSession(event)
+    const p2 = getRequestSession(event)
 
     resolveSession?.({ user: { id: 'u1' }, session: { id: 's1' } })
 
     const [first, second] = await Promise.all([p1, p2])
-    const third = await getAppSession(event)
+    const third = await getRequestSession(event)
 
     expect(first).toEqual(second)
     expect(third).toEqual(first)
@@ -121,34 +121,34 @@ describe('getUserSession', () => {
 
     expect(first).toEqual(second)
     expect(getSessionMock).toHaveBeenCalledTimes(2)
-    expect(event.context.appSession).toBeUndefined()
+    expect(event.context.requestSession).toBeUndefined()
   })
 
-  it('reuses cached appSession when available', async () => {
+  it('reuses cached requestSession when available', async () => {
     getSessionMock.mockResolvedValue({
       user: { id: 'u1' },
       session: { id: 's1' },
     })
-    const { getAppSession, getUserSession } = await import('../src/runtime/server/utils/session')
+    const { getRequestSession, getUserSession } = await import('../src/runtime/server/utils/session')
     const event = createEvent()
 
-    const cached = await getAppSession(event)
+    const cached = await getRequestSession(event)
     const session = await getUserSession(event)
 
     expect(session).toEqual(cached)
     expect(getSessionMock).toHaveBeenCalledTimes(1)
   })
 
-  it('awaits in-flight appSession load without starting a second fetch', async () => {
+  it('awaits in-flight requestSession load without starting a second fetch', async () => {
     let resolveSession: ((value: unknown) => void) | undefined
     getSessionMock.mockImplementation(() => new Promise((resolve) => {
       resolveSession = resolve
     }))
 
-    const { getAppSession, getUserSession } = await import('../src/runtime/server/utils/session')
+    const { getRequestSession, getUserSession } = await import('../src/runtime/server/utils/session')
     const event = createEvent()
 
-    const p1 = getAppSession(event)
+    const p1 = getRequestSession(event)
     const p2 = getUserSession(event)
 
     resolveSession?.({ user: { id: 'u1' }, session: { id: 's1' } })
@@ -174,15 +174,15 @@ describe('getUserSession', () => {
     expect('context' in event).toBe(false)
   })
 
-  it('reuses cached appSession when event.context is unavailable', async () => {
+  it('reuses cached requestSession when event.context is unavailable', async () => {
     getSessionMock.mockResolvedValue({
       user: { id: 'u1' },
       session: { id: 's1' },
     })
-    const { getAppSession, getUserSession } = await import('../src/runtime/server/utils/session')
+    const { getRequestSession, getUserSession } = await import('../src/runtime/server/utils/session')
     const event = createEventWithoutContext()
 
-    const cached = await getAppSession(event)
+    const cached = await getRequestSession(event)
     const session = await getUserSession(event)
 
     expect(session).toEqual(cached)

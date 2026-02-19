@@ -1,9 +1,9 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
-const signInEmail = useUserSignIn('email')
-const signInSocial = useUserSignIn('social')
-const signInPasskey = useUserSignIn('passkey')
+const signInEmail = useSignIn('email')
+const signInSocial = useSignIn('social')
+const signInPasskey = useSignIn('passkey')
 const { resolvePostAuthRedirect } = usePostAuthRedirect()
 
 const { t } = useI18n()
