@@ -229,7 +229,7 @@ export function useUserSession(): UseUserSessionReturn {
 
   function wrapAuthMethod<T extends (...args: unknown[]) => Promise<unknown>>(
     method: T,
-    wrapOptions: { skipSessionSync?: boolean } = {},
+    wrapOptions: { shouldSkipSessionSync?: (data: unknown, options: unknown) => boolean } = {},
   ): T {
     return (async (...args: unknown[]) => {
       const data = args[0]
@@ -237,7 +237,7 @@ export function useUserSession(): UseUserSessionReturn {
       const dataRecord = isRecord(data) ? data : undefined
       const optionsRecord = isRecord(options) ? options : undefined
 
-      if (wrapOptions.skipSessionSync)
+      if (wrapOptions.shouldSkipSessionSync?.(data, options))
         return method(data, options)
 
       type OnSuccess = (ctx: unknown) => void | Promise<void>
@@ -302,11 +302,16 @@ export function useUserSession(): UseUserSessionReturn {
           const method = targetRecord[prop]
           if (typeof method !== 'function')
             return method
-          const skipSessionSync = prop === 'social'
+          const shouldSkipSessionSync = prop === 'social'
+            ? (data: unknown) => {
+                const socialData = isRecord(data) ? data : undefined
+                return socialData?.disableRedirect !== true
+              }
+            : undefined
           // Don't bind - call through target to preserve better-auth's Proxy context
           return wrapAuthMethod(
             (...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args),
-            { skipSessionSync },
+            { shouldSkipSessionSync },
           )
         },
       })
