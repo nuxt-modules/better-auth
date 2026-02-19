@@ -55,6 +55,8 @@ interface RuntimeDefineServerAuthFn { (...args: unknown[]): unknown, _count: num
 declare global {
   // eslint-disable-next-line vars-on-top
   var __nuxtBetterAuthDefineServerAuth: RuntimeDefineServerAuthFn | undefined
+  // eslint-disable-next-line vars-on-top
+  var defineServerAuth: RuntimeDefineServerAuthFn | undefined
 }
 
 export async function loadUserAuthConfig(configPath: string, throwOnError = false): Promise<Partial<BetterAuthOptions>> {
@@ -66,7 +68,10 @@ export async function loadUserAuthConfig(configPath: string, throwOnError = fals
     (runtimeDefineServerAuth as unknown as RuntimeDefineServerAuthFn)._count = 0
     globalThis.__nuxtBetterAuthDefineServerAuth = runtimeDefineServerAuth as unknown as RuntimeDefineServerAuthFn
   }
-  globalThis.__nuxtBetterAuthDefineServerAuth._count++
+  if (!globalThis.defineServerAuth) {
+    globalThis.defineServerAuth = globalThis.__nuxtBetterAuthDefineServerAuth
+  }
+  globalThis.__nuxtBetterAuthDefineServerAuth!._count++
 
   try {
     const mod = await jiti.import(configPath) as { default?: unknown }
@@ -88,9 +93,16 @@ export async function loadUserAuthConfig(configPath: string, throwOnError = fals
     return {}
   }
   finally {
-    globalThis.__nuxtBetterAuthDefineServerAuth!._count--
-    if (!globalThis.__nuxtBetterAuthDefineServerAuth!._count) {
+    const sharedDefineServerAuth = globalThis.__nuxtBetterAuthDefineServerAuth
+    if (!sharedDefineServerAuth) {
+      return
+    }
+    sharedDefineServerAuth._count--
+    if (!sharedDefineServerAuth._count) {
       globalThis.__nuxtBetterAuthDefineServerAuth = undefined
+      if (globalThis.defineServerAuth === sharedDefineServerAuth) {
+        globalThis.defineServerAuth = undefined
+      }
     }
   }
 }
