@@ -70,6 +70,7 @@ export function useUserSession(): UseUserSessionReturn {
   const runtimeFlags = getRuntimeFlags()
   const runtimeConfig = useRuntimeConfig()
   const requestURL = useRequestURL()
+  const nuxtApp = useNuxtApp()
 
   // Client only - create better-auth client for client-side operations (singleton)
   const client: AppAuthClient | null = runtimeFlags.client
@@ -80,10 +81,10 @@ export function useUserSession(): UseUserSessionReturn {
   const session = useState<AuthSession | null>('auth:session', () => null)
   const user = useState<AuthUser | null>('auth:user', () => null)
   const authReady = useState('auth:ready', () => false)
+  const hydrationReconcileQueued = useState('auth:hydration-reconcile-queued', () => false)
   const ready = computed(() => authReady.value)
   const loggedIn = computed(() => Boolean(session.value && user.value))
 
-  const nuxtApp = useNuxtApp()
   const skipHydratedSsrGetSession = computed(() => {
     const authConfig = runtimeConfig.public.auth as { session?: { skipHydratedSsrGetSession?: boolean } } | undefined
     return Boolean(authConfig?.session?.skipHydratedSsrGetSession)
@@ -155,10 +156,28 @@ export function useUserSession(): UseUserSessionReturn {
           session.value = safeSession as AuthSession
           user.value = newSession.data.user as AuthUser
         }
-        else if (!newSession?.isPending) {
+        else if (!newSession?.isPending && !newSession?.isRefetching) {
+          const isHydrationEmptySnapshot
+            = nuxtApp.isHydrating
+              && nuxtApp.payload.serverRendered
+              && Boolean(session.value && user.value)
+              && !newSession?.data?.session
+              && !newSession?.data?.user
+
+          if (isHydrationEmptySnapshot) {
+            if (!hydrationReconcileQueued.value) {
+              hydrationReconcileQueued.value = true
+              nuxtApp.hook('app:mounted', async () => {
+                await fetchSession({ force: true })
+                hydrationReconcileQueued.value = false
+              })
+            }
+            return
+          }
+
           clearSession()
         }
-        if (!authReady.value && !newSession?.isPending)
+        if (!authReady.value && !newSession?.isPending && !newSession?.isRefetching)
           authReady.value = true
       },
       { immediate: true, deep: true },
