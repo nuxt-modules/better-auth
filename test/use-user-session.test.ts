@@ -33,6 +33,7 @@ const requestURL: { origin: string, searchParams: URLSearchParams } = {
 let requestHeaders: HeadersInit | undefined = { cookie: 'session=test' }
 const state = new Map<string, ReturnType<typeof ref>>()
 const navigateTo = vi.fn(async () => {})
+const $fetch = vi.fn(async () => null)
 const nuxtHooks = new Map<string, Array<() => void | Promise<void>>>()
 const nuxtApp = {
   payload,
@@ -74,6 +75,7 @@ vi.mock('#imports', async () => {
     nextTick: vue.nextTick,
     watch: vue.watch,
     useNuxtApp: () => nuxtApp,
+    useRequestFetch: () => $fetch,
     useRequestHeaders: () => requestHeaders,
     useRequestURL: () => requestURL,
     useRuntimeConfig: () => runtimeConfig,
@@ -129,6 +131,8 @@ describe('useUserSession hydration bootstrap', () => {
     runtimeConfig.public.auth.session.skipHydratedSsrGetSession = false
     runtimeConfig.public.auth.redirects = {}
     navigateTo.mockClear()
+    $fetch.mockReset()
+    $fetch.mockResolvedValue(null)
 
     sessionAtom.value = {
       data: null,
@@ -313,6 +317,37 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.getSession).toHaveBeenCalledOnce()
     expect(auth.session.value).toEqual({ id: 'session-2', ipAddress: '127.0.0.1' })
     expect(auth.user.value).toEqual({ id: 'user-2', email: 'user@example.com' })
+  })
+
+  it('fetchSession fetches and sets SSR session on server', async () => {
+    setRuntimeFlags({ client: false, server: true })
+    $fetch.mockResolvedValueOnce({
+      session: { id: 'session-server', token: 'secret', ipAddress: '127.0.0.1' },
+      user: { id: 'user-server', email: 'server@example.com' },
+    })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await auth.fetchSession()
+
+    expect($fetch).toHaveBeenCalledWith('/api/auth/get-session', { headers: { cookie: 'session=test' } })
+    expect(auth.session.value).toEqual({ id: 'session-server', ipAddress: '127.0.0.1' })
+    expect(auth.user.value).toEqual({ id: 'user-server', email: 'server@example.com' })
+    expect(auth.ready.value).toBe(true)
+  })
+
+  it('fetchSession clears SSR state on server when no session is returned', async () => {
+    setRuntimeFlags({ client: false, server: true })
+    seedHydratedState()
+    $fetch.mockResolvedValueOnce(null)
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await auth.fetchSession()
+
+    expect(auth.session.value).toBeNull()
+    expect(auth.user.value).toBeNull()
+    expect(auth.ready.value).toBe(true)
   })
 
   it('signIn uses auth.redirects.authenticated when no callback is provided', async () => {
