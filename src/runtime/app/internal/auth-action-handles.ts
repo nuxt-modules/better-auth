@@ -36,7 +36,7 @@ function createActionHandle<TArgs extends unknown[], TResult>(
   getMethod: () => (...args: TArgs) => Promise<TResult>,
 ): UserAuthActionHandle<TArgs, TResult> {
   const status = ref<UserAuthActionStatus>('idle')
-  const data = ref<TResult | null>(null)
+  const data = ref<TResult | null>(null) as Ref<TResult | null>
   const error = ref<AuthActionError | null>(null)
 
   let latestCallId = 0

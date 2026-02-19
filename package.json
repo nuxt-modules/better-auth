@@ -56,7 +56,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "vue-tsc --noEmit",
     "typecheck:runtime-server": "tsc --noEmit --pretty false -p src/runtime/server/tsconfig.json",
-    "typecheck:playground": "cd playground && vue-tsc --noEmit",
+    "typecheck:playground": "pnpm -C playground exec nuxi prepare && pnpm -C playground exec vue-tsc --noEmit -p .nuxt/tsconfig.app.json",
     "test": "vitest run",
     "test:watch": "vitest watch"
   },

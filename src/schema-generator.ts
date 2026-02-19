@@ -49,24 +49,24 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
   return result.code
 }
 
-// Type for defineServerAuth with reference counting
-interface DefineServerAuthFn { (...args: unknown[]): unknown, _count: number }
+// Type for cached runtime helper with reference counting
+interface RuntimeDefineServerAuthFn { (...args: unknown[]): unknown, _count: number }
 
 declare global {
   // eslint-disable-next-line vars-on-top
-  var defineServerAuth: DefineServerAuthFn | undefined
+  var __nuxtBetterAuthDefineServerAuth: RuntimeDefineServerAuthFn | undefined
 }
 
 export async function loadUserAuthConfig(configPath: string, throwOnError = false): Promise<Partial<BetterAuthOptions>> {
   const { createJiti } = await import('jiti')
-  const { defineServerAuth } = await import('./runtime/config')
+  const { defineServerAuth: runtimeDefineServerAuth } = await import('./runtime/config')
   const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false })
 
-  if (!globalThis.defineServerAuth) {
-    (defineServerAuth as unknown as DefineServerAuthFn)._count = 0
-    globalThis.defineServerAuth = defineServerAuth as unknown as DefineServerAuthFn
+  if (!globalThis.__nuxtBetterAuthDefineServerAuth) {
+    (runtimeDefineServerAuth as unknown as RuntimeDefineServerAuthFn)._count = 0
+    globalThis.__nuxtBetterAuthDefineServerAuth = runtimeDefineServerAuth as unknown as RuntimeDefineServerAuthFn
   }
-  globalThis.defineServerAuth._count++
+  globalThis.__nuxtBetterAuthDefineServerAuth._count++
 
   try {
     const mod = await jiti.import(configPath) as { default?: unknown }
@@ -88,9 +88,9 @@ export async function loadUserAuthConfig(configPath: string, throwOnError = fals
     return {}
   }
   finally {
-    globalThis.defineServerAuth!._count--
-    if (!globalThis.defineServerAuth!._count) {
-      globalThis.defineServerAuth = undefined
+    globalThis.__nuxtBetterAuthDefineServerAuth!._count--
+    if (!globalThis.__nuxtBetterAuthDefineServerAuth!._count) {
+      globalThis.__nuxtBetterAuthDefineServerAuth = undefined
     }
   }
 }

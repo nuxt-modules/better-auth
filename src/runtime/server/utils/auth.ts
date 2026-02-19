@@ -1,6 +1,8 @@
-import type { Auth, BetterAuthOptions } from 'better-auth'
+import type { BetterAuthOptions } from 'better-auth'
 import type { H3Event } from 'h3'
+// @ts-expect-error Nuxt generates this virtual module in app builds.
 import { createDatabase, db } from '#auth/database'
+// @ts-expect-error Nuxt generates this virtual module in app builds.
 import { createSecondaryStorage } from '#auth/secondary-storage'
 import createServerAuth from '#auth/server'
 import { betterAuth } from 'better-auth'
@@ -9,7 +11,7 @@ import { useRuntimeConfig } from 'nitropack/runtime'
 import { withoutProtocol } from 'ufo'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
 
-type AuthInstance = Auth<ReturnType<typeof createServerAuth>>
+type AuthInstance = ReturnType<typeof betterAuth>
 
 const _authCache = new Map<string, AuthInstance>()
 let _baseURLInferenceLogged = false
@@ -254,7 +256,9 @@ export function serverAuth(event?: H3Event): AuthInstance {
     return cached
 
   const database = createDatabase()
-  const userConfig = createServerAuth({ runtimeConfig, db })
+  const userConfig = createServerAuth({ runtimeConfig, db }) as BetterAuthOptions & {
+    secondaryStorage?: BetterAuthOptions['secondaryStorage']
+  }
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins, Boolean(hasExplicitSiteUrl))
 
   const hubSecondaryStorage = (runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' })?.hubSecondaryStorage
