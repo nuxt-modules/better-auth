@@ -11,10 +11,10 @@ function createWrapper(waitFn: () => Promise<void>, fallbackOnSuccess?: (ctx: an
     const [data, options] = args
     const nested = data?.fetchOptions?.onSuccess
     const topLevel = options?.onSuccess
-    const wrap = (cb: any) => (async (ctx: any) => {
+    const wrap = (cb: any) => async (ctx: any) => {
       await waitFn()
       await cb(ctx)
-    })
+    }
 
     if (!nested && !topLevel) {
       if (!fallbackOnSuccess)

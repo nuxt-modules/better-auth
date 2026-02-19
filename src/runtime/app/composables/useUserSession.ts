@@ -240,7 +240,11 @@ export function useUserSession(): UseUserSessionReturn {
       const topLevelOnSuccess = optionsRecord?.onSuccess
 
       const fallbackOnSuccess = resolvePostAuthSuccessRedirect()
-      const wrappedFallbackOnSuccess = fallbackOnSuccess && wrapOnSuccess(() => fallbackOnSuccess())
+      const wrappedFallbackOnSuccess = fallbackOnSuccess && wrapOnSuccess(async () => {
+        if (!loggedIn.value)
+          return
+        await fallbackOnSuccess()
+      })
 
       // Passkey pattern: onSuccess in data.fetchOptions
       if (typeof nestedOnSuccess === 'function') {

@@ -113,14 +113,18 @@ describe('useUserSession hydration bootstrap', () => {
       error: null,
     }
 
-    mockClient.useSession.mockClear()
-    mockClient.getSession.mockClear()
+    mockClient.useSession.mockReset()
+    mockClient.useSession.mockImplementation(() => sessionAtom)
+    mockClient.getSession.mockReset()
     mockClient.$store.listen.mockClear()
     mockClient.signOut.mockClear()
     mockClient.updateUser = undefined
-    mockClient.signIn.social.mockClear()
-    mockClient.signIn.email.mockClear()
-    mockClient.signUp.email.mockClear()
+    mockClient.signIn.social.mockReset()
+    mockClient.signIn.social.mockResolvedValue({})
+    mockClient.signIn.email.mockReset()
+    mockClient.signIn.email.mockResolvedValue({})
+    mockClient.signUp.email.mockReset()
+    mockClient.signUp.email.mockResolvedValue({})
     mockClient.getSession.mockResolvedValue({ data: null })
 
     setRuntimeFlags({ client: true, server: false })
@@ -273,7 +277,6 @@ describe('useUserSession hydration bootstrap', () => {
   })
 
   it('signIn does not auto-navigate when no onSuccess callback and no fallback redirect is set', async () => {
-    requestURL.searchParams = new URLSearchParams({ redirect: '/app' })
     mockClient.getSession.mockResolvedValueOnce({
       data: {
         session: { id: 'session-1', ipAddress: '127.0.0.1' },
@@ -290,6 +293,21 @@ describe('useUserSession hydration bootstrap', () => {
     await auth.signIn.email({ email: 'user@example.com', password: 'password' })
     expect(navigateTo).not.toHaveBeenCalled()
   })
+
+  it('signUp does not auto-navigate to authenticated redirect when session is unresolved', async () => {
+    runtimeConfig.public.auth.redirects = { authenticated: '/app' }
+    mockClient.getSession.mockResolvedValueOnce({ data: null })
+    mockClient.signUp.email.mockImplementation(async (_data, opts) => {
+      await opts?.onSuccess?.('ctx')
+    })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    await auth.signUp.email({ email: 'user@example.com', password: 'password', name: 'User' })
+
+    expect(navigateTo).not.toHaveBeenCalled()
+  }, 10000)
 
   it('signUp uses auth.redirects.authenticated when no callback is provided', async () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
