@@ -4,6 +4,7 @@ definePageMeta({ layout: 'auth' })
 const signInEmail = useUserSignIn('email')
 const signInSocial = useUserSignIn('social')
 const signInPasskey = useUserSignIn('passkey')
+const { resolvePostAuthRedirect } = usePostAuthRedirect()
 
 const { t } = useI18n()
 const toast = useToast()
@@ -18,7 +19,7 @@ async function handleSignIn() {
     {
       onSuccess: () => {
         toast.add({ title: 'Success', description: t('login.success'), color: 'success' })
-        navigateTo('/app')
+        navigateTo(resolvePostAuthRedirect('/app'))
       },
       onError: (ctx) => {
         toast.add({ title: 'Error', description: ctx.error.message || t('login.error'), color: 'error' })
@@ -29,7 +30,7 @@ async function handleSignIn() {
 
 async function handleSocialSignIn(provider: string) {
   try {
-    await signInSocial.execute({ provider, callbackURL: '/app' })
+    await signInSocial.execute({ provider, callbackURL: resolvePostAuthRedirect('/app') })
   }
   catch (e: any) {
     toast.add({ title: 'Error', description: e.message || `${provider} sign in failed`, color: 'error' })
@@ -41,7 +42,7 @@ async function handlePasskeySignIn() {
     fetchOptions: {
       onSuccess: async () => {
         toast.add({ title: 'Success', description: t('login.success'), color: 'success' })
-        await navigateTo('/app')
+        await navigateTo(resolvePostAuthRedirect('/app'))
       },
       onError: (ctx) => {
         toast.add({ title: 'Error', description: ctx.error.message || t('login.error'), color: 'error' })

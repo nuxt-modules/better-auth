@@ -10,7 +10,10 @@ const tabs: TabsItem[] = [
 
 const activeTab = computed({
   get: () => route.path === '/register' ? 'sign-up' : 'sign-in',
-  set: value => navigateTo(value === 'sign-up' ? '/register' : '/login'),
+  set: value => navigateTo({
+    path: value === 'sign-up' ? '/register' : '/login',
+    query: route.query,
+  }),
 })
 
 const showTabs = computed(() => ['/login', '/register'].includes(route.path))

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
-const { signUp } = useUserSession()
+const signUpEmail = useUserSignUp('email')
+const { resolvePostAuthRedirect } = usePostAuthRedirect()
 const { t } = useI18n()
 const toast = useToast()
 const emailWarning = useEmailWarning()
@@ -13,7 +14,7 @@ const password = ref('')
 const passwordConfirm = ref('')
 const image = ref<File | null>(null)
 const imagePreview = ref<string | null>(null)
-const loading = ref(false)
+const loading = computed(() => signUpEmail.status.value === 'pending')
 
 function handleImageChange(e: Event) {
   const target = e.target as HTMLInputElement
@@ -44,8 +45,12 @@ async function convertImageToBase64(file: File): Promise<string> {
 }
 
 async function handleSignUp() {
-  loading.value = true
-  await signUp.email(
+  if (password.value !== passwordConfirm.value) {
+    toast.add({ title: 'Error', description: 'Passwords do not match', color: 'error' })
+    return
+  }
+
+  await signUpEmail.execute(
     {
       email: email.value,
       password: password.value,
@@ -56,14 +61,13 @@ async function handleSignUp() {
       onSuccess: () => {
         toast.add({ title: 'Success', description: t('register.success'), color: 'success' })
         emailWarning()
-        navigateTo('/app')
+        navigateTo(resolvePostAuthRedirect('/app'))
       },
       onError: (ctx) => {
         toast.add({ title: 'Error', description: ctx.error.message || t('register.error'), color: 'error' })
       },
     },
   )
-  loading.value = false
 }
 </script>
 

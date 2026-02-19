@@ -1,5 +1,19 @@
 export default defineNuxtConfig({
-  modules: ['nitro-cloudflare-dev', '@nuxthub/core', '@nuxt/ui', 'nuxt-qrcode', '@nuxtjs/i18n', '../src/module', ['npm-agentskills/nuxt', { targets: ['claude'] }]],
+  modules: [
+    'nitro-cloudflare-dev',
+    '@nuxthub/core',
+    '@nuxt/ui',
+    'nuxt-qrcode',
+    '@nuxtjs/i18n',
+    ['../src/module', {
+      redirects: {
+        guest: '/app',
+        logout: '/login',
+      },
+      preserveRedirect: true,
+    }],
+    ['npm-agentskills/nuxt', { targets: ['claude'] }],
+  ],
 
   css: ['~/assets/css/main.css'],
 
