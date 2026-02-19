@@ -94,14 +94,13 @@ export async function loadUserAuthConfig(configPath: string, throwOnError = fals
   }
   finally {
     const sharedDefineServerAuth = globalThis.__nuxtBetterAuthDefineServerAuth
-    if (!sharedDefineServerAuth) {
-      return
-    }
-    sharedDefineServerAuth._count--
-    if (!sharedDefineServerAuth._count) {
-      globalThis.__nuxtBetterAuthDefineServerAuth = undefined
-      if (globalThis.defineServerAuth === sharedDefineServerAuth) {
-        globalThis.defineServerAuth = undefined
+    if (sharedDefineServerAuth) {
+      sharedDefineServerAuth._count--
+      if (!sharedDefineServerAuth._count) {
+        globalThis.__nuxtBetterAuthDefineServerAuth = undefined
+        if (globalThis.defineServerAuth === sharedDefineServerAuth) {
+          globalThis.defineServerAuth = undefined
+        }
       }
     }
   }
