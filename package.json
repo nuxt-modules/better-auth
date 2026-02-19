@@ -116,8 +116,7 @@
       "workerd"
     ],
     "patchedDependencies": {
-      "@peculiar/x509@1.14.2": "patches/@peculiar__x509@1.14.2.patch",
-      "unenv@2.0.0-rc.24": "patches/unenv@2.0.0-rc.24.patch"
+      "@peculiar/x509@1.14.2": "patches/@peculiar__x509@1.14.2.patch"
     },
     "overrides": {
       "reka-ui": "^2.6.1"

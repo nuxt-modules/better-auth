@@ -42,7 +42,7 @@ export default defineNuxtConfig({
 
   future: { compatibilityVersion: 4 },
 
-  compatibilityDate: '2025-01-01',
+  compatibilityDate: '2026-02-18',
 
   vite: { plugins: [yaml()] },
 
