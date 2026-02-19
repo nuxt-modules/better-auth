@@ -185,6 +185,33 @@ export function useUserSession(): UseUserSessionReturn {
     })
   }
 
+  function isSafeLocalRedirect(redirect: unknown): string | undefined {
+    if (typeof redirect !== 'string')
+      return
+    if (!redirect.startsWith('/') || redirect.startsWith('//'))
+      return
+    return redirect
+  }
+
+  function resolvePostAuthRedirect(): string | undefined {
+    const authConfig = runtimeConfig.public.auth as { redirects?: { authenticated?: string }, redirectQueryKey?: string } | undefined
+    const redirectQueryKey = authConfig?.redirectQueryKey ?? 'redirect'
+    const queryRedirect = requestURL.searchParams?.get(redirectQueryKey)
+    const safeQueryRedirect = isSafeLocalRedirect(queryRedirect)
+    if (safeQueryRedirect)
+      return safeQueryRedirect
+    return isSafeLocalRedirect(authConfig?.redirects?.authenticated)
+  }
+
+  function resolvePostAuthSuccessRedirect(): () => Promise<void> | undefined {
+    const target = resolvePostAuthRedirect()
+    if (!target)
+      return
+    return async () => {
+      await navigateTo(target)
+    }
+  }
+
   // Wrap signIn methods to wait for session sync before calling onSuccess
   type SignIn = NonNullable<AppAuthClient>['signIn']
   type SignUp = NonNullable<AppAuthClient>['signUp']
@@ -212,6 +239,9 @@ export function useUserSession(): UseUserSessionReturn {
       const nestedOnSuccess = fetchOptions?.onSuccess
       const topLevelOnSuccess = optionsRecord?.onSuccess
 
+      const fallbackOnSuccess = resolvePostAuthSuccessRedirect()
+      const wrappedFallbackOnSuccess = fallbackOnSuccess && wrapOnSuccess(() => fallbackOnSuccess())
+
       // Passkey pattern: onSuccess in data.fetchOptions
       if (typeof nestedOnSuccess === 'function') {
         const nextData = {
@@ -231,6 +261,26 @@ export function useUserSession(): UseUserSessionReturn {
         }
         return method(data as unknown as Parameters<T>[0], nextOptions as unknown as Parameters<T>[1])
       }
+
+      if (wrappedFallbackOnSuccess) {
+        if (fetchOptions) {
+          const nextData = {
+            ...dataRecord,
+            fetchOptions: {
+              ...fetchOptions,
+              onSuccess: wrappedFallbackOnSuccess,
+            },
+          }
+          return method(nextData as unknown as Parameters<T>[0], options as unknown as Parameters<T>[1])
+        }
+
+        const nextOptions = {
+          ...optionsRecord,
+          onSuccess: wrappedFallbackOnSuccess,
+        }
+        return method(data as unknown as Parameters<T>[0], nextOptions as unknown as Parameters<T>[1])
+      }
+
       return method(data, options)
     }) as T
   }

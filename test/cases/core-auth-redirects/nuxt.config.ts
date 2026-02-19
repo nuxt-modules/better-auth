@@ -7,6 +7,7 @@ export default defineNuxtConfig({
     redirects: {
       login: '/custom-login',
       guest: '/protected',
+      authenticated: '/app',
     },
   },
 })

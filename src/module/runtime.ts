@@ -44,6 +44,7 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { useHubKV: 
     redirects: {
       login: options.redirects?.login ?? '/login',
       guest: options.redirects?.guest ?? '/',
+      authenticated: options.redirects?.authenticated,
       logout: options.redirects?.logout,
     },
     preserveRedirect: options.preserveRedirect ?? true,

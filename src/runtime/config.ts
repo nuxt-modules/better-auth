@@ -34,6 +34,8 @@ export interface BetterAuthModuleOptions {
     login?: string
     /** Where to redirect authenticated users on guest-only routes. Default: '/' */
     guest?: string
+    /** Where to navigate after successful signIn/signUp when no onSuccess is provided. Default: no automatic navigation */
+    authenticated?: string
     /** Where to navigate after logout. Default: no automatic navigation */
     logout?: string
   }
@@ -78,7 +80,7 @@ export interface BetterAuthModuleOptions {
 
 // Runtime config type for public.auth
 export interface AuthRuntimeConfig {
-  redirects: { login: string, guest: string, logout?: string }
+  redirects: { login: string, guest: string, authenticated?: string, logout?: string }
   preserveRedirect: boolean
   redirectQueryKey: string
   useDatabase: boolean

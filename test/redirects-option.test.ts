@@ -28,4 +28,14 @@ describe('auth.redirects option', async () => {
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toContain('/protected')
   })
+
+  it('exposes auth.redirects.authenticated in runtime config endpoint', async () => {
+    const response = await fetch(url('/api/_better-auth/config'))
+    if (response.status === 404)
+      return
+    expect(response.status).toBe(200)
+
+    const payload = await response.json()
+    expect(payload.config.module.redirects.authenticated).toBe('/app')
+  })
 })

@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     const authContext = await ((auth as { $context?: Promise<{ trustedOrigins?: string[] }> | { trustedOrigins?: string[] } }).$context)
     const runtimeConfig = useRuntimeConfig()
     const publicAuth = runtimeConfig.public?.auth as {
-      redirects?: { login?: string, guest?: string, logout?: string }
+      redirects?: { login?: string, guest?: string, authenticated?: string, logout?: string }
       preserveRedirect?: boolean
       redirectQueryKey?: string
       useDatabase?: boolean
@@ -31,6 +31,7 @@ export default defineEventHandler(async (event) => {
           redirects: {
             login: publicAuth?.redirects?.login ?? '/login',
             guest: publicAuth?.redirects?.guest ?? '/',
+            authenticated: publicAuth?.redirects?.authenticated,
             logout: publicAuth?.redirects?.logout,
           },
           preserveRedirect: publicAuth?.preserveRedirect ?? true,
