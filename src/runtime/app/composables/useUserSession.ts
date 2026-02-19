@@ -227,12 +227,18 @@ export function useUserSession(): UseUserSessionReturn {
     }
   }
 
-  function wrapAuthMethod<T extends (...args: unknown[]) => Promise<unknown>>(method: T): T {
+  function wrapAuthMethod<T extends (...args: unknown[]) => Promise<unknown>>(
+    method: T,
+    wrapOptions: { skipSessionSync?: boolean } = {},
+  ): T {
     return (async (...args: unknown[]) => {
       const data = args[0]
       const options = args[1]
       const dataRecord = isRecord(data) ? data : undefined
       const optionsRecord = isRecord(options) ? options : undefined
+
+      if (wrapOptions.skipSessionSync)
+        return method(data, options)
 
       type OnSuccess = (ctx: unknown) => void | Promise<void>
       const fetchOptions = isRecord(dataRecord?.fetchOptions) ? dataRecord.fetchOptions : undefined
@@ -296,8 +302,12 @@ export function useUserSession(): UseUserSessionReturn {
           const method = targetRecord[prop]
           if (typeof method !== 'function')
             return method
+          const skipSessionSync = prop === 'social'
           // Don't bind - call through target to preserve better-auth's Proxy context
-          return wrapAuthMethod((...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args))
+          return wrapAuthMethod(
+            (...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args),
+            { skipSessionSync },
+          )
         },
       })
     : new Proxy({} as SignIn, {

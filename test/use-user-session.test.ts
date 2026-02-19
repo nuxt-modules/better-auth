@@ -294,6 +294,35 @@ describe('useUserSession hydration bootstrap', () => {
     expect(navigateTo).not.toHaveBeenCalled()
   })
 
+  it('signIn.social does not inject fallback onSuccess callbacks', async () => {
+    runtimeConfig.public.auth.redirects = { authenticated: '/app' }
+    mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    await auth.signIn.social({ provider: 'github' } as never)
+
+    expect(mockClient.signIn.social).toHaveBeenCalledWith({ provider: 'github' }, undefined)
+    expect(mockClient.getSession).not.toHaveBeenCalled()
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('signIn.social preserves explicit onSuccess without wrapping session sync', async () => {
+    const onSuccess = vi.fn()
+    mockClient.signIn.social.mockImplementation(async (_data, opts) => {
+      await opts?.onSuccess?.('ctx')
+    })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    await auth.signIn.social({ provider: 'github' } as never, { onSuccess } as never)
+
+    expect(onSuccess).toHaveBeenCalledOnce()
+    expect(mockClient.getSession).not.toHaveBeenCalled()
+  })
+
   it('signUp does not auto-navigate to authenticated redirect when session is unresolved', async () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
     mockClient.getSession.mockResolvedValueOnce({ data: null })
