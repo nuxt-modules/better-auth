@@ -32,6 +32,9 @@ export interface ServerAuthContext {
   db: unknown
 }
 
+// Extended by generated types from configured socialProviders keys.
+export interface AuthSocialProviderRegistry {}
+
 // Composable return type
 export interface UserSessionComposable {
   client: unknown

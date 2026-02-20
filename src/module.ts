@@ -243,4 +243,4 @@ export { schema }
 })
 
 export { defineClientAuth, defineServerAuth } from './runtime/config'
-export type { AppSession, Auth, AuthActionError, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthUser, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'
+export type { AppSession, Auth, AuthActionError, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthSocialProviderId, AuthUser, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'

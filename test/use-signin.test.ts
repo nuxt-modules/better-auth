@@ -204,6 +204,60 @@ describe('useSignIn', () => {
     expect(signInEmail.error.value?.message).toBeUndefined()
   })
 
+  it('routes provider aliases to signIn.social and injects provider', async () => {
+    sessionMock = {
+      signIn: {
+        social: vi.fn(async () => ({ ok: true })),
+      },
+    }
+
+    const useSignIn = await loadUseSignIn()
+    const signInGithub = useSignIn('github' as any)
+
+    await signInGithub.execute({ callbackURL: '/app' } as any)
+    expect(sessionMock.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app' })
+    expect(signInGithub.status.value).toBe('success')
+  })
+
+  it('injects provider when alias execute is called without payload', async () => {
+    const onSuccess = vi.fn()
+    sessionMock = {
+      signIn: {
+        social: vi.fn(async () => ({ ok: true })),
+      },
+    }
+
+    const useSignIn = await loadUseSignIn()
+    const signInGithub = useSignIn('github' as any)
+
+    await signInGithub.execute(undefined as any, { onSuccess } as any)
+    expect(sessionMock.signIn.social).toHaveBeenCalledWith({ provider: 'github' }, { onSuccess })
+  })
+
+  it('keeps provider alias handles independent', async () => {
+    const d = deferred<{ ok: true }>()
+    let calls = 0
+    sessionMock = {
+      signIn: {
+        social: vi.fn(() => {
+          calls++
+          return calls === 1 ? d.promise : Promise.resolve({ ok: true })
+        }),
+      },
+    }
+
+    const useSignIn = await loadUseSignIn()
+    const signInGithub = useSignIn('github' as any)
+    const signInGoogle = useSignIn('google' as any)
+
+    const p = signInGithub.execute({} as any)
+    expect(signInGithub.status.value).toBe('pending')
+    expect(signInGoogle.status.value).toBe('idle')
+
+    d.resolve({ ok: true })
+    await p
+  })
+
   it('throws when method key is missing', async () => {
     sessionMock = { signIn: {} }
     const useSignIn = await loadUseSignIn()

@@ -11,6 +11,7 @@ This changelog is incomplete for alpha releases. Use the GitHub Releases page fo
 - Renamed `getAppSession()` to `getRequestSession()`.
 - Renamed memoized request context key from `event.context.appSession` to `event.context.requestSession`.
 - Removed `errorMessage` from `useSignIn()` and `useSignUp()` action handles. Use `error.value?.message`.
+- `useSignIn('social')` is no longer a valid keyed call. Use provider aliases such as `useSignIn('github')`.
 
   Migration:
 
@@ -33,6 +34,10 @@ This changelog is incomplete for alpha releases. Use the GitHub Releases page fo
   // after
   const message = error.value?.message ?? 'Please try again.'
   ```
+
+### Added
+
+- Added typed provider aliases for `useSignIn()` based on configured `socialProviders` keys (for example, `useSignIn('github')`).
 
 ### Fixed
 

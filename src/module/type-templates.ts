@@ -112,6 +112,23 @@ declare module '@onmax/nuxt-better-auth/config' {
   }, { nuxt: true, nitro: true, node: true })
 
   addTypeTemplate({
+    filename: 'types/nuxt-better-auth-social-providers.d.ts',
+    getContents: () => `
+import type createServerAuth from '${serverConfigPath}'
+
+type _RawConfig = ReturnType<typeof createServerAuth>
+type _RawSocialProviders = _RawConfig extends { socialProviders: infer S } ? S : _RawConfig extends { socialProviders?: infer S } ? S : {}
+type _SocialProviderIds = Extract<keyof NonNullable<_RawSocialProviders>, string>
+
+declare module '#nuxt-better-auth' {
+  interface AuthSocialProviderRegistry {
+    ids: _SocialProviderIds
+  }
+}
+`,
+  }, { nuxt: true, nitro: true, node: true })
+
+  addTypeTemplate({
     filename: 'types/nuxt-better-auth-nitro.d.ts',
     getContents: () => `
 declare module 'nitropack' {
