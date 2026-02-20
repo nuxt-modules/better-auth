@@ -427,7 +427,7 @@ describe('useUserSession hydration bootstrap', () => {
     expect(navigateTo).not.toHaveBeenCalled()
   })
 
-  it('signIn.social does not inject fallback onSuccess callbacks', async () => {
+  it('signIn.social injects callbackURL from auth.redirects.authenticated when missing', async () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
     mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
 
@@ -436,9 +436,48 @@ describe('useUserSession hydration bootstrap', () => {
 
     await auth.signIn.social({ provider: 'github' } as never)
 
-    expect(mockClient.signIn.social).toHaveBeenCalledWith({ provider: 'github' }, undefined)
+    expect(mockClient.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app' }, undefined)
     expect(mockClient.getSession).not.toHaveBeenCalled()
     expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('signIn.social injects callbackURL from safe redirect query first', async () => {
+    runtimeConfig.public.auth.redirects = { authenticated: '/app' }
+    requestURL.searchParams = new URLSearchParams({ redirect: '/app/billing' })
+    mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    await auth.signIn.social({ provider: 'github' } as never)
+
+    expect(mockClient.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app/billing' }, undefined)
+  })
+
+  it('signIn.social ignores unsafe redirect query and falls back to auth.redirects.authenticated', async () => {
+    runtimeConfig.public.auth.redirects = { authenticated: '/app' }
+    requestURL.searchParams = new URLSearchParams({ redirect: 'https://evil.com/phish' })
+    mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    await auth.signIn.social({ provider: 'github' } as never)
+
+    expect(mockClient.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app' }, undefined)
+  })
+
+  it('signIn.social does not override explicit callbackURL', async () => {
+    runtimeConfig.public.auth.redirects = { authenticated: '/app' }
+    requestURL.searchParams = new URLSearchParams({ redirect: '/app/billing' })
+    mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    await auth.signIn.social({ provider: 'github', callbackURL: '/custom' } as never)
+
+    expect(mockClient.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/custom' }, undefined)
   })
 
   it('signIn.social preserves explicit onSuccess without wrapping session sync', async () => {

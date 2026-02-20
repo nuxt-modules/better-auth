@@ -204,7 +204,7 @@ describe('useSignIn', () => {
     expect(signInEmail.error.value?.message).toBeUndefined()
   })
 
-  it('routes provider aliases to signIn.social and injects provider', async () => {
+  it('supports keyed social sign-in handle', async () => {
     sessionMock = {
       signIn: {
         social: vi.fn(async () => ({ ok: true })),
@@ -212,63 +212,31 @@ describe('useSignIn', () => {
     }
 
     const useSignIn = await loadUseSignIn()
-    const signInGithub = useSignIn('github' as any)
+    const signInSocial = useSignIn('social')
 
-    await signInGithub.execute({ callbackURL: '/app' } as any)
+    await signInSocial.execute({ provider: 'github', callbackURL: '/app' } as any)
     expect(sessionMock.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app' })
-    expect(signInGithub.status.value).toBe('success')
+    expect(signInSocial.status.value).toBe('success')
   })
 
-  it('injects provider when alias execute is called without payload', async () => {
-    const onSuccess = vi.fn()
+  it('keeps social and non-social handles independent', async () => {
+    const socialDeferred = deferred<{ ok: true }>()
     sessionMock = {
       signIn: {
-        social: vi.fn(async () => ({ ok: true })),
+        social: vi.fn(() => socialDeferred.promise),
+        email: vi.fn(async () => ({ ok: true })),
       },
     }
 
     const useSignIn = await loadUseSignIn()
-    const signInGithub = useSignIn('github' as any)
+    const signInSocial = useSignIn('social')
+    const signInEmail = useSignIn('email')
 
-    await signInGithub.execute(undefined as any, { onSuccess } as any)
-    expect(sessionMock.signIn.social).toHaveBeenCalledWith({ provider: 'github' }, { onSuccess })
-  })
+    const p = signInSocial.execute({ provider: 'github' } as any)
+    expect(signInSocial.status.value).toBe('pending')
+    expect(signInEmail.status.value).toBe('idle')
 
-  it('keeps alias provider when payload includes provider', async () => {
-    sessionMock = {
-      signIn: {
-        social: vi.fn(async () => ({ ok: true })),
-      },
-    }
-
-    const useSignIn = await loadUseSignIn()
-    const signInGithub = useSignIn('github' as any)
-
-    await signInGithub.execute({ provider: 'google', callbackURL: '/app' } as any)
-    expect(sessionMock.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app' })
-  })
-
-  it('keeps provider alias handles independent', async () => {
-    const d = deferred<{ ok: true }>()
-    let calls = 0
-    sessionMock = {
-      signIn: {
-        social: vi.fn(() => {
-          calls++
-          return calls === 1 ? d.promise : Promise.resolve({ ok: true })
-        }),
-      },
-    }
-
-    const useSignIn = await loadUseSignIn()
-    const signInGithub = useSignIn('github' as any)
-    const signInGoogle = useSignIn('google' as any)
-
-    const p = signInGithub.execute({} as any)
-    expect(signInGithub.status.value).toBe('pending')
-    expect(signInGoogle.status.value).toBe('idle')
-
-    d.resolve({ ok: true })
+    socialDeferred.resolve({ ok: true })
     await p
   })
 

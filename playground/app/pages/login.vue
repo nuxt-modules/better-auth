@@ -2,7 +2,7 @@
 definePageMeta({ layout: 'auth' })
 
 const signInEmail = useSignIn('email')
-const signInGithub = useSignIn('github')
+const signInSocial = useSignIn('social')
 const signInPasskey = useSignIn('passkey')
 const { resolvePostAuthRedirect } = usePostAuthRedirect()
 
@@ -29,12 +29,7 @@ async function handleSignIn() {
 }
 
 async function handleSocialSignIn() {
-  try {
-    await signInGithub.execute({ callbackURL: resolvePostAuthRedirect('/app') })
-  }
-  catch (e: any) {
-    toast.add({ title: 'Error', description: e.message || 'GitHub sign in failed', color: 'error' })
-  }
+  await signInSocial.execute({ provider: 'github' })
 }
 
 async function handlePasskeySignIn() {
@@ -86,7 +81,7 @@ async function handlePasskeySignIn() {
       </UButton>
 
       <div class="w-full gap-2 flex items-center justify-between flex-col">
-        <UButton variant="outline" block :loading="signInGithub.status.value === 'pending'" @click="handleSocialSignIn">
+        <UButton variant="outline" block :loading="signInSocial.status.value === 'pending'" @click="handleSocialSignIn">
           <UIcon name="i-simple-icons-github" />
           <span>Sign in with GitHub</span>
         </UButton>

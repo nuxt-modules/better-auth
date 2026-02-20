@@ -232,6 +232,22 @@ export function useUserSession(): UseUserSessionReturn {
     }
   }
 
+  function withFallbackSocialCallbackURL(data: unknown): unknown {
+    const callbackURL = resolvePostAuthRedirect()
+    if (!callbackURL)
+      return data
+
+    if (!isRecord(data))
+      return { callbackURL }
+    if (typeof data.callbackURL === 'string')
+      return data
+
+    return {
+      ...data,
+      callbackURL,
+    }
+  }
+
   // Wrap signIn methods to wait for session sync before calling onSuccess
   type SignIn = NonNullable<AppAuthClient>['signIn']
   type SignUp = NonNullable<AppAuthClient>['signUp']
@@ -249,11 +265,15 @@ export function useUserSession(): UseUserSessionReturn {
 
   function wrapAuthMethod<T extends (...args: unknown[]) => Promise<unknown>>(
     method: T,
-    wrapOptions: { shouldSkipSessionSync?: (data: unknown, options: unknown) => boolean } = {},
+    wrapOptions: {
+      shouldSkipSessionSync?: (data: unknown, options: unknown) => boolean
+      transformData?: (data: unknown, options: unknown) => unknown
+    } = {},
   ): T {
     return (async (...args: unknown[]) => {
-      const data = args[0]
+      const originalData = args[0]
       const options = args[1]
+      const data = wrapOptions.transformData?.(originalData, options) ?? originalData
       const dataRecord = isRecord(data) ? data : undefined
       const optionsRecord = isRecord(options) ? options : undefined
 
@@ -328,10 +348,11 @@ export function useUserSession(): UseUserSessionReturn {
                 return socialData?.disableRedirect !== true
               }
             : undefined
+          const transformData = prop === 'social' ? withFallbackSocialCallbackURL : undefined
           // Don't bind - call through target to preserve better-auth's Proxy context
           return wrapAuthMethod(
             (...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args),
-            { shouldSkipSessionSync },
+            { shouldSkipSessionSync, transformData },
           )
         },
       })

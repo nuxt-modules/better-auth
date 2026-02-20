@@ -11,7 +11,7 @@ This changelog is incomplete for alpha releases. Use the GitHub Releases page fo
 - Renamed `getAppSession()` to `getRequestSession()`.
 - Renamed memoized request context key from `event.context.appSession` to `event.context.requestSession`.
 - Removed `errorMessage` from `useSignIn()` and `useSignUp()` action handles. Use `error.value?.message`.
-- `useSignIn('social')` is no longer a valid keyed call. Use provider aliases such as `useSignIn('github')`.
+- Removed OAuth provider aliases such as `useSignIn('github')`. Use `useSignIn('social')` and pass the provider in `execute()`.
 
   Migration:
 
@@ -29,6 +29,12 @@ This changelog is incomplete for alpha releases. Use the GitHub Releases page fo
   const memoized = event.context.requestSession
 
   // before
+  await useSignIn('github').execute({ callbackURL: '/app' })
+
+  // after
+  await useSignIn('social').execute({ provider: 'github', callbackURL: '/app' })
+
+  // before
   const message = errorMessage.value ?? 'Please try again.'
 
   // after
@@ -37,7 +43,8 @@ This changelog is incomplete for alpha releases. Use the GitHub Releases page fo
 
 ### Added
 
-- Added typed provider aliases for `useSignIn()` based on configured `socialProviders` keys (for example, `useSignIn('github')`).
+- Added strict provider typing for `useSignIn('social').execute()` from configured `socialProviders` keys.
+- Added social `callbackURL` auto-fill when omitted: safe `?redirect=` first, then `auth.redirects.authenticated`.
 
 ### Fixed
 
