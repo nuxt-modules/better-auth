@@ -1,4 +1,4 @@
-import { socialProviders } from './server/auth.config'
+import type { socialProviders } from './server/auth.config'
 
 type RawSocialProviderIds = Extract<keyof typeof socialProviders, string>
 

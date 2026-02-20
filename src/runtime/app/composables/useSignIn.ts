@@ -10,7 +10,7 @@ type TypedSocialMethod<Method> = Method extends (data: infer Data, ...rest: infe
   ? (data: Omit<Extract<Data, Record<string, unknown>>, 'provider'> & { provider: AuthSocialProviderId }, ...rest: Rest) => Promise<Result>
   : Method
 
-type SignInWithTypedSocial = Omit<SignIn, 'social'> & (SignIn extends { social: infer SocialMethod } ? { social: TypedSocialMethod<SocialMethod> } : {})
+type SignInWithTypedSocial = Omit<SignIn, 'social'> & (SignIn extends { social: infer SocialMethod } ? { social: TypedSocialMethod<SocialMethod> } : unknown)
 
 export function useSignIn<MethodKey extends keyof SignInWithTypedSocial>(method: MethodKey): ActionHandleFor<SignInWithTypedSocial[MethodKey]> {
   if (method === undefined || method === null)
