@@ -234,6 +234,20 @@ describe('useSignIn', () => {
     expect(sessionMock.signIn.social).toHaveBeenCalledWith({ provider: 'github' }, { onSuccess })
   })
 
+  it('keeps alias provider when payload includes provider', async () => {
+    sessionMock = {
+      signIn: {
+        social: vi.fn(async () => ({ ok: true })),
+      },
+    }
+
+    const useSignIn = await loadUseSignIn()
+    const signInGithub = useSignIn('github' as any)
+
+    await signInGithub.execute({ provider: 'google', callbackURL: '/app' } as any)
+    expect(sessionMock.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app' })
+  })
+
   it('keeps provider alias handles independent', async () => {
     const d = deferred<{ ok: true }>()
     let calls = 0

@@ -40,7 +40,7 @@ export function useSignIn(method: SignInMethodKey | ProviderAliasKey): ActionHan
 
         return (...args: unknown[]) => {
           const [data, ...rest] = args
-          const payload = isRecord(data) ? { provider: prop, ...data } : { provider: prop }
+          const payload = isRecord(data) ? { ...data, provider: prop } : { provider: prop }
           return (social as (...socialArgs: unknown[]) => Promise<unknown>)(payload, ...rest)
         }
       },
