@@ -164,7 +164,7 @@ export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesIn
     getContents: () => `
 import type { AppSession } from '${input.runtimeTypesAugmentPath}'
 export * from '${input.runtimeTypesAugmentPath}'
-export type { AuthMeta, AuthMode, AuthRouteRules, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
+export type { AuthMeta, AuthMode, AuthRouteRules, AuthSocialProviderId, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
 declare module 'h3' {
   interface H3EventContext {
     requestSession?: AppSession | null

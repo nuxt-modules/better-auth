@@ -9,11 +9,18 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "types": [],
+    "paths": {
+      "#nuxt-better-auth": [
+        "./.nuxt/types/nuxt-better-auth.d.ts"
+      ]
+    },
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true
   },
   "files": [
+    "./.nuxt/types/nuxt-better-auth.d.ts",
+    "./.nuxt/types/nuxt-better-auth-social-providers.d.ts",
     "./typecheck-target.ts"
   ]
 }

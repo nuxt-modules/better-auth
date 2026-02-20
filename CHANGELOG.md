@@ -45,6 +45,8 @@ This changelog is incomplete for alpha releases. Use the GitHub Releases page fo
 
 - Added strict provider typing for `useSignIn('social').execute()` from configured `socialProviders` keys.
 - Added social `callbackURL` auto-fill when omitted: safe `?redirect=` first, then `auth.redirects.authenticated`.
+- Added `AuthSocialProviderId` to `#nuxt-better-auth` exports for direct provider-id typing in Nuxt apps.
+- Added `getSocialProviderName()` and `SOCIAL_PROVIDER_NAMES` for consistent provider label rendering.
 
 ### Fixed
 
