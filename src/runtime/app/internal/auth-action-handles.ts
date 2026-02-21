@@ -38,6 +38,20 @@ function isRedirectResult(value: unknown): value is { redirect: true, url: strin
   return value.redirect === true && typeof value.url === 'string' && value.url.length > 0
 }
 
+function getRedirectResult(value: unknown): { redirect: true, url: string } | null {
+  if (isRedirectResult(value))
+    return value
+
+  if (!isRecord(value))
+    return null
+
+  const nested = value.data
+  if (isRedirectResult(nested))
+    return nested
+
+  return null
+}
+
 const REDIRECT_PENDING_FALLBACK_MS = 10_000
 
 function createActionHandle<TArgs extends unknown[], TResult>(
@@ -68,7 +82,8 @@ function createActionHandle<TArgs extends unknown[], TResult>(
       }
 
       if (callId === latestCallId) {
-        if (isRedirectResult(result as unknown)) {
+        const redirectResult = getRedirectResult(result as unknown)
+        if (redirectResult) {
           // Keep pending while the browser performs the external redirect.
           // If navigation does not happen, settle eventually to avoid a stuck UI.
           status.value = 'pending'
