@@ -32,6 +32,14 @@ function isErrorResult(value: unknown): value is { error: unknown } {
   return Boolean((value as Record<string, unknown>).error)
 }
 
+function isRedirectResult(value: unknown): value is { redirect: true, url: string } {
+  if (!isRecord(value))
+    return false
+  return value.redirect === true && typeof value.url === 'string' && value.url.length > 0
+}
+
+const REDIRECT_PENDING_FALLBACK_MS = 10_000
+
 function createActionHandle<TArgs extends unknown[], TResult>(
   getMethod: () => (...args: TArgs) => Promise<TResult>,
 ): UserAuthActionHandle<TArgs, TResult> {
@@ -60,6 +68,21 @@ function createActionHandle<TArgs extends unknown[], TResult>(
       }
 
       if (callId === latestCallId) {
+        if (isRedirectResult(result as unknown)) {
+          // Keep pending while the browser performs the external redirect.
+          // If navigation does not happen, settle eventually to avoid a stuck UI.
+          status.value = 'pending'
+          data.value = result
+          error.value = null
+
+          setTimeout(() => {
+            if (callId !== latestCallId || status.value !== 'pending')
+              return
+            status.value = 'success'
+          }, REDIRECT_PENDING_FALLBACK_MS)
+          return
+        }
+
         status.value = 'success'
         data.value = result
         error.value = null

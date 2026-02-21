@@ -219,6 +219,28 @@ describe('useSignIn', () => {
     expect(signInSocial.status.value).toBe('success')
   })
 
+  it('keeps pending for redirect responses until fallback timeout', async () => {
+    vi.useFakeTimers()
+    sessionMock = {
+      signIn: {
+        social: vi.fn(async () => ({
+          url: 'https://github.com/login/oauth/authorize',
+          redirect: true,
+        })),
+      },
+    }
+
+    const useSignIn = await loadUseSignIn()
+    const signInSocial = useSignIn('social')
+
+    await signInSocial.execute({ provider: 'github' } as any)
+    expect(signInSocial.status.value).toBe('pending')
+
+    vi.advanceTimersByTime(10_000)
+    expect(signInSocial.status.value).toBe('success')
+    vi.useRealTimers()
+  })
+
   it('keeps social and non-social handles independent', async () => {
     const socialDeferred = deferred<{ ok: true }>()
     sessionMock = {
