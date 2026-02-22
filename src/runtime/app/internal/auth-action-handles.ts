@@ -12,6 +12,10 @@ export interface UserAuthActionHandle<TArgs extends unknown[], TResult> {
   error: Ref<AuthActionError | null>
 }
 
+export interface CreateActionHandleOptions {
+  keepPendingOnRedirect?: boolean
+}
+
 type AnyAsyncFn = (...args: unknown[]) => Promise<unknown>
 export type ActionHandleFor<T> = T extends (...args: infer A) => Promise<infer R>
   ? UserAuthActionHandle<A, R>
@@ -54,8 +58,9 @@ function getRedirectResult(value: unknown): { redirect: true, url: string } | nu
 
 const REDIRECT_PENDING_FALLBACK_MS = 10_000
 
-function createActionHandle<TArgs extends unknown[], TResult>(
+export function createActionHandle<TArgs extends unknown[], TResult>(
   getMethod: () => (...args: TArgs) => Promise<TResult>,
+  options: CreateActionHandleOptions = {},
 ): UserAuthActionHandle<TArgs, TResult> {
   const status = ref<UserAuthActionStatus>('idle')
   const data = ref<TResult | null>(null) as Ref<TResult | null>
@@ -82,20 +87,22 @@ function createActionHandle<TArgs extends unknown[], TResult>(
       }
 
       if (callId === latestCallId) {
-        const redirectResult = getRedirectResult(result as unknown)
-        if (redirectResult) {
-          // Keep pending while the browser performs the external redirect.
-          // If navigation does not happen, settle eventually to avoid a stuck UI.
-          status.value = 'pending'
-          data.value = result
-          error.value = null
+        if (options.keepPendingOnRedirect !== false) {
+          const redirectResult = getRedirectResult(result as unknown)
+          if (redirectResult) {
+            // Keep pending while the browser performs the external redirect.
+            // If navigation does not happen, settle eventually to avoid a stuck UI.
+            status.value = 'pending'
+            data.value = result
+            error.value = null
 
-          setTimeout(() => {
-            if (callId !== latestCallId || status.value !== 'pending')
-              return
-            status.value = 'success'
-          }, REDIRECT_PENDING_FALLBACK_MS)
-          return
+            setTimeout(() => {
+              if (callId !== latestCallId || status.value !== 'pending')
+                return
+              status.value = 'success'
+            }, REDIRECT_PENDING_FALLBACK_MS)
+            return
+          }
         }
 
         status.value = 'success'
