@@ -85,6 +85,14 @@ export function useUserSession(): UseUserSessionReturn {
   const hydrationReconcileQueued = useState('auth:hydration-reconcile-queued', () => false)
   const ready = computed(() => authReady.value)
   const loggedIn = computed(() => Boolean(session.value && user.value))
+  const isPrerenderedPayload = computed(() => Boolean(nuxtApp.payload.prerenderedAt || nuxtApp.payload.isCached))
+  const isPrerenderHydrationEmptySnapshot = computed(() => {
+    if (!runtimeFlags.client)
+      return false
+    if (!nuxtApp.isHydrating || !nuxtApp.payload.serverRendered || !isPrerenderedPayload.value)
+      return false
+    return !session.value && !user.value
+  })
 
   const skipHydratedSsrGetSession = computed(() => {
     const authConfig = runtimeConfig.public.auth as { session?: { skipHydratedSsrGetSession?: boolean } } | undefined
@@ -98,11 +106,14 @@ export function useUserSession(): UseUserSessionReturn {
     if (!nuxtApp.payload.serverRendered)
       return false
     // Don't skip for prerendered/cached payloads; we want a real session check after mount.
-    if (nuxtApp.payload.prerenderedAt || nuxtApp.payload.isCached)
+    if (isPrerenderedPayload.value)
       return false
     // SSR already hydrated state: avoid duplicate /api/auth/get-session on first paint.
     return Boolean(session.value && user.value)
   })
+
+  if (isPrerenderHydrationEmptySnapshot.value && authReady.value)
+    authReady.value = false
 
   if (shouldSkipInitialClientSessionFetch.value && !authReady.value)
     authReady.value = true
@@ -151,6 +162,14 @@ export function useUserSession(): UseUserSessionReturn {
     watch(
       () => clientSession.value,
       (newSession) => {
+        const shouldWaitForPrerenderResolution
+          = isPrerenderHydrationEmptySnapshot.value
+            && !newSession?.data?.session
+            && !newSession?.data?.user
+
+        if (shouldWaitForPrerenderResolution)
+          return
+
         if (newSession?.data?.session && newSession?.data?.user) {
           // Filter out sensitive token field
           const { token: _, ...safeSession } = newSession.data.session as AuthSession & { token?: string }

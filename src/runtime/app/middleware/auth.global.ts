@@ -1,6 +1,6 @@
 import type { AuthRuntimeConfig } from '../../config'
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
-import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useNuxtApp, useRequestHeaders, useRuntimeConfig, useUserSession } from '#imports'
+import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useRequestHeaders, useRuntimeConfig, useUserSession } from '#imports'
 import { matchesUser } from '../../utils/match-user'
 
 declare module '#app' {
@@ -16,16 +16,6 @@ declare module 'vue-router' {
 }
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  const nuxtApp = useNuxtApp()
-
-  // Skip auth check during initial hydration of prerendered/cached pages
-  // The client plugin will handle session fetch after mount
-  if (import.meta.client) {
-    const isPrerendered = nuxtApp.payload.prerenderedAt || nuxtApp.payload.isCached
-    if (isPrerendered && nuxtApp.isHydrating)
-      return
-  }
-
   // Runtime fallback: resolve auth from route rules if not set at build-time
   // This handles dynamic catch-all routes where build-time can't match specific paths
   if (to.meta.auth === undefined) {

@@ -217,6 +217,40 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
+  it('keeps ready false during prerender hydration when SSR snapshot is empty', async () => {
+    payload.serverRendered = true
+    payload.prerenderedAt = Date.now()
+    nuxtApp.isHydrating = true
+    state.set('auth:ready', ref(true))
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await flushPromises()
+
+    expect(mockClient.useSession).toHaveBeenCalledOnce()
+    expect(auth.ready.value).toBe(false)
+  })
+
+  it('marks ready after first client session resolution on prerender hydration', async () => {
+    payload.serverRendered = true
+    payload.prerenderedAt = Date.now()
+    nuxtApp.isHydrating = true
+    state.set('auth:ready', ref(true))
+    mockClient.getSession.mockResolvedValueOnce({ data: null })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await flushPromises()
+
+    expect(auth.ready.value).toBe(false)
+
+    nuxtApp.isHydrating = false
+    await auth.fetchSession()
+
+    expect(mockClient.getSession).toHaveBeenCalledTimes(1)
+    expect(auth.ready.value).toBe(true)
+  })
+
   it('bootstraps client session on CSR navigation', async () => {
     payload.serverRendered = false
     runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
