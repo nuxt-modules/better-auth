@@ -1,6 +1,6 @@
 import type { AuthRuntimeConfig } from '../../config'
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
-import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useRequestHeaders, useRuntimeConfig, useUserSession } from '#imports'
+import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useNuxtApp, useRequestHeaders, useRuntimeConfig, useUserSession } from '#imports'
 import { matchesUser } from '../../utils/match-user'
 
 declare module '#app' {
@@ -16,6 +16,8 @@ declare module 'vue-router' {
 }
 
 export default defineNuxtRouteMiddleware(async (to) => {
+  const nuxtApp = useNuxtApp()
+
   // Runtime fallback: resolve auth from route rules if not set at build-time
   // This handles dynamic catch-all routes where build-time can't match specific paths
   if (to.meta.auth === undefined) {
@@ -35,7 +37,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Always fetch session if not logged in - state may not have synced yet
   if (!loggedIn.value) {
     const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
-    await fetchSession({ headers })
+    const isHydratedPrerenderPayload
+      = (import.meta.client || !import.meta.server)
+        && nuxtApp.isHydrating
+        && Boolean(nuxtApp.payload.prerenderedAt || nuxtApp.payload.isCached)
+    await fetchSession({ headers, ...(isHydratedPrerenderPayload ? { force: true } : {}) })
   }
 
   const mode: AuthMode = typeof auth === 'string' ? auth : auth?.only ?? 'user'

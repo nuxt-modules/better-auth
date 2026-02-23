@@ -353,6 +353,28 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.user.value).toEqual({ id: 'user-2', email: 'user@example.com' })
   })
 
+  it('fetchSession passes disableCookieCache query when force is enabled', async () => {
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await auth.fetchSession({ force: true })
+
+    expect(mockClient.getSession).toHaveBeenCalledWith(
+      { query: { disableCookieCache: true } },
+      { headers: { cookie: 'session=test' } },
+    )
+  })
+
+  it('fetchSession does not pass disableCookieCache query by default', async () => {
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await auth.fetchSession()
+
+    expect(mockClient.getSession).toHaveBeenCalledWith(
+      { query: undefined },
+      { headers: { cookie: 'session=test' } },
+    )
+  })
+
   it('fetchSession fetches and sets SSR session on server', async () => {
     setRuntimeFlags({ client: false, server: true })
     $fetch.mockResolvedValueOnce({

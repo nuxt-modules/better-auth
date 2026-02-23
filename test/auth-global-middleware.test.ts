@@ -35,6 +35,7 @@ vi.mock('#imports', () => ({
   defineNuxtRouteMiddleware: (middleware: unknown) => middleware,
   getRouteRules,
   navigateTo,
+  useNuxtApp: () => nuxtApp,
   useRequestHeaders: () => ({ cookie: 'session=test' }),
   useRuntimeConfig: () => runtimeConfig,
   useUserSession: () => ({
@@ -107,6 +108,45 @@ describe('auth.global middleware', () => {
     })
 
     expect(fetchSession).toHaveBeenCalledTimes(1)
+    expect(fetchSession).toHaveBeenCalledWith({ headers: undefined })
     expect(navigateTo).toHaveBeenCalledTimes(1)
+  })
+
+  it('forces a fresh session check during prerender hydration for protected routes', async () => {
+    payload.prerenderedAt = Date.now()
+    nuxtApp.isHydrating = true
+    getRouteRules.mockResolvedValueOnce({ auth: 'user' })
+
+    const middleware = await loadMiddleware()
+    await middleware({
+      path: '/app',
+      fullPath: '/app',
+      meta: {},
+    })
+
+    expect(fetchSession).toHaveBeenCalledTimes(1)
+    expect(fetchSession).toHaveBeenCalledWith({ headers: undefined, force: true })
+    expect(navigateTo).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not redirect when prerender hydration session fetch resolves as logged in', async () => {
+    payload.prerenderedAt = Date.now()
+    nuxtApp.isHydrating = true
+    getRouteRules.mockResolvedValueOnce({ auth: 'user' })
+    fetchSession.mockImplementationOnce(async () => {
+      loggedIn.value = true
+      user.value = { id: 'user-1' }
+    })
+
+    const middleware = await loadMiddleware()
+    await middleware({
+      path: '/app',
+      fullPath: '/app',
+      meta: {},
+    })
+
+    expect(fetchSession).toHaveBeenCalledTimes(1)
+    expect(fetchSession).toHaveBeenCalledWith({ headers: undefined, force: true })
+    expect(navigateTo).not.toHaveBeenCalled()
   })
 })
