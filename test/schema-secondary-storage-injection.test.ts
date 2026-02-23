@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { resolveSchemaSecondaryStorageInjection } from '../src/module/schema'
 
 describe('resolveSchemaSecondaryStorageInjection', () => {
-  it('injects when hubSecondaryStorage is true', () => {
-    expect(resolveSchemaSecondaryStorageInjection(true, false, true)).toEqual({ inject: true })
-    expect(resolveSchemaSecondaryStorageInjection(true, true, false)).toEqual({ inject: true })
+  it('does not inject when hubSecondaryStorage is true', () => {
+    expect(resolveSchemaSecondaryStorageInjection(true, false, true)).toEqual({ inject: false })
+    expect(resolveSchemaSecondaryStorageInjection(true, true, false)).toEqual({ inject: false })
   })
 
   it('injects for custom mode only when user provides secondaryStorage', () => {

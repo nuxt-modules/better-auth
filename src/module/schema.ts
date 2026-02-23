@@ -23,7 +23,7 @@ export function resolveSchemaSecondaryStorageInjection(
   isProduction: boolean,
 ): { inject: boolean, warn?: string, error?: string } {
   if (hubSecondaryStorage === true)
-    return { inject: true }
+    return { inject: false }
 
   if (hubSecondaryStorage !== 'custom')
     return { inject: false }
