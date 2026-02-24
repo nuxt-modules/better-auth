@@ -82,6 +82,7 @@ export function useUserSession(): UseUserSessionReturn {
   const session = useState<AuthSession | null>('auth:session', () => null)
   const user = useState<AuthUser | null>('auth:user', () => null)
   const authReady = useState('auth:ready', () => false)
+  const prerenderReadyResetQueued = useState('auth:prerender-ready-reset-queued', () => false)
   const hydrationReconcileQueued = useState('auth:hydration-reconcile-queued', () => false)
   const ready = computed(() => authReady.value)
   const loggedIn = computed(() => Boolean(session.value && user.value))
@@ -112,8 +113,18 @@ export function useUserSession(): UseUserSessionReturn {
     return Boolean(session.value && user.value)
   })
 
-  if (isPrerenderHydrationEmptySnapshot.value && authReady.value)
-    authReady.value = false
+  if (isPrerenderHydrationEmptySnapshot.value && authReady.value && !prerenderReadyResetQueued.value) {
+    prerenderReadyResetQueued.value = true
+    nuxtApp.hook('app:suspense:resolve', () => {
+      try {
+        if (!session.value && !user.value && authReady.value)
+          authReady.value = false
+      }
+      finally {
+        prerenderReadyResetQueued.value = false
+      }
+    })
+  }
 
   if (shouldSkipInitialClientSessionFetch.value && !authReady.value)
     authReady.value = true

@@ -217,7 +217,7 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
-  it('keeps ready false during prerender hydration when SSR snapshot is empty', async () => {
+  it('defers ready reset until suspense resolves during prerender hydration empty snapshot', async () => {
     payload.serverRendered = true
     payload.prerenderedAt = Date.now()
     nuxtApp.isHydrating = true
@@ -228,6 +228,12 @@ describe('useUserSession hydration bootstrap', () => {
     await flushPromises()
 
     expect(mockClient.useSession).toHaveBeenCalledOnce()
+    expect((nuxtHooks.get('app:suspense:resolve') || [])).toHaveLength(1)
+    expect(auth.ready.value).toBe(true)
+
+    await triggerNuxtHook('app:suspense:resolve')
+    await flushPromises()
+
     expect(auth.ready.value).toBe(false)
   })
 
@@ -242,6 +248,9 @@ describe('useUserSession hydration bootstrap', () => {
     const auth = useUserSession()
     await flushPromises()
 
+    await triggerNuxtHook('app:suspense:resolve')
+    await flushPromises()
+
     expect(auth.ready.value).toBe(false)
 
     nuxtApp.isHydrating = false
@@ -249,6 +258,20 @@ describe('useUserSession hydration bootstrap', () => {
 
     expect(mockClient.getSession).toHaveBeenCalledTimes(1)
     expect(auth.ready.value).toBe(true)
+  })
+
+  it('queues prerender ready reset once across composable calls', async () => {
+    payload.serverRendered = true
+    payload.prerenderedAt = Date.now()
+    nuxtApp.isHydrating = true
+    state.set('auth:ready', ref(true))
+
+    const useUserSession = await loadUseUserSession()
+    useUserSession()
+    useUserSession()
+    await flushPromises()
+
+    expect((nuxtHooks.get('app:suspense:resolve') || [])).toHaveLength(1)
   })
 
   it('bootstraps client session on CSR navigation', async () => {
