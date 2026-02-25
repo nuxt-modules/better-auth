@@ -1,4 +1,5 @@
 import { defineServerAuth } from '../../../../src/runtime/config'
+import { username } from 'better-auth/plugins'
 
 function customAdminLikePlugin() {
   return {
@@ -25,7 +26,7 @@ function customAdminLikePlugin() {
 
 export default defineServerAuth({
   emailAndPassword: { enabled: true },
-  plugins: [customAdminLikePlugin()] as const,
+  plugins: [customAdminLikePlugin(), username()] as const,
   user: {
     additionalFields: {
       internalCode: {

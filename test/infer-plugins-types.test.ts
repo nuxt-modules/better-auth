@@ -8,8 +8,8 @@ const env = {
   BETTER_AUTH_SECRET: 'test-secret-for-testing-only-32chars',
 }
 
-describe('type inference regression #107', () => {
-  it('typechecks routeRules user fields inferred from plugins/additionalFields', () => {
+describe('type inference regressions #107 and #192', () => {
+  it('typechecks plugin/additional fields and serverAuth plugin API inference', () => {
     const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
       cwd: fixtureDir,
       env,
@@ -28,5 +28,7 @@ describe('type inference regression #107', () => {
     expect(output).not.toContain(`is not assignable to type 'BetterAuthPlugin'`)
     expect(output).not.toContain(`'role' does not exist in type`)
     expect(output).not.toContain(`'internalCode' does not exist in type`)
+    expect(output).not.toContain(`Property 'signInUsername' does not exist on type`)
+    expect(output).not.toContain(`'signInUsername' does not exist on type`)
   }, 60_000)
 })

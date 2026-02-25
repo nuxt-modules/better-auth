@@ -1,6 +1,8 @@
 import type { AuthUser } from '#nuxt-better-auth'
 import type { NitroRouteRules } from 'nitropack/types'
 
+declare const serverAuth: typeof import('../../../src/runtime/server/utils/auth').serverAuth
+
 declare module '#nuxt-better-auth' {
   interface AuthUser {
     foo: string
@@ -25,5 +27,10 @@ const rules: NitroRouteRules = {
   },
 }
 
+const auth = serverAuth()
+const signInUsername = auth.api.signInUsername
+
 void user
 void rules
+void auth
+void signInUsername
