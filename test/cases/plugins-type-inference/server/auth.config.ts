@@ -1,5 +1,5 @@
-import { defineServerAuth } from '../../../../src/runtime/config'
 import { username } from 'better-auth/plugins'
+import { defineServerAuth } from '../../../../src/runtime/config'
 
 function customAdminLikePlugin() {
   return {
