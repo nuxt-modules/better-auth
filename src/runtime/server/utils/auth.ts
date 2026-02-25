@@ -11,7 +11,8 @@ import { useRuntimeConfig } from 'nitropack/runtime'
 import { withoutProtocol } from 'ufo'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
 
-type AuthInstance = ReturnType<typeof betterAuth>
+type AuthOptions = ReturnType<typeof createServerAuth>
+type AuthInstance = ReturnType<typeof betterAuth<AuthOptions>>
 
 const _authCache = new Map<string, AuthInstance>()
 let _baseURLInferenceLogged = false
