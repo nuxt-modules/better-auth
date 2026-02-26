@@ -1,3 +1,4 @@
+import { dash } from '@better-auth/infra'
 import { passkey } from '@better-auth/passkey'
 import { admin, lastLoginMethod, multiSession, twoFactor } from 'better-auth/plugins'
 import { consola } from 'consola'
@@ -11,6 +12,7 @@ const isEmailEnabled = () => import.meta.dev
 
 export default defineServerAuth(() => ({
   appName: 'Nuxt Better Auth Playground',
+  trustedOrigins: ['https://nuxt-better-auth-demo.maximogarciamtnez.workers.dev'],
   socialProviders: {
     github: {
       clientId: process.env.GITHUB_CLIENT_ID || process.env.NUXT_GITHUB_CLIENT_ID || '',
@@ -19,6 +21,7 @@ export default defineServerAuth(() => ({
   },
   plugins: [
     admin(),
+    dash(),
     passkey(),
     multiSession(),
     lastLoginMethod(),

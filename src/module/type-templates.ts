@@ -131,6 +131,68 @@ declare module '#nuxt-better-auth' {
   addTypeTemplate({
     filename: 'types/nuxt-better-auth-nitro.d.ts',
     getContents: () => `
+import type createServerAuth from '${serverConfigPath}'
+import type { BetterAuthOptions } from 'better-auth'
+import type { getEndpoints } from 'better-auth/api'
+import type { Serialize, Simplify } from 'nitropack/types'
+
+type _RawConfig = ReturnType<typeof createServerAuth>
+type _RawPlugins = _RawConfig extends { plugins: infer P } ? P : _RawConfig extends { plugins?: infer P } ? P : []
+type _Config = Omit<BetterAuthOptions, 'plugins'> & Omit<_RawConfig, 'plugins'> & {
+  plugins?: _RawPlugins
+}
+
+type _AuthApi = ReturnType<typeof getEndpoints<_Config>>['api']
+type _NormalizeMethod<M extends string> = M extends '*' ? 'default' : Lowercase<M>
+type _RouteMethodFromOption<M> = M extends readonly (infer T)[]
+  ? _NormalizeMethod<Extract<T, string>>
+  : M extends string
+      ? _NormalizeMethod<M>
+      : 'default'
+type _RouteMethodFromEndpoint<E> = E extends { options: { method: infer M } } ? _RouteMethodFromOption<M> : 'default'
+type _RoutePathFromEndpoint<E> = E extends { path: infer P extends string }
+  ? string extends P
+      ? never
+      : \`/api/auth\${P}\`
+  : never
+type _RouteResponseFromEndpoint<E> = E extends (...args: any[]) => Promise<infer R> ? Simplify<Serialize<Awaited<R>>> : never
+type _UnionToIntersection<U> = (U extends unknown ? (value: U) => void : never) extends (value: infer I) => void ? I : never
+
+type _CoreAuthInternalApi = {
+  [K in keyof _AuthApi as _RoutePathFromEndpoint<_AuthApi[K]>]: {
+    [M in _RouteMethodFromEndpoint<_AuthApi[K]> | 'default']: _RouteResponseFromEndpoint<_AuthApi[K]>
+  }
+}
+type _PluginEndpointMaps<Plugins> = Plugins extends readonly (infer Plugin)[]
+  ? Plugin extends { endpoints: infer Endpoints extends Record<string, unknown> }
+      ? {
+          [K in keyof Endpoints as _RoutePathFromEndpoint<Endpoints[K]>]: {
+            [M in _RouteMethodFromEndpoint<Endpoints[K]> | 'default']: _RouteResponseFromEndpoint<Endpoints[K]>
+          }
+        }
+      : {}
+  : Plugins extends (infer Plugin)[]
+      ? Plugin extends { endpoints: infer Endpoints extends Record<string, unknown> }
+          ? {
+              [K in keyof Endpoints as _RoutePathFromEndpoint<Endpoints[K]>]: {
+                [M in _RouteMethodFromEndpoint<Endpoints[K]> | 'default']: _RouteResponseFromEndpoint<Endpoints[K]>
+              }
+            }
+          : {}
+      : {}
+type _PluginAuthInternalApi = _UnionToIntersection<_PluginEndpointMaps<_RawPlugins>>
+type _GeneratedAuthInternalApi = _CoreAuthInternalApi & _PluginAuthInternalApi
+
+declare module '#nuxt-better-auth' {
+  export type AuthApiInternalRoutes = _GeneratedAuthInternalApi
+  export type AuthApiEndpointPath = Extract<keyof AuthApiInternalRoutes, string>
+  export type AuthApiEndpointMethod<Path extends AuthApiEndpointPath> = Extract<keyof AuthApiInternalRoutes[Path], string>
+  export type AuthApiEndpointResponse<
+    Path extends AuthApiEndpointPath,
+    Method extends AuthApiEndpointMethod<Path> = AuthApiEndpointMethod<Path>,
+  > = AuthApiInternalRoutes[Path][Method]
+}
+
 declare module 'nitropack' {
   interface NitroRouteRules {
     auth?: import('${runtimeTypesPath}').AuthMeta
@@ -138,6 +200,7 @@ declare module 'nitropack' {
   interface NitroRouteConfig {
     auth?: import('${runtimeTypesPath}').AuthMeta
   }
+  interface InternalApi extends _GeneratedAuthInternalApi {}
 }
 declare module 'nitropack/types' {
   interface NitroRouteRules {
@@ -146,6 +209,7 @@ declare module 'nitropack/types' {
   interface NitroRouteConfig {
     auth?: import('${runtimeTypesPath}').AuthMeta
   }
+  interface InternalApi extends _GeneratedAuthInternalApi {}
 }
 export {}
 `,

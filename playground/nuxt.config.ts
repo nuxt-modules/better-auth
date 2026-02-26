@@ -51,7 +51,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      siteUrl: 'https://demo-nuxt-better-auth.onmax.me',
+      siteUrl: '',
     },
   },
 
