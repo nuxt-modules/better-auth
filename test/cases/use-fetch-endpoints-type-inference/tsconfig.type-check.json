@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "baseUrl": ".",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "paths": {
+      "#auth/client": ["../_base-module/app/auth.config"],
+      "#auth/server": ["./server/auth.config"],
+      "#nuxt-better-auth": ["../../../src/runtime/types/augment"],
+      "#imports": ["./imports-shim"]
+    },
+    "types": [],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "files": [
+    "./imports-shim.d.ts",
+    "./.nuxt/types/nuxt-better-auth-infer.d.ts",
+    "./.nuxt/types/nuxt-better-auth-nitro.d.ts",
+    "./typecheck-target.ts"
+  ]
+}
