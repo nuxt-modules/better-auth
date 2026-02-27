@@ -11,7 +11,7 @@ async function assertEndpointInference() {
   customerState.activeSubscriptions[0]?.toUpperCase()
   customerState.hasBillingIssue.valueOf()
   // @ts-expect-error no unknown key
-  customerState.missingField
+  void customerState.missingField
 
   const customerViaHelper: AuthApiEndpointResponse<'/api/auth/customer/state'> = customerState
   void customerViaHelper
@@ -23,8 +23,8 @@ async function assertEndpointInference() {
 
   const session = await requestFetch('/api/auth/get-session')
   if (session) {
-    session.user.id
-    session.session.expiresAt
+    void session.user.id
+    void session.session.expiresAt
   }
   // @ts-expect-error get-session can be null
   const shouldFailNullability: { user: { id: string } } = session
