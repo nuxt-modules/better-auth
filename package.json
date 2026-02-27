@@ -70,7 +70,7 @@
     }
   },
   "dependencies": {
-    "@better-auth/cli": "^1.5.0-beta.3",
+    "@better-auth/cli": "1.5.0-beta.13",
     "@nuxt/kit": "^4.2.2",
     "@nuxt/ui": "^4.2.1",
     "defu": "^6.1.4",
@@ -90,7 +90,7 @@
     "@nuxthub/core": "^0.10.5",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "latest",
-    "better-auth": "^1.5.0-beta.3",
+    "better-auth": "1.5.0-beta.18",
     "better-sqlite3": "^11.9.1",
     "bumpp": "^10.3.2",
     "changelogen": "^0.6.2",
