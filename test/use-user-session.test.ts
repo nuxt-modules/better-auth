@@ -429,6 +429,15 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.ready.value).toBe(true)
   })
 
+  it('exposes client as null on server runtime', async () => {
+    setRuntimeFlags({ client: false, server: true })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    expect(auth.client).toBeNull()
+  })
+
   it('signIn uses auth.redirects.authenticated when no callback is provided', async () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
     mockClient.getSession.mockResolvedValueOnce({
@@ -778,5 +787,14 @@ describe('useUserSession hydration bootstrap', () => {
     await auth.signOut()
 
     expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('signOut throws on server runtime', async () => {
+    setRuntimeFlags({ client: false, server: true })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    await expect(auth.signOut()).rejects.toThrow('signOut can only be called on client-side')
   })
 })

@@ -14,7 +14,7 @@ items:
     description: Auth tables generated automatically from your plugins. Zero manual migrations.
     icon: i-lucide-wand
   - title: SSR-Safe Sessions
-    description: useUserSession composable works seamlessly on server and client with automatic hydration.
+    description: useUserSession keeps session state consistent from SSR hydration through client updates.
     icon: i-lucide-shield-check
   - title: Declarative Route Protection
     description: 'Protect routes with routeRules. Define auth requirements once, enforce everywhere.'

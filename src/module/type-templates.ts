@@ -157,18 +157,19 @@ type _RoutePathFromEndpoint<E> = E extends { path: infer P extends string }
       : \`/api/auth\${P}\`
   : never
 type _RouteResponseFromEndpoint<E> = E extends (...args: any[]) => Promise<infer R> ? Simplify<Serialize<Awaited<R>>> : never
+type _RouteDefaultResponse<E> = never
 type _UnionToIntersection<U> = (U extends unknown ? (value: U) => void : never) extends (value: infer I) => void ? I : never
 
 type _CoreAuthInternalApi = {
   [K in keyof _AuthApi as _RoutePathFromEndpoint<_AuthApi[K]>]: {
-    [M in _RouteMethodFromEndpoint<_AuthApi[K]> | 'default']: _RouteResponseFromEndpoint<_AuthApi[K]>
+    [M in _RouteMethodFromEndpoint<_AuthApi[K]> | 'default']: M extends 'default' ? _RouteDefaultResponse<_AuthApi[K]> : _RouteResponseFromEndpoint<_AuthApi[K]>
   }
 }
 type _PluginEndpointMaps<Plugins> = Plugins extends readonly (infer Plugin)[]
   ? Plugin extends { endpoints: infer Endpoints extends Record<string, unknown> }
       ? {
           [K in keyof Endpoints as _RoutePathFromEndpoint<Endpoints[K]>]: {
-            [M in _RouteMethodFromEndpoint<Endpoints[K]> | 'default']: _RouteResponseFromEndpoint<Endpoints[K]>
+            [M in _RouteMethodFromEndpoint<Endpoints[K]> | 'default']: M extends 'default' ? _RouteDefaultResponse<Endpoints[K]> : _RouteResponseFromEndpoint<Endpoints[K]>
           }
         }
       : {}
@@ -176,7 +177,7 @@ type _PluginEndpointMaps<Plugins> = Plugins extends readonly (infer Plugin)[]
       ? Plugin extends { endpoints: infer Endpoints extends Record<string, unknown> }
           ? {
               [K in keyof Endpoints as _RoutePathFromEndpoint<Endpoints[K]>]: {
-                [M in _RouteMethodFromEndpoint<Endpoints[K]> | 'default']: _RouteResponseFromEndpoint<Endpoints[K]>
+                [M in _RouteMethodFromEndpoint<Endpoints[K]> | 'default']: M extends 'default' ? _RouteDefaultResponse<Endpoints[K]> : _RouteResponseFromEndpoint<Endpoints[K]>
               }
             }
           : {}
@@ -196,21 +197,11 @@ type _AuthPatternFromRequestPath<Path extends string> = {
 }[_AuthApiPatternPath]
 type _AuthEndpointMethod<Path extends _AuthApiRequestPath> = Extract<keyof _GeneratedAuthInternalApi[_AuthPatternFromRequestPath<Path>], string>
 
-type _AuthFetchExplicitMethod<Path extends _AuthApiRequestPath> = Exclude<_AuthEndpointMethod<Path>, 'default'>
-type _AuthFetchMethod<Path extends _AuthApiRequestPath> = _AuthFetchExplicitMethod<Path> extends never
-  ? 'get'
-  : _AuthFetchExplicitMethod<Path> | Uppercase<_AuthFetchExplicitMethod<Path>>
-type _AuthFetchDefaultMethod<Path extends _AuthApiRequestPath> = 'get' extends _AuthFetchMethod<Path>
-  ? 'get'
-  : _AuthFetchMethod<Path>
+type _AuthFetchMethod<Path extends _AuthApiRequestPath> = Extract<Exclude<import('nitropack/types').NitroFetchOptions<Path>['method'], undefined>, string>
+type _AuthFetchDefaultMethod<Path extends _AuthApiRequestPath> = 'get'
 type _AuthFetchResolvedMethod<Path extends _AuthApiRequestPath, Method extends string> = Lowercase<Method> extends _AuthEndpointMethod<Path>
   ? Lowercase<Method>
-  : 'default'
-type _AuthExtractedRouteMethod<Options> = Options extends undefined
-  ? 'get'
-  : Lowercase<Exclude<Options extends { method?: infer M } ? M : never, undefined>> extends infer Method extends string
-      ? Method
-      : 'get'
+  : never
 type _AuthFetchResult<Path extends _AuthApiRequestPath, Method extends string> = _GeneratedAuthInternalApi[_AuthPatternFromRequestPath<Path>][_AuthFetchResolvedMethod<Path, Method>]
 
 declare module '#nuxt-better-auth' {

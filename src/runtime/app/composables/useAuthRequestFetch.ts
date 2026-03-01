@@ -13,8 +13,8 @@ type AuthRequestFetchMethodFromOptions<Path extends AuthApiEndpointPath, Options
   : AuthRequestFetchExtractedMethod<Options>
 
 type AuthRequestFetchResolvedMethod<Path extends AuthApiEndpointPath, Options> = Extract<AuthRequestFetchMethodFromOptions<Path, Options>, AuthApiEndpointMethod<Path>> extends infer Method extends string
-  ? Method extends never ? 'default' : Method
-  : 'default'
+  ? Method
+  : never
 
 type AuthRequestFetch = <
   Path extends AuthApiEndpointPath,

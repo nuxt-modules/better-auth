@@ -22,6 +22,11 @@ function customerPlugin() {
           ok: true,
         }
       }),
+      customerPostOnly: createAuthEndpoint('/customer/post-only', { method: 'POST' }, async () => {
+        return {
+          created: true,
+        }
+      }),
     },
   } as const
 }
