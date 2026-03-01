@@ -6,8 +6,6 @@ packages:
   - playground
 patchedDependencies:
   '@peculiar/x509@1.14.3': patches/@peculiar__x509@1.14.3.patch
-  prisma@5.22.0: patches/prisma@5.22.0.patch
-  safer-buffer@2.1.2: patches/safer-buffer@2.1.2.patch
 
 onlyBuiltDependencies:
   - '@parcel/watcher'
