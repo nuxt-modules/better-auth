@@ -18,23 +18,22 @@
     "db:migrate": "nuxt db migrate"
   },
   "dependencies": {
-    "@better-auth/infra": "^0.1.7",
-    "@better-auth/passkey": "1.5.0-beta.19",
-    "@nuxt/fonts": "^0.12.1",
-    "@nuxt/ui": "^4.2.1",
-    "@nuxthub/core": "^0.10.5",
-    "@nuxtjs/i18n": "^9.4.0",
-    "better-auth": "1.5.0-beta.19",
-    "nuxt": "^4.2.2",
+    "@better-auth/passkey": "1.5.0",
+    "@nuxt/fonts": "^0.14.0",
+    "@nuxt/ui": "^4.5.0",
+    "@nuxthub/core": "^0.10.6",
+    "@nuxtjs/i18n": "^10.2.3",
+    "better-auth": "1.5.0",
+    "nuxt": "^4.3.1",
     "nuxt-qrcode": "^0.4.8",
-    "resend": "^6.6.0"
+    "resend": "^6.9.3"
   },
   "devDependencies": {
     "@better-auth/cli": "1.5.0-beta.13",
-    "@libsql/client": "^0.15.15",
-    "drizzle-kit": "^0.31.8",
+    "@libsql/client": "^0.17.0",
+    "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
     "nitro-cloudflare-dev": "^0.2.2",
-    "wrangler": "^4.56.0"
+    "wrangler": "^4.69.0"
   }
 }

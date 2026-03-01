@@ -71,56 +71,41 @@
   },
   "dependencies": {
     "@better-auth/cli": "1.5.0-beta.13",
-    "@nuxt/kit": "^4.2.2",
-    "@nuxt/ui": "^4.2.1",
+    "@nuxt/kit": "^4.3.1",
+    "@nuxt/ui": "^4.5.0",
     "defu": "^6.1.4",
-    "jiti": "^2.4.2",
+    "jiti": "^2.6.1",
     "pathe": "^2.0.3",
     "radix3": "^1.1.2",
     "std-env": "^3.10.0"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^4.12.0",
-    "@libsql/client": "^0.15.15",
-    "@nuxt/devtools": "^3.1.1",
-    "@nuxt/devtools-kit": "^3.1.1",
+    "@antfu/eslint-config": "^7.6.1",
+    "@libsql/client": "^0.17.0",
+    "@libsql/linux-x64-gnu": "0.5.22",
+    "@nuxt/devtools": "^3.2.2",
+    "@nuxt/devtools-kit": "^3.2.2",
     "@nuxt/module-builder": "^1.0.2",
-    "@nuxt/schema": "^4.2.2",
-    "@nuxt/test-utils": "^3.21.0",
-    "@nuxthub/core": "^0.10.5",
+    "@nuxt/schema": "^4.3.1",
+    "@nuxt/test-utils": "^4.0.0",
+    "@nuxthub/core": "^0.10.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "latest",
-    "better-auth": "1.5.0-beta.18",
-    "better-sqlite3": "^11.9.1",
-    "bumpp": "^10.3.2",
+    "better-auth": "1.5.0",
+    "better-sqlite3": "^12.6.2",
+    "bumpp": "^10.4.1",
     "changelogen": "^0.6.2",
     "consola": "^3.4.2",
-    "drizzle-kit": "^0.31.8",
-    "drizzle-orm": "^0.38.4",
-    "eslint": "^9.39.1",
+    "drizzle-kit": "^0.31.9",
+    "drizzle-orm": "^0.45.1",
+    "eslint": "^10.0.2",
     "npm-agentskills": "https://pkg.pr.new/onmax/npm-agentskills@394499e",
-    "nuxt": "^4.2.2",
+    "nuxt": "^4.3.1",
     "tinyexec": "^1.0.2",
     "typescript": "~5.9.3",
-    "vitest": "^4.0.15",
-    "vitest-package-exports": "^0.1.1",
-    "vue-tsc": "^3.1.7",
+    "vitest": "^4.0.18",
+    "vitest-package-exports": "^1.2.0",
+    "vue-tsc": "^3.2.5",
     "yaml": "^2.8.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "better-sqlite3",
-      "esbuild",
-      "sharp",
-      "workerd"
-    ],
-    "patchedDependencies": {
-      "@peculiar/x509@1.14.2": "patches/@peculiar__x509@1.14.2.patch"
-    },
-    "overrides": {
-      "better-call": "1.3.2",
-      "reka-ui": "^2.6.1"
-    }
   }
 }

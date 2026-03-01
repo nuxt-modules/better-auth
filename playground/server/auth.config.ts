@@ -1,4 +1,3 @@
-import { dash } from '@better-auth/infra'
 import { passkey } from '@better-auth/passkey'
 import { admin, lastLoginMethod, multiSession, twoFactor } from 'better-auth/plugins'
 import { consola } from 'consola'
@@ -21,7 +20,6 @@ export default defineServerAuth(() => ({
   },
   plugins: [
     admin(),
-    dash(),
     passkey(),
     multiSession(),
     lastLoginMethod(),
