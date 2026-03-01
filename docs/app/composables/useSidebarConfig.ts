@@ -59,8 +59,8 @@ export function useSidebarConfig() {
       items: [
         { title: 'NuxtHub', href: '/integrations/nuxthub', icon: 'i-simple-icons-nuxtdotjs' },
         { title: 'DevTools', href: '/integrations/devtools', icon: 'i-solar-tuning-square-bold' },
-        { title: 'i18n', href: '/integrations/i18n', icon: 'i-lucide-languages' },
         { title: 'Convex (Status)', href: '/integrations/convex', icon: 'i-custom-convex' },
+        { title: 'i18n', href: '/integrations/i18n', icon: 'i-lucide-languages' },
       ],
     },
     {
@@ -73,11 +73,16 @@ export function useSidebarConfig() {
         { title: 'Types', href: '/api/types', icon: 'i-solar-code-file-bold' },
       ],
     },
+    {
+      title: 'Examples',
+      icon: 'i-solar-gallery-bold',
+      items: [
+        { title: 'Examples', href: '/examples', icon: 'i-solar-library-bold' },
+      ],
+    },
   ]
 
-  const standaloneLinks: SidebarItem[] = [
-    { title: 'FAQ', href: '/troubleshooting/faq', icon: 'i-solar-question-circle-bold' },
-  ]
+  const standaloneLinks: SidebarItem[] = []
 
   return { sections, standaloneLinks }
 }

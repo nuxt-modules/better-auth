@@ -22,6 +22,46 @@
 
 **[better-auth.nuxt.dev](https://better-auth.nuxt.dev/)**
 
+## Quick Start
+
+1. Install module and NuxtHub (optional, for DB-backed sessions):
+
+```bash
+npx nuxi module add @onmax/nuxt-better-auth@alpha @nuxthub/core
+```
+
+2. Add minimal config:
+
+```ts
+export default defineNuxtConfig({
+  hub: { db: 'sqlite' },
+})
+```
+
+3. Set secret:
+
+```ini
+BETTER_AUTH_SECRET="generate-a-32-char-secret"
+```
+
+4. Create config files:
+- `server/auth.config.ts` with `defineServerAuth(...)`
+- `app/auth.config.ts` with `defineClientAuth(...)`
+
+5. Run app:
+
+```bash
+pnpm dev
+```
+
+## Recommended Reading Order
+
+1. [Installation](https://better-auth.nuxt.dev/getting-started/installation)
+2. [Configuration](https://better-auth.nuxt.dev/getting-started/configuration)
+3. [Client Setup](https://better-auth.nuxt.dev/getting-started/client-setup)
+4. [Route Protection](https://better-auth.nuxt.dev/core-concepts/route-protection)
+5. [Examples](https://better-auth.nuxt.dev/examples)
+
 ## License
 
 MIT

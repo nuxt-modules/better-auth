@@ -83,7 +83,7 @@ const accordionItems = computed(() =>
     </UAccordion>
 
     <!-- Standalone links (no accordion) -->
-    <div class="standalone-links">
+    <div v-if="standaloneLinks.length" class="standalone-links">
       <NuxtLink
         v-for="item in standaloneLinks"
         :key="item.href"

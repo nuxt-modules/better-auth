@@ -4,7 +4,13 @@ const site = useSiteConfig()
 const route = useRoute()
 const { sidebarOpen, toggle: toggleSidebar } = useDocusSidebar()
 
-const isDocsPage = computed(() => route.path.startsWith('/getting-started') || route.path.startsWith('/core-concepts') || route.path.startsWith('/guides') || route.path.startsWith('/integrations') || route.path.startsWith('/api') || route.path.startsWith('/troubleshooting') || route.path.startsWith('/better-auth'))
+const isDocsPage = computed(() => route.path.startsWith('/getting-started')
+  || route.path.startsWith('/core-concepts')
+  || route.path.startsWith('/guides')
+  || route.path.startsWith('/integrations')
+  || route.path.startsWith('/api')
+  || route.path.startsWith('/examples')
+  || route.path.startsWith('/better-auth'))
 
 const navLinks = [
   { name: 'docs', path: '/getting-started' },
