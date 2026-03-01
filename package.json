@@ -96,7 +96,7 @@
     "changelogen": "^0.6.2",
     "consola": "^3.4.2",
     "drizzle-kit": "^0.31.8",
-    "drizzle-orm": "^0.38.4",
+    "drizzle-orm": "^0.45.0",
     "eslint": "^9.39.1",
     "npm-agentskills": "https://pkg.pr.new/onmax/npm-agentskills@394499e",
     "nuxt": "^4.2.2",
