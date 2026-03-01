@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@better-auth/cli": "1.5.0-beta.13",
-    "@libsql/client": "^0.15.15",
+    "@libsql/client": "^0.17.0",
     "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.1",
     "nitro-cloudflare-dev": "^0.2.2",
