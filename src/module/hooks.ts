@@ -80,7 +80,11 @@ export async function registerDevtools(input: RegisterDevtoolsInput): Promise<vo
 
 export function registerRouteRulesMetaHook(nuxt: Nuxt): void {
   nuxt.hook('pages:extend', (pages) => {
-    const routeRules = (nuxt.options.routeRules || {}) as Record<string, AuthRouteRules>
+    const options = nuxt.options as {
+      nitro?: { routeRules?: Record<string, AuthRouteRules> }
+      routeRules?: Record<string, AuthRouteRules>
+    }
+    const routeRules = (options.nitro?.routeRules || options.routeRules || {}) as Record<string, AuthRouteRules>
     if (!Object.keys(routeRules).length)
       return
 

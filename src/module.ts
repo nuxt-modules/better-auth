@@ -233,6 +233,27 @@ export { schema }
       clientConfigPath,
     })
 
+    const runtimeRouteRulesSource = (
+      (nuxt.options as { nitro?: { routeRules?: Record<string, unknown> } }).nitro?.routeRules
+      || (nuxt.options as { routeRules?: Record<string, unknown> }).routeRules
+      || {}
+    ) as Record<string, unknown>
+
+    const authRouteRules = Object.fromEntries(
+      Object.entries(runtimeRouteRulesSource).flatMap(([path, rule]) => {
+        if (!rule || typeof rule !== 'object' || !('auth' in rule))
+          return []
+        return [[path, { auth: (rule as { auth?: unknown }).auth }]]
+      }),
+    )
+
+    const authRouteRulesTemplate = addTemplate({
+      filename: 'better-auth/route-rules.mjs',
+      getContents: () => `export const authRouteRules = ${JSON.stringify(authRouteRules, null, 2)}\n`,
+      write: true,
+    })
+    nuxt.options.alias['#auth/route-rules'] = authRouteRulesTemplate.dst
+
     registerTemplateHmrHook(nuxt)
     registerServerRuntime({ clientOnly, resolve: resolver.resolve })
     registerAuthMiddlewareHook(nuxt, resolver.resolve)

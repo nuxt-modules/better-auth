@@ -1,6 +1,8 @@
 import type { AuthRuntimeConfig } from '../../config'
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
 import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useNuxtApp, useRequestHeaders, useRuntimeConfig, useUserSession } from '#imports'
+import { defu } from 'defu'
+import { createRouter, toRouteMatcher } from 'radix3'
 import { matchesUser } from '../../utils/match-user'
 
 declare module '#app' {
@@ -15,15 +17,27 @@ declare module 'vue-router' {
   }
 }
 
+let authRouteRulesPromise: Promise<Record<string, AuthRouteRules>> | null = null
+let routeRulesMatcherPromise: Promise<ReturnType<typeof toRouteMatcher> | null> | null = null
+
 export default defineNuxtRouteMiddleware(async (to) => {
   const nuxtApp = useNuxtApp()
 
-  // Runtime fallback: resolve auth from route rules if not set at build-time
-  // This handles dynamic catch-all routes where build-time can't match specific paths
+  // Runtime fallback: resolve auth from module-known route rules if not set at build-time.
+  // This covers dynamic/404 paths where build-time page matching is not enough.
   if (to.meta.auth === undefined) {
-    const rules = await getRouteRules({ path: to.path }) as AuthRouteRules
-    if (rules.auth !== undefined)
-      to.meta.auth = rules.auth
+    const routeRulesMatcher = await getRouteRulesMatcher()
+    const matches = routeRulesMatcher?.matchAll(to.path) as Partial<AuthRouteRules>[] | undefined
+    if (matches?.length) {
+      const merged = defu({}, ...matches.reverse()) as AuthRouteRules
+      if (merged.auth !== undefined)
+        to.meta.auth = merged.auth
+    }
+    if (to.meta.auth === undefined) {
+      const rules = await getRouteRules({ path: to.path }) as AuthRouteRules
+      if (rules.auth !== undefined)
+        to.meta.auth = rules.auth
+    }
   }
 
   const auth = to.meta.auth as AuthMeta | undefined
@@ -114,4 +128,24 @@ function resolveLoginRedirect(input: {
   queryObj[redirectQueryKey] = route.fullPath
 
   return { to: { path, query: queryObj, ...(hash ? { hash: `#${hash}` } : {}) }, external: false }
+}
+
+async function getAuthRouteRules(): Promise<Record<string, AuthRouteRules>> {
+  if (!authRouteRulesPromise) {
+    authRouteRulesPromise = import('#auth/route-rules')
+      .then(mod => (mod as { authRouteRules?: Record<string, AuthRouteRules> }).authRouteRules || {})
+      .catch(() => ({}))
+  }
+  return await authRouteRulesPromise
+}
+
+async function getRouteRulesMatcher(): Promise<ReturnType<typeof toRouteMatcher> | null> {
+  if (!routeRulesMatcherPromise) {
+    routeRulesMatcherPromise = getAuthRouteRules().then((authRouteRules) => {
+      if (!Object.keys(authRouteRules).length)
+        return null
+      return toRouteMatcher(createRouter({ routes: authRouteRules as Record<string, AuthRouteRules> }))
+    })
+  }
+  return await routeRulesMatcherPromise
 }
