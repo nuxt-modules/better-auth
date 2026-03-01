@@ -11,9 +11,9 @@ const dynamicPattern: DynamicPattern = '/api/auth/customer/:id/state'
 type DynamicResponse = AuthApiEndpointResponse<`/api/auth/customer/${string}/state`, 'get'>
 type CustomerStateResponse = AuthApiEndpointResponse<'/api/auth/customer/state', 'get'>
 // @ts-expect-error GET should not be valid for POST-only endpoint helper responses
-type PostOnlyGetResponse = AuthApiEndpointResponse<'/api/auth/customer/post-only', 'get'>
+type _PostOnlyGetResponse = AuthApiEndpointResponse<'/api/auth/customer/post-only', 'get'>
 // @ts-expect-error POST should not be valid for GET-only endpoint helper responses
-type CustomerStatePostResponse = AuthApiEndpointResponse<'/api/auth/customer/state', 'post'>
+type _CustomerStatePostResponse = AuthApiEndpointResponse<'/api/auth/customer/state', 'post'>
 type CustomerStateMethods = AuthApiEndpointMethod<'/api/auth/customer/state'>
 type PostOnlyMethods = AuthApiEndpointMethod<'/api/auth/customer/post-only'>
 declare const customerStateResponse: CustomerStateResponse
