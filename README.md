@@ -60,7 +60,7 @@ pnpm dev
 2. [Configuration](https://better-auth.nuxt.dev/getting-started/configuration)
 3. [Client Setup](https://better-auth.nuxt.dev/getting-started/client-setup)
 4. [Route Protection](https://better-auth.nuxt.dev/core-concepts/route-protection)
-5. [Examples](https://better-auth.nuxt.dev/examples)
+5. [API Reference](https://better-auth.nuxt.dev/api/composables)
 
 ## License
 

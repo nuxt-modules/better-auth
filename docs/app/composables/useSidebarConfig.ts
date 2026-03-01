@@ -73,13 +73,6 @@ export function useSidebarConfig() {
         { title: 'Types', href: '/api/types', icon: 'i-solar-code-file-bold' },
       ],
     },
-    {
-      title: 'Examples',
-      icon: 'i-solar-gallery-bold',
-      items: [
-        { title: 'Examples', href: '/examples', icon: 'i-solar-library-bold' },
-      ],
-    },
   ]
 
   const standaloneLinks: SidebarItem[] = []

@@ -9,7 +9,6 @@ const isDocsPage = computed(() => route.path.startsWith('/getting-started')
   || route.path.startsWith('/guides')
   || route.path.startsWith('/integrations')
   || route.path.startsWith('/api')
-  || route.path.startsWith('/examples')
   || route.path.startsWith('/better-auth'))
 
 const navLinks = [
