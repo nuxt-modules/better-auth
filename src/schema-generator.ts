@@ -7,6 +7,7 @@ export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?
 
 type Dialect = 'sqlite' | 'postgresql' | 'mysql'
 type Provider = 'sqlite' | 'pg' | 'mysql'
+type DrizzleSchemaInput = Parameters<typeof _generateDrizzleSchema>[0]
 
 // Minimal interface matching what _generateDrizzleSchema actually uses from adapter
 interface SchemaGeneratorAdapter {
@@ -42,8 +43,8 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
   }
 
   const result = await _generateDrizzleSchema({
-    adapter,
-    options,
+    adapter: adapter as unknown as DrizzleSchemaInput['adapter'],
+    options: options as unknown as DrizzleSchemaInput['options'],
   })
   if (!result.code) {
     throw new Error(`Schema generation returned empty result for ${dialect}`)
