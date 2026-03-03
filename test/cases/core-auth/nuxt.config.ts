@@ -8,12 +8,6 @@ export default defineNuxtConfig({
     public: { siteUrl: 'http://localhost:3000' },
   },
 
-  auth: {
-    database: {
-      provider: 'legacy-provider',
-    },
-  },
-
   routeRules: {
     '/protected': { auth: 'user' },
     '/admin': { auth: { user: { role: 'admin' } } },
