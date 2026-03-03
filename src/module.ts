@@ -107,13 +107,6 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     const hasNuxtHub = hasNuxtModule('@nuxthub/core', nuxt)
     const hub = hasNuxtHub ? (nuxt.options as { hub?: NuxtHubOptions }).hub : undefined
     const hasHubDbAvailable = !clientOnly && hasNuxtHub && !!hub?.db
-    const deprecatedProvider = (options as { database?: { provider?: string } }).database?.provider
-    if (deprecatedProvider) {
-      throw new Error(
-        `[nuxt-better-auth] auth.database.provider has been removed. Remove auth.database.provider="${deprecatedProvider}". To configure a database, either set "database" directly in server/auth.config.ts (defineServerAuth) or install a provider module that registers better-auth:database:providers.`,
-      )
-    }
-
     let databaseProvider: ModuleDatabaseProviderId = 'none'
     let hasHubDb = false
 
