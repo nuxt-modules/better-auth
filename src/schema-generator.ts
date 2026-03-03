@@ -1,4 +1,3 @@
-import type { DBAdapter } from '@better-auth/cli/api'
 import type { BetterAuthOptions } from 'better-auth'
 import { generateDrizzleSchema as _generateDrizzleSchema } from '@better-auth/cli/api'
 import { consola } from 'consola'
@@ -42,12 +41,10 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
     },
   }
 
-  // @better-auth/cli may resolve a different @better-auth/core type instance in monorepos/workspaces.
-  // Cast to the callee's parameter type to avoid nominal-type incompatibilities across identical versions.
   const result = await _generateDrizzleSchema({
-    adapter: adapter as unknown as DBAdapter,
+    adapter,
     options,
-  } as unknown as Parameters<typeof _generateDrizzleSchema>[0])
+  })
   if (!result.code) {
     throw new Error(`Schema generation returned empty result for ${dialect}`)
   }
