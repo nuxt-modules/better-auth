@@ -7,6 +7,14 @@ describe('nuxt-better-auth module', async () => {
     rootDir: fileURLToPath(new URL('./cases/core-auth', import.meta.url)),
   })
 
+  describe('module options', () => {
+    it('ignores legacy auth.database.provider without failing setup', async () => {
+      const response = await $fetch('/api/test/config') as { useDatabase: boolean, databaseProvider: string }
+      expect(response.useDatabase).toBe(true)
+      expect(response.databaseProvider).toBe('nuxthub')
+    })
+  })
+
   describe('page rendering', () => {
     it('renders home page with BetterAuthState component', async () => {
       const html = await $fetch('/')
