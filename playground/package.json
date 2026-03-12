@@ -34,6 +34,6 @@
     "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
     "nitro-cloudflare-dev": "^0.2.2",
-    "wrangler": "^4.69.0"
+    "wrangler": "^4.72.0"
   }
 }
