@@ -1,3 +1,4 @@
+import type { Nuxt } from '@nuxt/schema'
 import type { NuxtHubOptions } from './module/hub'
 import type { BetterAuthModuleOptions, ModuleDatabaseProviderId } from './runtime/config'
 import type {
@@ -8,11 +9,12 @@ import type {
 } from './types/hooks'
 import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { addTemplate, createResolver, defineNuxtModule, hasNuxtModule } from '@nuxt/kit'
+import { addTemplate, createResolver, defineNuxtModule, getLayerDirectories, hasNuxtModule } from '@nuxt/kit'
 import { consola as _consola } from 'consola'
-import { dirname, join } from 'pathe'
+import { dirname, join, relative } from 'pathe'
 import { version } from '../package.json'
 import { resolveDatabaseProvider } from './database-provider'
+import { resolveModuleConfigPath } from './module/config-paths'
 import { registerAuthMiddlewareHook, registerDevtools, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { getHubCasing, getHubDialect } from './module/hub'
 import { setupRuntimeConfig } from './module/runtime'
@@ -25,19 +27,15 @@ import './types/hooks'
 
 const consola = _consola.withTag('nuxt-better-auth')
 
-function resolveDefaultClientConfig(options: BetterAuthModuleOptions, rootDir: string, srcDir: string): void {
-  if (options.clientConfig !== 'app/auth.config')
-    return
-
-  const srcDirRelative = srcDir.replace(`${rootDir}/`, '')
-  options.clientConfig = srcDirRelative === srcDir
-    ? 'auth.config'
-    : `${srcDirRelative}/auth.config`
-}
-
-async function createDefaultAuthConfigFiles(rootDir: string, srcDir: string): Promise<void> {
-  const serverPath = join(rootDir, 'server/auth.config.ts')
-  const clientPath = join(srcDir, 'auth.config.ts')
+async function createDefaultAuthConfigFiles(nuxt: Nuxt): Promise<void> {
+  const project = getLayerDirectories(nuxt)[0]!
+  const rootDir = project.root
+  const serverPath = join(project.server, 'auth.config.ts')
+  const clientPath = join(project.app, 'auth.config.ts')
+  const resolvedServerConfig = resolveModuleConfigPath(nuxt, 'server', 'server/auth.config')
+  const resolvedClientConfig = resolveModuleConfigPath(nuxt, 'client', 'app/auth.config')
+  const hasServerConfig = existsSync(`${resolvedServerConfig.path}.ts`) || existsSync(`${resolvedServerConfig.path}.js`)
+  const hasClientConfig = existsSync(`${resolvedClientConfig.path}.ts`) || existsSync(`${resolvedClientConfig.path}.js`)
 
   const serverTemplate = `import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
 
@@ -51,17 +49,16 @@ export default defineServerAuth({
 export default defineClientAuth({})
 `
 
-  if (!existsSync(serverPath)) {
+  if (!hasServerConfig) {
     await mkdir(dirname(serverPath), { recursive: true })
     await writeFile(serverPath, serverTemplate)
-    consola.success('Created server/auth.config.ts')
+    consola.success(`Created ${relative(rootDir, serverPath)}`)
   }
 
-  if (!existsSync(clientPath)) {
+  if (!hasClientConfig) {
     await mkdir(dirname(clientPath), { recursive: true })
     await writeFile(clientPath, clientTemplate)
-    const relativePath = clientPath.replace(`${rootDir}/`, '')
-    consola.success(`Created ${relativePath}`)
+    consola.success(`Created ${relative(rootDir, clientPath)}`)
   }
 }
 
@@ -84,25 +81,24 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     if (generatedSecret)
       process.env.BETTER_AUTH_SECRET = generatedSecret
 
-    await createDefaultAuthConfigFiles(nuxt.options.rootDir, nuxt.options.srcDir)
+    await createDefaultAuthConfigFiles(nuxt)
   },
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
 
-    resolveDefaultClientConfig(options, nuxt.options.rootDir, nuxt.options.srcDir)
     const clientOnly = options.clientOnly!
     const serverConfigFile = options.serverConfig!
     const clientConfigFile = options.clientConfig!
-    const serverConfigPath = resolver.resolve(nuxt.options.rootDir, serverConfigFile)
-    const clientConfigPath = resolver.resolve(nuxt.options.rootDir, clientConfigFile)
+    const { file: resolvedServerConfigFile, path: serverConfigPath } = resolveModuleConfigPath(nuxt, 'server', serverConfigFile)
+    const { file: resolvedClientConfigFile, path: clientConfigPath } = resolveModuleConfigPath(nuxt, 'client', clientConfigFile)
 
     const serverConfigExists = existsSync(`${serverConfigPath}.ts`) || existsSync(`${serverConfigPath}.js`)
     const clientConfigExists = existsSync(`${clientConfigPath}.ts`) || existsSync(`${clientConfigPath}.js`)
 
     if (!clientOnly && !serverConfigExists)
-      throw new Error(`[nuxt-better-auth] Missing ${serverConfigFile}.ts - export default defineServerAuth(...)`)
+      throw new Error(`[nuxt-better-auth] Missing ${resolvedServerConfigFile}.ts - export default defineServerAuth(...)`)
     if (!clientConfigExists)
-      throw new Error(`[nuxt-better-auth] Missing ${clientConfigFile}.ts - export default defineClientAuth(...)`)
+      throw new Error(`[nuxt-better-auth] Missing ${resolvedClientConfigFile}.ts - export default defineClientAuth(...)`)
 
     const hasNuxtHub = hasNuxtModule('@nuxthub/core', nuxt)
     const hub = hasNuxtHub ? (nuxt.options as { hub?: NuxtHubOptions }).hub : undefined

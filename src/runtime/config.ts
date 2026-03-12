@@ -104,6 +104,6 @@ export function defineClientAuth<T extends ClientAuthConfig>(config: T | ((ctx: 
   return (baseURL: string) => {
     const ctx: ClientAuthContext = { siteUrl: baseURL }
     const resolved = typeof config === 'function' ? config(ctx) : config
-    return createAuthClient({ ...resolved, baseURL })
+    return createAuthClient({ baseURL, ...resolved })
   }
 }

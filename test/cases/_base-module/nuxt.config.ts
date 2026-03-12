@@ -11,7 +11,7 @@ export default defineNuxtConfig({
   },
 
   auth: {
-    // Absolute paths are required because the module validates existence relative to rootDir.
+    // Keep this fixture explicit so override behavior stays covered alongside default layer discovery.
     serverConfig,
     clientConfig,
   },
