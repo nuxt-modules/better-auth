@@ -77,7 +77,7 @@
     "jiti": "^2.6.1",
     "pathe": "^2.0.3",
     "radix3": "^1.1.2",
-    "std-env": "^3.10.0"
+    "std-env": "^4.0.0"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^7.6.1",

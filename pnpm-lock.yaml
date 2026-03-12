@@ -35,8 +35,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2
       std-env:
-        specifier: ^3.10.0
-        version: 3.10.0
+        specifier: ^4.0.0
+        version: 4.0.0
     devDependencies:
       '@antfu/eslint-config':
         specifier: ^7.6.1
@@ -97,10 +97,10 @@ importers:
         version: 10.0.3(jiti@2.6.1)
       npm-agentskills:
         specifier: https://pkg.pr.new/onmax/npm-agentskills@394499e
-        version: https://pkg.pr.new/onmax/npm-agentskills@394499e(@nuxt/kit@4.3.1(magicast@0.5.2))(nuxt@4.3.1(7abe57d85d4f40b2ae678c6f5296d586))
+        version: https://pkg.pr.new/onmax/npm-agentskills@394499e(@nuxt/kit@4.3.1(magicast@0.5.2))(nuxt@4.3.1(13b836cdc463c070b435be226a76493a))
       nuxt:
         specifier: ^4.3.1
-        version: 4.3.1(7abe57d85d4f40b2ae678c6f5296d586)
+        version: 4.3.1(13b836cdc463c070b435be226a76493a)
       tinyexec:
         specifier: ^1.0.2
         version: 1.0.2
@@ -182,7 +182,7 @@ importers:
         version: 1.5.4(@cloudflare/workers-types@4.20260312.1)(@prisma/client@5.22.0(prisma@5.22.0))(better-sqlite3@12.6.2)(drizzle-kit@0.31.9)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20260312.1)(@libsql/client@0.17.0)(@opentelemetry/api@1.9.0)(@prisma/client@5.22.0(prisma@5.22.0))(@types/better-sqlite3@7.6.13)(@types/pg@8.18.0)(better-sqlite3@12.6.2)(kysely@0.28.11)(pg@8.19.0)(prisma@5.22.0))(mongodb@7.1.0)(pg@8.19.0)(prisma@5.22.0)(vitest@4.0.18(@opentelemetry/api@1.9.0)(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
       nuxt:
         specifier: ^4.3.1
-        version: 4.3.1(13b836cdc463c070b435be226a76493a)
+        version: 4.3.1(7abe57d85d4f40b2ae678c6f5296d586)
       nuxt-qrcode:
         specifier: ^0.4.8
         version: 0.4.8(@types/emscripten@1.41.5)(magicast@0.5.2)(vue@3.5.29(typescript@5.9.3))
@@ -16823,7 +16823,7 @@ snapshots:
 
   normalize-path@3.0.0: {}
 
-  npm-agentskills@https://pkg.pr.new/onmax/npm-agentskills@394499e(@nuxt/kit@4.3.1(magicast@0.5.2))(nuxt@4.3.1(7abe57d85d4f40b2ae678c6f5296d586)):
+  npm-agentskills@https://pkg.pr.new/onmax/npm-agentskills@394499e(@nuxt/kit@4.3.1(magicast@0.5.2))(nuxt@4.3.1(13b836cdc463c070b435be226a76493a)):
     dependencies:
       citty: 0.1.6
       consola: 3.4.2
@@ -16832,7 +16832,7 @@ snapshots:
       pkg-types: 2.3.0
     optionalDependencies:
       '@nuxt/kit': 4.3.1(magicast@0.5.2)
-      nuxt: 4.3.1(7abe57d85d4f40b2ae678c6f5296d586)
+      nuxt: 4.3.1(13b836cdc463c070b435be226a76493a)
 
   npm-run-path@5.3.0:
     dependencies:
