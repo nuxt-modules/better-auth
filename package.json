@@ -91,7 +91,7 @@
     "@nuxthub/core": "^0.10.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "latest",
-    "better-auth": "1.5.4",
+    "better-auth": "1.5.5",
     "better-sqlite3": "^12.6.2",
     "bumpp": "^10.4.1",
     "changelogen": "^0.6.2",
