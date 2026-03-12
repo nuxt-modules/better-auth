@@ -1,17 +1,17 @@
 <script setup lang="ts">
-const { user, session, client, signOut } = useUserSession()
-const { t } = useI18n()
+const { user, session, client, loggedIn } = useUserSession()
+const { t, locale } = useI18n()
 const toast = useToast()
 const emailWarning = useEmailWarning()
+const { signOutPending, signOut: handleSignOut } = usePlaygroundSignOut()
 
-type AsyncFn = (...args: unknown[]) => Promise<unknown>
 const authClient = client as typeof client & {
-  twoFactor: { enable: AsyncFn, disable: AsyncFn, verifyTotp: AsyncFn }
-  passkey: { addPasskey: AsyncFn, deletePasskey: AsyncFn }
   getLastUsedLoginMethod: () => string | null
 }
 
 const lastLoginMethod = ref<string | null>(null)
+const isAuthUiActive = computed(() => loggedIn.value && Boolean(client) && !signOutPending.value)
+const sessionsRequestId = ref(0)
 
 // Profile editing
 const editOpen = ref(false)
@@ -53,19 +53,35 @@ async function resendVerification() {
 
 // Sessions
 const sessions = ref<any[]>([])
-const sessionsLoading = ref(true)
+const sessionsLoading = ref(false)
 
 async function loadSessions() {
+  if (!isAuthUiActive.value) {
+    sessions.value = []
+    sessionsLoading.value = false
+    return
+  }
+
+  const requestId = ++sessionsRequestId.value
   sessionsLoading.value = true
   try {
     const res = await client?.listSessions()
-    sessions.value = res?.data || []
+    if (requestId === sessionsRequestId.value && isAuthUiActive.value)
+      sessions.value = res?.data || []
   }
-  catch { sessions.value = [] }
-  sessionsLoading.value = false
+  catch {
+    if (requestId === sessionsRequestId.value)
+      sessions.value = []
+  }
+  finally {
+    if (requestId === sessionsRequestId.value)
+      sessionsLoading.value = false
+  }
 }
 
 async function terminateSession(token: string) {
+  if (!isAuthUiActive.value)
+    return
   await client?.revokeSession({ token })
   sessions.value = sessions.value.filter(s => s.token !== token)
   toast.add({ title: t('app.sessionTerminated'), color: 'success' })
@@ -76,85 +92,6 @@ const sessionColumns = computed(() => [
   { id: 'createdAt', header: t('app.created'), accessorKey: 'createdAt' },
   { id: 'actions', header: '', accessorKey: 'actions' },
 ])
-
-// Two-Factor
-const twoFaOpen = ref(false)
-const twoFaPassword = ref('')
-const twoFaUri = ref('')
-const twoFaCode = ref('')
-const twoFaLoading = ref(false)
-
-async function enable2FA() {
-  twoFaLoading.value = true
-  try {
-    if (twoFaUri.value) {
-      // Verify step
-      const res = await authClient?.twoFactor.verifyTotp({ code: twoFaCode.value })
-      if (res?.data) {
-        toast.add({ title: t('app.twoFactorEnabledSuccess'), color: 'success' })
-        twoFaOpen.value = false
-        twoFaUri.value = ''
-        twoFaCode.value = ''
-      }
-      else {
-        toast.add({ title: t('app.invalidCode'), color: 'error' })
-      }
-    }
-    else {
-      // Enable step
-      const res = await authClient?.twoFactor.enable({ password: twoFaPassword.value })
-      if (res?.data?.totpURI) {
-        twoFaUri.value = res.data.totpURI
-      }
-      else {
-        toast.add({ title: 'Error', description: 'Failed to enable 2FA', color: 'error' })
-      }
-    }
-  }
-  catch (e: any) {
-    toast.add({ title: 'Error', description: e.message, color: 'error' })
-  }
-  twoFaLoading.value = false
-}
-
-async function disable2FA() {
-  twoFaLoading.value = true
-  try {
-    await authClient?.twoFactor.disable({ password: twoFaPassword.value })
-    toast.add({ title: t('app.twoFactorDisabledSuccess'), color: 'success' })
-    twoFaOpen.value = false
-    twoFaPassword.value = ''
-  }
-  catch (e: any) {
-    toast.add({ title: 'Error', description: e.message, color: 'error' })
-  }
-  twoFaLoading.value = false
-}
-
-const passkeysRef = client?.useListPasskeys()
-const passkeys = computed(() => passkeysRef?.value?.data || [])
-const passkeyOpen = ref(false)
-const passkeyName = ref('')
-const passkeyLoading = ref(false)
-
-async function addPasskey() {
-  passkeyLoading.value = true
-  try {
-    await authClient?.passkey.addPasskey({ name: passkeyName.value || 'My Passkey' })
-    toast.add({ title: t('app.passkeyAdded'), color: 'success' })
-    passkeyOpen.value = false
-    passkeyName.value = ''
-  }
-  catch (e: any) {
-    toast.add({ title: 'Error', description: e.message, color: 'error' })
-  }
-  passkeyLoading.value = false
-}
-
-async function deletePasskey(id: string) {
-  await authClient?.passkey.deletePasskey({ id })
-  toast.add({ title: t('app.passkeyDeleted'), color: 'success' })
-}
 
 // Password change
 const passwordOpen = ref(false)
@@ -186,18 +123,34 @@ async function changePassword() {
   passwordLoading.value = false
 }
 
-// Sign out
-const signOutLoading = ref(false)
-async function handleSignOut() {
-  signOutLoading.value = true
-  await signOut()
-  navigateTo('/login')
+function resetDashboardState() {
+  sessionsRequestId.value += 1
+  sessions.value = []
+  sessionsLoading.value = false
+  lastLoginMethod.value = null
+  editOpen.value = false
+  passwordOpen.value = false
 }
 
-onMounted(() => {
-  loadSessions()
+watch(isAuthUiActive, (active) => {
+  if (!active) {
+    resetDashboardState()
+    return
+  }
+
   lastLoginMethod.value = authClient?.getLastUsedLoginMethod?.() || null
+  void loadSessions()
+}, { immediate: true })
+
+watch(signOutPending, (pending) => {
+  if (pending)
+    resetDashboardState()
 })
+
+async function handlePageSignOut() {
+  resetDashboardState()
+  await handleSignOut()
+}
 </script>
 
 <template>
@@ -266,7 +219,14 @@ onMounted(() => {
           </div>
         </template>
         <template #createdAt-cell="{ row }">
-          <span class="text-sm text-muted-foreground">{{ new Date(row.original.createdAt).toLocaleDateString() }}</span>
+          <NuxtTime
+            :datetime="row.original.createdAt"
+            :locale="locale"
+            year="numeric"
+            month="short"
+            day="numeric"
+            class="text-sm text-muted-foreground"
+          />
         </template>
         <template #actions-cell="{ row }">
           <UButton size="xs" :color="row.original.id === session?.id ? 'error' : 'neutral'" variant="soft" @click="terminateSession(row.original.token)">
@@ -276,60 +236,7 @@ onMounted(() => {
       </UTable>
     </UCard>
 
-    <!-- Security -->
-    <UCard>
-      <template #header>
-        <h2 class="text-lg font-semibold">
-          {{ t('app.security') }}
-        </h2>
-      </template>
-
-      <div class="space-y-4">
-        <!-- 2FA -->
-        <div class="flex justify-between items-center">
-          <div>
-            <p class="font-medium">
-              {{ t('app.twoFactor') }}
-            </p>
-            <p class="text-sm text-muted-foreground">
-              {{ user?.twoFactorEnabled ? t('app.twoFactorEnabled') : t('app.twoFactorDisabled') }}
-            </p>
-          </div>
-          <UButton :color="user?.twoFactorEnabled ? 'error' : 'primary'" variant="soft" @click="twoFaOpen = true">
-            {{ user?.twoFactorEnabled ? t('app.disable2fa') : t('app.enable2fa') }}
-          </UButton>
-        </div>
-
-        <UDivider />
-
-        <!-- Passkeys -->
-        <div class="flex justify-between items-center">
-          <div>
-            <p class="font-medium">
-              {{ t('app.passkeys') }}
-            </p>
-            <p class="text-sm text-muted-foreground">
-              {{ passkeys.length }} {{ t('app.registered') }}
-            </p>
-          </div>
-          <UButton variant="soft" @click="passkeyOpen = true">
-            {{ t('app.addPasskey') }}
-          </UButton>
-        </div>
-
-        <div v-if="passkeys.length" class="space-y-2">
-          <div v-for="pk in passkeys" :key="pk.id" class="flex justify-between items-center p-2 bg-muted rounded">
-            <div class="flex items-center gap-2">
-              <UIcon name="i-lucide-key-round" />
-              <span class="text-sm">{{ pk.name || 'Passkey' }}</span>
-            </div>
-            <UButton size="xs" color="error" variant="ghost" @click="deletePasskey(pk.id)">
-              <UIcon name="i-lucide-trash-2" />
-            </UButton>
-          </div>
-        </div>
-      </div>
-    </UCard>
+    <AppSecurityCard v-if="isAuthUiActive" />
 
     <!-- Actions -->
     <div class="flex justify-between">
@@ -337,7 +244,7 @@ onMounted(() => {
         <UIcon name="i-lucide-lock" />
         {{ t('app.changePassword') }}
       </UButton>
-      <UButton color="error" variant="soft" :loading="signOutLoading" @click="handleSignOut">
+      <UButton color="error" variant="soft" :loading="signOutPending" @click="handlePageSignOut">
         <UIcon name="i-lucide-log-out" />
         {{ t('common.signOut') }}
       </UButton>
@@ -355,56 +262,6 @@ onMounted(() => {
           </UFormField>
           <UButton block :loading="editLoading" @click="saveProfile">
             {{ t('common.save') }}
-          </UButton>
-        </div>
-      </template>
-    </UModal>
-
-    <!-- 2FA Modal -->
-    <UModal v-model:open="twoFaOpen">
-      <template #header>
-        {{ user?.twoFactorEnabled ? t('app.disable2fa') : t('app.enable2fa') }}
-      </template>
-      <template #body>
-        <div class="space-y-4 p-4">
-          <template v-if="twoFaUri">
-            <div class="flex justify-center">
-              <QRCode :value="twoFaUri" :size="200" />
-            </div>
-            <p class="text-sm text-center text-muted-foreground">
-              {{ t('app.scanQr') }}
-            </p>
-            <UFormField :label="t('app.verificationCode')">
-              <UInput v-model="twoFaCode" inputmode="numeric" maxlength="6" :placeholder="t('app.enterCode')" />
-            </UFormField>
-            <UButton block :loading="twoFaLoading" @click="enable2FA">
-              {{ t('app.verifyEnable') }}
-            </UButton>
-          </template>
-          <template v-else>
-            <UFormField :label="t('common.password')">
-              <UInput v-model="twoFaPassword" type="password" :placeholder="t('common.password')" />
-            </UFormField>
-            <UButton block :loading="twoFaLoading" @click="user?.twoFactorEnabled ? disable2FA() : enable2FA()">
-              {{ user?.twoFactorEnabled ? t('app.disable2fa') : t('app.continue') }}
-            </UButton>
-          </template>
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Passkey Modal -->
-    <UModal v-model:open="passkeyOpen">
-      <template #header>
-        {{ t('app.addPasskey') }}
-      </template>
-      <template #body>
-        <div class="space-y-4 p-4">
-          <UFormField :label="t('app.passkeyName')">
-            <UInput v-model="passkeyName" placeholder="My Passkey" />
-          </UFormField>
-          <UButton block :loading="passkeyLoading" @click="addPasskey">
-            {{ t('app.createPasskey') }}
           </UButton>
         </div>
       </template>

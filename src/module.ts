@@ -14,7 +14,7 @@ import { consola as _consola } from 'consola'
 import { dirname, join, relative } from 'pathe'
 import { version } from '../package.json'
 import { resolveDatabaseProvider } from './database-provider'
-import { resolveModuleConfigPath } from './module/config-paths'
+import { getEffectiveModuleConfigFile, resolveModuleConfigPath, shouldCreateDefaultModuleConfig } from './module/config-paths'
 import { registerAuthMiddlewareHook, registerDevtools, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { getHubCasing, getHubDialect } from './module/hub'
 import { setupRuntimeConfig } from './module/runtime'
@@ -32,10 +32,8 @@ async function createDefaultAuthConfigFiles(nuxt: Nuxt): Promise<void> {
   const rootDir = project.root
   const serverPath = join(project.server, 'auth.config.ts')
   const clientPath = join(project.app, 'auth.config.ts')
-  const resolvedServerConfig = resolveModuleConfigPath(nuxt, 'server', 'server/auth.config')
-  const resolvedClientConfig = resolveModuleConfigPath(nuxt, 'client', 'app/auth.config')
-  const hasServerConfig = existsSync(`${resolvedServerConfig.path}.ts`) || existsSync(`${resolvedServerConfig.path}.js`)
-  const hasClientConfig = existsSync(`${resolvedClientConfig.path}.ts`) || existsSync(`${resolvedClientConfig.path}.js`)
+  const serverConfigFile = getEffectiveModuleConfigFile(nuxt, 'server')
+  const clientConfigFile = getEffectiveModuleConfigFile(nuxt, 'client')
 
   const serverTemplate = `import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
 
@@ -49,13 +47,13 @@ export default defineServerAuth({
 export default defineClientAuth({})
 `
 
-  if (!hasServerConfig) {
+  if (shouldCreateDefaultModuleConfig(nuxt, 'server', serverConfigFile)) {
     await mkdir(dirname(serverPath), { recursive: true })
     await writeFile(serverPath, serverTemplate)
     consola.success(`Created ${relative(rootDir, serverPath)}`)
   }
 
-  if (!hasClientConfig) {
+  if (shouldCreateDefaultModuleConfig(nuxt, 'client', clientConfigFile)) {
     await mkdir(dirname(clientPath), { recursive: true })
     await writeFile(clientPath, clientTemplate)
     consola.success(`Created ${relative(rootDir, clientPath)}`)

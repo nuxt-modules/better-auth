@@ -9,6 +9,7 @@ interface RuntimeFlags { client: boolean, server: boolean }
 interface SessionResponse { session: AuthSession & { token?: string }, user: AuthUser }
 
 let _sessionSignalListenerBound = false
+let _signOutPromise: Promise<void> | null = null
 
 export interface UseUserSessionReturn {
   client: AppAuthClient | null
@@ -36,6 +37,13 @@ function getClient(baseURL: string): AppAuthClient {
   if (!_client)
     _client = createAppAuthClient(baseURL)
   return _client
+}
+
+function isExpectedSignedOutSessionError(error: unknown): boolean {
+  const normalizedError = normalizeAuthActionError(error)
+  if (normalizedError.status === 401)
+    return true
+  return normalizedError.code === 'UNAUTHORIZED'
 }
 
 function getRuntimeFlags(): RuntimeFlags {
@@ -253,7 +261,7 @@ export function useUserSession(): UseUserSessionReturn {
     return isSafeLocalRedirect(authConfig?.redirects?.authenticated)
   }
 
-  function resolvePostAuthSuccessRedirect(): () => Promise<void> | undefined {
+  function resolvePostAuthSuccessRedirect(): (() => Promise<void>) | undefined {
     const target = resolvePostAuthRedirect()
     if (!target)
       return
@@ -451,7 +459,8 @@ export function useUserSession(): UseUserSessionReturn {
       }
       catch (error) {
         clearSession()
-        console.error('[nuxt-better-auth] Failed to fetch session:', error)
+        if (!isExpectedSignedOutSessionError(error))
+          console.error('[nuxt-better-auth] Failed to fetch session:', error)
       }
       finally {
         if (!authReady.value)
@@ -467,17 +476,30 @@ export function useUserSession(): UseUserSessionReturn {
   async function signOut(options?: SignOutOptions) {
     if (!client)
       throw new Error('signOut can only be called on client-side')
-    await client.signOut()
-    clearSession()
-    if (options?.onSuccess) {
-      await options.onSuccess()
+
+    if (_signOutPromise) {
+      await _signOutPromise
       return
     }
 
-    const authConfig = runtimeConfig.public.auth as { redirects?: { logout?: string } } | undefined
-    const logoutRedirect = authConfig?.redirects?.logout
-    if (logoutRedirect)
-      await navigateTo(logoutRedirect)
+    _signOutPromise = (async () => {
+      await client.signOut()
+      clearSession()
+
+      if (options?.onSuccess) {
+        await options.onSuccess()
+        return
+      }
+
+      const authConfig = runtimeConfig.public.auth as { redirects?: { logout?: string } } | undefined
+      const logoutRedirect = authConfig?.redirects?.logout
+      if (logoutRedirect)
+        await navigateTo(logoutRedirect)
+    })().finally(() => {
+      _signOutPromise = null
+    })
+
+    await _signOutPromise
   }
 
   return {

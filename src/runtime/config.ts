@@ -25,9 +25,9 @@ export type EffectiveDatabaseProviderId = 'user' | ModuleDatabaseProviderId
 export interface BetterAuthModuleOptions {
   /** Client-only mode - skip server setup for external auth backends */
   clientOnly?: boolean
-  /** Server config path relative to rootDir. Default: 'server/auth.config' */
+  /** Server config path. Relative paths resolve from the layer that declares them. Default: 'server/auth.config' */
   serverConfig?: string
-  /** Client config path relative to rootDir. Default: 'app/auth.config' */
+  /** Client config path. Relative paths resolve from the layer that declares them. Default: 'app/auth.config' */
   clientConfig?: string
   redirects?: {
     /** Where to redirect unauthenticated users. Default: '/login' */
@@ -104,6 +104,8 @@ export function defineClientAuth<T extends ClientAuthConfig>(config: T | ((ctx: 
   return (baseURL: string) => {
     const ctx: ClientAuthContext = { siteUrl: baseURL }
     const resolved = typeof config === 'function' ? config(ctx) : config
-    return createAuthClient({ baseURL, ...resolved })
+    const { baseURL: configuredBaseURL, ...resolvedOptions } = resolved
+    const clientOptions = { ...resolvedOptions, baseURL: configuredBaseURL ?? baseURL } as T
+    return createAuthClient(clientOptions)
   }
 }

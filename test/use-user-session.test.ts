@@ -789,6 +789,52 @@ describe('useUserSession hydration bootstrap', () => {
     expect(navigateTo).not.toHaveBeenCalled()
   })
 
+  it('coalesces concurrent signOut calls into a single client request and redirect', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+
+    let resolveSignOut: (() => void) | undefined
+    mockClient.signOut.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveSignOut = resolve
+    }))
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    const firstSignOut = auth.signOut()
+    const secondSignOut = auth.signOut()
+
+    expect(mockClient.signOut).toHaveBeenCalledOnce()
+
+    resolveSignOut?.()
+    await Promise.all([firstSignOut, secondSignOut])
+
+    expect(mockClient.signOut).toHaveBeenCalledOnce()
+    expect(navigateTo).toHaveBeenCalledTimes(1)
+    expect(navigateTo).toHaveBeenCalledWith('/logged-out')
+  })
+
+  it('treats expected unauthenticated getSession errors as a normal signed-out state', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockClient.getSession.mockRejectedValueOnce({
+      code: 'UNAUTHORIZED',
+      message: 'Unauthorized',
+      status: 401,
+    })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    auth.session.value = { id: 'session-1' } as any
+    auth.user.value = { id: 'user-1', email: 'user@example.com' } as any
+
+    await auth.fetchSession()
+
+    expect(auth.session.value).toBeNull()
+    expect(auth.user.value).toBeNull()
+    expect(consoleErrorSpy).not.toHaveBeenCalled()
+
+    consoleErrorSpy.mockRestore()
+  })
+
   it('signOut throws on server runtime', async () => {
     setRuntimeFlags({ client: false, server: true })
 

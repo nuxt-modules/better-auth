@@ -27,7 +27,7 @@ describe('defineClientAuth', () => {
     expect(capturedUrl).toBe('http://test.local')
   })
 
-  it('keeps the resolved baseURL authoritative', () => {
+  it('keeps an explicit baseURL override', () => {
     const factory = defineClientAuth({
       baseURL: 'https://explicit.example/api/auth',
       plugins: [],
@@ -41,6 +41,38 @@ describe('defineClientAuth', () => {
     }))
     expect(client).toMatchObject({
       baseURL: 'https://explicit.example/api/auth',
+    })
+  })
+
+  it('falls back to the inferred baseURL when object syntax leaves it undefined', () => {
+    const factory = defineClientAuth({
+      baseURL: undefined,
+      plugins: [],
+    })
+
+    const client = factory('https://derived.example/api/auth')
+
+    expect(createAuthClient).toHaveBeenCalledWith(expect.objectContaining({
+      baseURL: 'https://derived.example/api/auth',
+    }))
+    expect(client).toMatchObject({
+      baseURL: 'https://derived.example/api/auth',
+    })
+  })
+
+  it('falls back to the inferred baseURL when function syntax leaves it undefined', () => {
+    const factory = defineClientAuth(() => ({
+      baseURL: undefined,
+      plugins: [],
+    }))
+
+    const client = factory('https://derived.example/api/auth')
+
+    expect(createAuthClient).toHaveBeenCalledWith(expect.objectContaining({
+      baseURL: 'https://derived.example/api/auth',
+    }))
+    expect(client).toMatchObject({
+      baseURL: 'https://derived.example/api/auth',
     })
   })
 })

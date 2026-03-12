@@ -54,27 +54,30 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
 
 // Type for cached runtime helper with reference counting
 interface RuntimeDefineServerAuthFn { (...args: unknown[]): unknown, _count: number }
+interface SchemaGeneratorGlobals {
+  __nuxtBetterAuthDefineServerAuth?: RuntimeDefineServerAuthFn
+  defineServerAuth?: RuntimeDefineServerAuthFn
+}
 
 declare global {
   // eslint-disable-next-line vars-on-top
   var __nuxtBetterAuthDefineServerAuth: RuntimeDefineServerAuthFn | undefined
-  // eslint-disable-next-line vars-on-top
-  var defineServerAuth: RuntimeDefineServerAuthFn | undefined
 }
 
 export async function loadUserAuthConfig(configPath: string, throwOnError = false): Promise<Partial<BetterAuthOptions>> {
   const { createJiti } = await import('jiti')
   const { defineServerAuth: runtimeDefineServerAuth } = await import('./runtime/config')
   const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false })
+  const schemaGlobals = globalThis as typeof globalThis & SchemaGeneratorGlobals
 
-  if (!globalThis.__nuxtBetterAuthDefineServerAuth) {
+  if (!schemaGlobals.__nuxtBetterAuthDefineServerAuth) {
     (runtimeDefineServerAuth as unknown as RuntimeDefineServerAuthFn)._count = 0
-    globalThis.__nuxtBetterAuthDefineServerAuth = runtimeDefineServerAuth as unknown as RuntimeDefineServerAuthFn
+    schemaGlobals.__nuxtBetterAuthDefineServerAuth = runtimeDefineServerAuth as unknown as RuntimeDefineServerAuthFn
   }
-  if (!globalThis.defineServerAuth) {
-    globalThis.defineServerAuth = globalThis.__nuxtBetterAuthDefineServerAuth
+  if (!schemaGlobals.defineServerAuth) {
+    schemaGlobals.defineServerAuth = schemaGlobals.__nuxtBetterAuthDefineServerAuth
   }
-  globalThis.__nuxtBetterAuthDefineServerAuth!._count++
+  schemaGlobals.__nuxtBetterAuthDefineServerAuth!._count++
 
   try {
     const mod = await jiti.import(configPath) as { default?: unknown }
@@ -96,13 +99,13 @@ export async function loadUserAuthConfig(configPath: string, throwOnError = fals
     return {}
   }
   finally {
-    const sharedDefineServerAuth = globalThis.__nuxtBetterAuthDefineServerAuth
+    const sharedDefineServerAuth = schemaGlobals.__nuxtBetterAuthDefineServerAuth
     if (sharedDefineServerAuth) {
       sharedDefineServerAuth._count--
       if (!sharedDefineServerAuth._count) {
-        globalThis.__nuxtBetterAuthDefineServerAuth = undefined
-        if (globalThis.defineServerAuth === sharedDefineServerAuth) {
-          globalThis.defineServerAuth = undefined
+        schemaGlobals.__nuxtBetterAuthDefineServerAuth = undefined
+        if (schemaGlobals.defineServerAuth === sharedDefineServerAuth) {
+          schemaGlobals.defineServerAuth = undefined
         }
       }
     }

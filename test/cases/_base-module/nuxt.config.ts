@@ -11,7 +11,7 @@ export default defineNuxtConfig({
   },
 
   auth: {
-    // Keep this fixture explicit so override behavior stays covered alongside default layer discovery.
+    // Keep this fixture explicit so override behavior stays covered alongside layer-aware discovery.
     serverConfig,
     clientConfig,
   },

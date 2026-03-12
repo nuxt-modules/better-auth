@@ -1,7 +1,8 @@
 <script setup lang="ts">
-const { user, loggedIn, ready, signOut } = useUserSession()
+const { user, loggedIn, ready } = useUserSession()
 const { locale, locales, setLocale } = useI18n()
 const { t } = useI18n()
+const { signOutPending, signOut } = usePlaygroundSignOut()
 
 const availableLocales = computed(() =>
   (locales.value as Array<{ code: string, name: string }>).map(l => ({ label: l.name, value: l.code })),
@@ -50,6 +51,7 @@ const availableLocales = computed(() =>
                 <span class="text-sm text-muted-foreground">{{ user?.name || user?.email }}</span>
                 <button
                   class="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
+                  :disabled="signOutPending"
                   @click="signOut()"
                 >
                   {{ t('common.signOut') }}
