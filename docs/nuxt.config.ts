@@ -1,7 +1,7 @@
 import yaml from '@rollup/plugin-yaml'
 
 export default defineNuxtConfig({
-  extends: ['docus'],
+  extends: ['./layers/twoslash', 'docus'],
   modules: ['@vueuse/nuxt', 'motion-v/nuxt'],
 
   icon: {
