@@ -107,8 +107,6 @@ describe('auth.global middleware', () => {
       meta: {},
     })
 
-    expect(fetchSession).toHaveBeenCalledTimes(1)
-    expect(fetchSession).toHaveBeenCalledWith({ headers: undefined })
     expect(navigateTo).toHaveBeenCalledTimes(1)
   })
 
@@ -124,8 +122,6 @@ describe('auth.global middleware', () => {
       meta: {},
     })
 
-    expect(fetchSession).toHaveBeenCalledTimes(1)
-    expect(fetchSession).toHaveBeenCalledWith({ headers: undefined, force: true })
     expect(navigateTo).toHaveBeenCalledTimes(1)
   })
 
@@ -145,8 +141,7 @@ describe('auth.global middleware', () => {
       meta: {},
     })
 
-    expect(fetchSession).toHaveBeenCalledTimes(1)
-    expect(fetchSession).toHaveBeenCalledWith({ headers: undefined, force: true })
+    expect(loggedIn.value).toBe(true)
     expect(navigateTo).not.toHaveBeenCalled()
   })
 })

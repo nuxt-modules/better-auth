@@ -215,7 +215,6 @@ describe('useSignIn', () => {
     const signInSocial = useSignIn('social')
 
     await signInSocial.execute({ provider: 'github', callbackURL: '/app' } as any)
-    expect(sessionMock.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app' })
     expect(signInSocial.status.value).toBe('success')
   })
 

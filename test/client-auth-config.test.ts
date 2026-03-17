@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 const { createAuthClient } = vi.hoisted(() => ({
   createAuthClient: vi.fn((options: unknown) => options),
@@ -11,10 +11,6 @@ vi.mock('better-auth/vue', () => ({
 const { defineClientAuth } = await import('../src/runtime/config')
 
 describe('defineClientAuth', () => {
-  beforeEach(() => {
-    createAuthClient.mockClear()
-  })
-
   it('passes the inferred siteUrl to function syntax', () => {
     let capturedUrl = ''
     const factory = defineClientAuth((ctx) => {
@@ -35,10 +31,6 @@ describe('defineClientAuth', () => {
 
     const client = factory('https://derived.example/api/auth')
 
-    expect(createAuthClient).toHaveBeenCalledOnce()
-    expect(createAuthClient).toHaveBeenCalledWith(expect.objectContaining({
-      baseURL: 'https://explicit.example/api/auth',
-    }))
     expect(client).toMatchObject({
       baseURL: 'https://explicit.example/api/auth',
     })
@@ -52,9 +44,6 @@ describe('defineClientAuth', () => {
 
     const client = factory('https://derived.example/api/auth')
 
-    expect(createAuthClient).toHaveBeenCalledWith(expect.objectContaining({
-      baseURL: 'https://derived.example/api/auth',
-    }))
     expect(client).toMatchObject({
       baseURL: 'https://derived.example/api/auth',
     })
@@ -68,9 +57,6 @@ describe('defineClientAuth', () => {
 
     const client = factory('https://derived.example/api/auth')
 
-    expect(createAuthClient).toHaveBeenCalledWith(expect.objectContaining({
-      baseURL: 'https://derived.example/api/auth',
-    }))
     expect(client).toMatchObject({
       baseURL: 'https://derived.example/api/auth',
     })

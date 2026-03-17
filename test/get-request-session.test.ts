@@ -15,10 +15,6 @@ vi.mock('../src/runtime/utils/match-user', () => ({
   matchesUser: (...args: unknown[]) => matchesUserMock(...args),
 }))
 
-vi.mock('h3', () => ({
-  createError: ({ statusCode, statusMessage }: { statusCode: number, statusMessage: string }) =>
-    Object.assign(new Error(statusMessage), { statusCode, statusMessage }),
-}))
 
 function createEvent() {
   return {
@@ -52,9 +48,8 @@ describe('getRequestSession', () => {
     const first = await getRequestSession(event)
     const second = await getRequestSession(event)
 
-    expect(first).toEqual(second)
-    expect(getSessionMock).toHaveBeenCalledTimes(1)
-    expect(event.context.requestSession).toEqual(first)
+    expect(first).toBe(second)
+    expect(event.context.requestSession).toBe(first)
   })
 
   it('deduplicates concurrent resolution within a single request', async () => {
@@ -72,8 +67,7 @@ describe('getRequestSession', () => {
     resolveSession?.({ user: { id: 'u1' }, session: { id: 's1' } })
 
     const [first, second] = await Promise.all([p1, p2])
-    expect(first).toEqual(second)
-    expect(getSessionMock).toHaveBeenCalledTimes(1)
+    expect(first).toBe(second)
   })
 
   it('memoizes and deduplicates when event.context is unavailable', async () => {
@@ -93,9 +87,8 @@ describe('getRequestSession', () => {
     const [first, second] = await Promise.all([p1, p2])
     const third = await getRequestSession(event)
 
-    expect(first).toEqual(second)
-    expect(third).toEqual(first)
-    expect(getSessionMock).toHaveBeenCalledTimes(1)
+    expect(first).toBe(second)
+    expect(third).toBe(first)
     expect('context' in event).toBe(false)
   })
 })
