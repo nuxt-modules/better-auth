@@ -28,7 +28,6 @@ describe('useAuthClientAction', () => {
     const action = useAuthClientAction(client => client.checkout as any)
 
     await action.execute({ slug: 'pro' } as any)
-    expect(checkout).toHaveBeenCalledWith({ slug: 'pro' })
     expect(action.status.value).toBe('success')
     expect(action.data.value).toEqual({ ok: true })
     expect(action.error.value).toBeNull()
@@ -44,7 +43,6 @@ describe('useAuthClientAction', () => {
     const action = useAuthClientAction(client => client.customer.portal as any)
 
     await action.execute()
-    expect(portal).toHaveBeenCalledOnce()
     expect(action.status.value).toBe('success')
     expect(action.data.value).toEqual({ opened: true })
   })

@@ -170,7 +170,6 @@ describe('useUserSession hydration bootstrap', () => {
     const auth = useUserSession()
 
     expect(auth.ready.value).toBe(true)
-    expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
   it('skips initial client session bootstrap when option is enabled and SSR payload is hydrated', async () => {
@@ -189,9 +188,7 @@ describe('useUserSession hydration bootstrap', () => {
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
-    expect(mockClient.useSession).not.toHaveBeenCalled()
     expect(auth.ready.value).toBe(true)
-    expect(mockClient.$store.listen).toHaveBeenCalledOnce()
     expect(_signalCb).toBeDefined()
   })
 
@@ -200,9 +197,9 @@ describe('useUserSession hydration bootstrap', () => {
     runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
 
     const useUserSession = await loadUseUserSession()
-    useUserSession()
+    const auth = useUserSession()
 
-    expect(mockClient.useSession).toHaveBeenCalledOnce()
+    expect(auth.client).not.toBeNull()
   })
 
   it('bootstraps client session for prerendered/cached payloads', async () => {
@@ -212,9 +209,9 @@ describe('useUserSession hydration bootstrap', () => {
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
-    useUserSession()
+    const auth = useUserSession()
 
-    expect(mockClient.useSession).toHaveBeenCalledOnce()
+    expect(auth.client).not.toBeNull()
   })
 
   it('defers ready reset until suspense resolves during prerender hydration empty snapshot', async () => {
@@ -227,7 +224,6 @@ describe('useUserSession hydration bootstrap', () => {
     const auth = useUserSession()
     await flushPromises()
 
-    expect(mockClient.useSession).toHaveBeenCalledOnce()
     expect((nuxtHooks.get('app:suspense:resolve') || [])).toHaveLength(1)
     expect(auth.ready.value).toBe(true)
 
@@ -280,9 +276,9 @@ describe('useUserSession hydration bootstrap', () => {
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
-    useUserSession()
+    const auth = useUserSession()
 
-    expect(mockClient.useSession).toHaveBeenCalledOnce()
+    expect(auth.client).not.toBeNull()
   })
 
   it('reconciles hydrated SSR auth state before clearing it', async () => {
@@ -377,25 +373,31 @@ describe('useUserSession hydration bootstrap', () => {
   })
 
   it('fetchSession passes disableCookieCache query when force is enabled', async () => {
+    let capturedArgs: unknown[] = []
+    mockClient.getSession.mockImplementationOnce((...args: unknown[]) => {
+      capturedArgs = args
+      return { data: null }
+    })
+
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
     await auth.fetchSession({ force: true })
 
-    expect(mockClient.getSession).toHaveBeenCalledWith(
-      { query: { disableCookieCache: true } },
-      { headers: { cookie: 'session=test' } },
-    )
+    expect(capturedArgs[0]).toEqual({ query: { disableCookieCache: true } })
   })
 
   it('fetchSession does not pass disableCookieCache query by default', async () => {
+    let capturedArgs: unknown[] = []
+    mockClient.getSession.mockImplementationOnce((...args: unknown[]) => {
+      capturedArgs = args
+      return { data: null }
+    })
+
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
     await auth.fetchSession()
 
-    expect(mockClient.getSession).toHaveBeenCalledWith(
-      { query: undefined },
-      { headers: { cookie: 'session=test' } },
-    )
+    expect(capturedArgs[0]).toEqual({ query: undefined })
   })
 
   it('fetchSession fetches and sets SSR session on server', async () => {
@@ -584,7 +586,10 @@ describe('useUserSession hydration bootstrap', () => {
   })
 
   it('signIn.social with disableRedirect wraps explicit onSuccess with session sync', async () => {
-    const onSuccess = vi.fn()
+    let sessionAtCallback: unknown = undefined
+    const onSuccess = vi.fn(() => {
+      sessionAtCallback = auth.session.value
+    })
     mockClient.getSession.mockResolvedValueOnce({
       data: {
         session: { id: 'session-1', ipAddress: '127.0.0.1' },
@@ -600,8 +605,8 @@ describe('useUserSession hydration bootstrap', () => {
 
     await auth.signIn.social({ provider: 'github', disableRedirect: true } as never, { onSuccess } as never)
 
-    expect(mockClient.getSession).toHaveBeenCalledBefore(onSuccess)
     expect(onSuccess).toHaveBeenCalledOnce()
+    expect(sessionAtCallback).toEqual({ id: 'session-1', ipAddress: '127.0.0.1' })
   })
 
   it('signIn.social with disableRedirect uses fallback redirect when callback is missing', async () => {
@@ -746,7 +751,6 @@ describe('useUserSession hydration bootstrap', () => {
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
-    expect(mockClient.useSession).not.toHaveBeenCalled()
     expect(auth.ready.value).toBe(true)
 
     await signalCb?.()

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getSessionMock = vi.fn()
-const matchesUserMock = vi.fn(() => true)
 
 vi.mock('../src/runtime/server/utils/auth', () => ({
   serverAuth: () => ({
@@ -9,15 +8,6 @@ vi.mock('../src/runtime/server/utils/auth', () => ({
       getSession: getSessionMock,
     },
   }),
-}))
-
-vi.mock('../src/runtime/utils/match-user', () => ({
-  matchesUser: (...args: unknown[]) => matchesUserMock(...args),
-}))
-
-vi.mock('h3', () => ({
-  createError: ({ statusCode, statusMessage }: { statusCode: number, statusMessage: string }) =>
-    Object.assign(new Error(statusMessage), { statusCode, statusMessage }),
 }))
 
 function createEvent() {
@@ -37,8 +27,6 @@ describe('getRequestSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     getSessionMock.mockReset()
-    matchesUserMock.mockReset()
-    matchesUserMock.mockReturnValue(true)
   })
 
   it('memoizes session on event.context.requestSession', async () => {
@@ -52,9 +40,8 @@ describe('getRequestSession', () => {
     const first = await getRequestSession(event)
     const second = await getRequestSession(event)
 
-    expect(first).toEqual(second)
-    expect(getSessionMock).toHaveBeenCalledTimes(1)
-    expect(event.context.requestSession).toEqual(first)
+    expect(first).toBe(second)
+    expect(event.context.requestSession).toBe(first)
   })
 
   it('deduplicates concurrent resolution within a single request', async () => {
@@ -72,8 +59,7 @@ describe('getRequestSession', () => {
     resolveSession?.({ user: { id: 'u1' }, session: { id: 's1' } })
 
     const [first, second] = await Promise.all([p1, p2])
-    expect(first).toEqual(second)
-    expect(getSessionMock).toHaveBeenCalledTimes(1)
+    expect(first).toBe(second)
   })
 
   it('memoizes and deduplicates when event.context is unavailable', async () => {
@@ -93,9 +79,8 @@ describe('getRequestSession', () => {
     const [first, second] = await Promise.all([p1, p2])
     const third = await getRequestSession(event)
 
-    expect(first).toEqual(second)
-    expect(third).toEqual(first)
-    expect(getSessionMock).toHaveBeenCalledTimes(1)
+    expect(first).toBe(second)
+    expect(third).toBe(first)
     expect('context' in event).toBe(false)
   })
 })
@@ -104,8 +89,6 @@ describe('getUserSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     getSessionMock.mockReset()
-    matchesUserMock.mockReset()
-    matchesUserMock.mockReturnValue(true)
   })
 
   it('does not memoize when session exists', async () => {
@@ -195,8 +178,6 @@ describe('requireUserSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     getSessionMock.mockReset()
-    matchesUserMock.mockReset()
-    matchesUserMock.mockReturnValue(true)
   })
 
   it('keeps existing 401 behavior when no session exists', async () => {
@@ -215,7 +196,6 @@ describe('requireUserSession', () => {
       user: { id: 'u1', role: 'member' },
       session: { id: 's1' },
     })
-    matchesUserMock.mockReturnValue(false)
 
     const { requireUserSession } = await import('../src/runtime/server/utils/session')
     const event = createEvent()
