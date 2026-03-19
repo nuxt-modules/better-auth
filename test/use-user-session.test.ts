@@ -586,7 +586,8 @@ describe('useUserSession hydration bootstrap', () => {
   })
 
   it('signIn.social with disableRedirect wraps explicit onSuccess with session sync', async () => {
-    let sessionAtCallback: unknown = undefined
+    let auth!: ReturnType<Awaited<ReturnType<typeof loadUseUserSession>>>
+    let sessionAtCallback: unknown
     const onSuccess = vi.fn(() => {
       sessionAtCallback = auth.session.value
     })
@@ -601,7 +602,7 @@ describe('useUserSession hydration bootstrap', () => {
     })
 
     const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    auth = useUserSession()
 
     await auth.signIn.social({ provider: 'github', disableRedirect: true } as never, { onSuccess } as never)
 
