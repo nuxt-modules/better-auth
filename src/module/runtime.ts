@@ -1,8 +1,8 @@
 import type { Nuxt } from '@nuxt/schema'
 import type { ConsolaInstance } from 'consola'
+import { defu } from 'defu'
 import type { AuthPrivateRuntimeConfig, AuthRuntimeConfig, BetterAuthModuleOptions, ModuleDatabaseProviderId } from '../runtime/config'
 import type { NuxtHubOptions } from './hub'
-import { defu } from 'defu'
 
 interface SetupRuntimeConfigInput {
   nuxt: Nuxt
@@ -66,7 +66,7 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { useHubKV: 
   }
 
   const currentSecret = nuxt.options.runtimeConfig.betterAuthSecret as string | undefined
-  nuxt.options.runtimeConfig.betterAuthSecret = currentSecret || process.env.BETTER_AUTH_SECRET || ''
+  nuxt.options.runtimeConfig.betterAuthSecret = currentSecret || process.env.BETTER_AUTH_SECRET || process.env.NUXT_BETTER_AUTH_SECRET || ''
 
   const betterAuthSecret = nuxt.options.runtimeConfig.betterAuthSecret as string
   if (!nuxt.options.dev && !nuxt.options._prepare && !betterAuthSecret) {
