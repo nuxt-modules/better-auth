@@ -1,8 +1,7 @@
 import type { BetterAuthOptions } from 'better-auth'
+import type { Casing } from 'drizzle-orm/utils'
 import { generateDrizzleSchema as _generateDrizzleSchema } from '@better-auth/cli/api'
 import { consola } from 'consola'
-
-import type { Casing } from 'drizzle-orm/utils'
 
 export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: Casing }
 
