@@ -157,8 +157,8 @@ importers:
         specifier: ^14.2.1
         version: 14.2.1(magicast@0.5.2)(nuxt@4.3.1(7abe57d85d4f40b2ae678c6f5296d586))(vue@3.5.29(typescript@5.9.3))
       docus:
-        specifier: ^5.7.0
-        version: 5.8.0(3d72889f1a95b3366e51eb0df9c735ed)
+        specifier: ^5.8.1
+        version: 5.8.1(3d72889f1a95b3366e51eb0df9c735ed)
 
   playground:
     dependencies:
@@ -4913,8 +4913,8 @@ packages:
     resolution: {integrity: sha512-qejHi7bcSD4hQAZE0tNAawRK1ZtafHDmMTMkrrIGgSLl7hTnQHmKCeB45xAcbfTqK2zowkM3j3bHt/4b/ARbYQ==}
     engines: {node: '>=0.3.1'}
 
-  docus@5.8.0:
-    resolution: {integrity: sha512-JeRl5QFgZR1n9mKT3cTPEEyynoCbxPylCyVUj59g2F/bjriuS7IVR4kXKy1CaoRU9tuM35+s2ArfWnrpFTEFrg==}
+  docus@5.8.1:
+    resolution: {integrity: sha512-17mmg3pJZoYY2Ix+Z3jEYS0RYj9sxff7YxIamwP46OdTpnt9JvBAKQq3Cb62mua1SCs+MF0NjuM8Dzbdbw87rQ==}
     peerDependencies:
       better-sqlite3: 12.x
       nuxt: 4.x
@@ -14336,7 +14336,7 @@ snapshots:
 
   diff@8.0.3: {}
 
-  docus@5.8.0(3d72889f1a95b3366e51eb0df9c735ed):
+  docus@5.8.1(3d72889f1a95b3366e51eb0df9c735ed):
     dependencies:
       '@ai-sdk/gateway': 3.0.66(zod@4.3.6)
       '@ai-sdk/mcp': 1.0.25(zod@4.3.6)
