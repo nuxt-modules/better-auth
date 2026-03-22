@@ -2,7 +2,7 @@ import yaml from '@rollup/plugin-yaml'
 
 export default defineNuxtConfig({
   extends: ['docus'],
-  modules: ['@vueuse/nuxt', 'motion-v/nuxt'],
+  modules: ['@vueuse/nuxt', 'motion-v/nuxt', '@vercel/analytics/nuxt'],
 
   icon: {
     customCollections: [{ prefix: 'custom', dir: './public/icons' }],

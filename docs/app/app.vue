@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { ContentNavigationItem, PageCollections } from '@nuxt/content'
-import { Analytics } from '@vercel/analytics/nuxt'
 import { SpeedInsights } from '@vercel/speed-insights/nuxt'
 
 const route = useRoute()
@@ -34,7 +33,6 @@ provide('navigation', navigation)
     </ClientOnly>
 
     <UToaster />
-    <Analytics />
     <SpeedInsights />
   </div>
 </template>
