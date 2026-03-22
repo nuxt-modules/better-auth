@@ -1,6 +1,6 @@
 import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import type { BetterAuthClientOptions } from 'better-auth/client'
-import type { CasingOption } from '../schema-generator'
+import type { Casing } from 'drizzle-orm/utils'
 import type { ServerAuthContext } from './types/augment'
 import { createAuthClient } from 'better-auth/vue'
 
@@ -74,7 +74,7 @@ export interface BetterAuthModuleOptions {
     /** Plural table names: user → users. Default: false */
     usePlural?: boolean
     /** Column/table name casing. Explicit value takes precedence over hub.db.casing. */
-    casing?: CasingOption
+    casing?: Casing
   }
 }
 

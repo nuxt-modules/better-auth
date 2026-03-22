@@ -2,8 +2,9 @@ import type { BetterAuthOptions } from 'better-auth'
 import { generateDrizzleSchema as _generateDrizzleSchema } from '@better-auth/cli/api'
 import { consola } from 'consola'
 
-export type CasingOption = 'camelCase' | 'snake_case'
-export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: CasingOption }
+import type { Casing } from 'drizzle-orm/utils'
+
+export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: Casing }
 
 type Dialect = 'sqlite' | 'postgresql' | 'mysql'
 type Provider = 'sqlite' | 'pg' | 'mysql'
