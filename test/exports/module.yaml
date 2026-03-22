@@ -5,3 +5,11 @@
 ./config:
   defineClientAuth: function
   defineServerAuth: function
+./nitro:
+  default: object
+  getRequestSession: function
+  getUserSession: function
+  requireUserSession: function
+  serverAuth: function
+./nitro/config:
+  defineServerAuth: function

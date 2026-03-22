@@ -19,6 +19,14 @@
     "./config": {
       "types": "./dist/runtime/config.d.ts",
       "import": "./dist/runtime/config.js"
+    },
+    "./nitro": {
+      "types": "./dist/nitro.d.mts",
+      "import": "./dist/nitro.mjs"
+    },
+    "./nitro/config": {
+      "types": "./dist/nitro/config.d.mts",
+      "import": "./dist/nitro/config.mjs"
     }
   },
   "main": "./dist/module.mjs",
@@ -29,6 +37,12 @@
       ],
       "config": [
         "./dist/runtime/config.d.ts"
+      ],
+      "nitro": [
+        "./dist/nitro.d.mts"
+      ],
+      "nitro/config": [
+        "./dist/nitro/config.d.mts"
       ]
     }
   },
@@ -53,10 +67,14 @@
   },
   "peerDependencies": {
     "@nuxthub/core": ">=0.10.5",
-    "better-auth": ">=1.0.0"
+    "better-auth": ">=1.0.0",
+    "nitro": "^3.0.0-0"
   },
   "peerDependenciesMeta": {
     "@nuxthub/core": {
+      "optional": true
+    },
+    "nitro": {
       "optional": true
     }
   },
@@ -91,6 +109,7 @@
     "drizzle-orm": "^0.45.1",
     "eslint": "^10.0.3",
     "npm-agentskills": "https://pkg.pr.new/onmax/npm-agentskills@394499e",
+    "nitro": "3.0.260311-beta",
     "nuxt": "^4.3.1",
     "tinyexec": "^1.0.2",
     "typescript": "~5.9.3",
