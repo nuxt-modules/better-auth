@@ -22,11 +22,13 @@ function createConsolaMock(): ConsolaInstance {
   } as unknown as ConsolaInstance
 }
 
-describe('setupRuntimeConfig siteUrl hydration', () => {
-  afterEach(() => {
-    delete process.env.NUXT_PUBLIC_SITE_URL
-  })
+afterEach(() => {
+  delete process.env.NUXT_PUBLIC_SITE_URL
+  delete process.env.NUXT_BETTER_AUTH_SECRET
+  delete process.env.BETTER_AUTH_SECRET
+})
 
+describe('setupRuntimeConfig siteUrl hydration', () => {
   it('hydrates public.siteUrl from NUXT_PUBLIC_SITE_URL when missing', () => {
     process.env.NUXT_PUBLIC_SITE_URL = 'http://localhost:3000'
     const nuxt = createNuxtWithRuntimeConfig()
@@ -75,6 +77,77 @@ describe('setupRuntimeConfig siteUrl hydration', () => {
     })
 
     expect(consola.warn).toHaveBeenCalledWith('clientOnly mode: set runtimeConfig.public.siteUrl (or NUXT_PUBLIC_SITE_URL) to your frontend URL')
+  })
+})
+
+describe('setupRuntimeConfig secret resolution', () => {
+  it('prefers runtimeConfig over env variables', () => {
+    process.env.NUXT_BETTER_AUTH_SECRET = 'nuxi-secret-for-testing-only-32chars'
+    process.env.BETTER_AUTH_SECRET = 'fallback-secret-for-testing-only-32chars'
+    const nuxt = createNuxtWithRuntimeConfig()
+    ;(nuxt.options as any).runtimeConfig.betterAuthSecret = 'runtime-secret-for-testing-only-32chars'
+    const consola = createConsolaMock()
+
+    setupRuntimeConfig({
+      nuxt,
+      options: {},
+      clientOnly: false,
+      databaseProvider: 'none',
+      hasNuxtHub: false,
+      consola,
+    })
+
+    expect((nuxt.options as any).runtimeConfig.betterAuthSecret).toBe('runtime-secret-for-testing-only-32chars')
+  })
+
+  it('uses NUXT_BETTER_AUTH_SECRET when runtimeConfig is unset', () => {
+    process.env.NUXT_BETTER_AUTH_SECRET = 'nuxi-secret-for-testing-only-32chars'
+    process.env.BETTER_AUTH_SECRET = 'fallback-secret-for-testing-only-32chars'
+    const nuxt = createNuxtWithRuntimeConfig()
+    const consola = createConsolaMock()
+
+    setupRuntimeConfig({
+      nuxt,
+      options: {},
+      clientOnly: false,
+      databaseProvider: 'none',
+      hasNuxtHub: false,
+      consola,
+    })
+
+    expect((nuxt.options as any).runtimeConfig.betterAuthSecret).toBe('nuxi-secret-for-testing-only-32chars')
+  })
+
+  it('falls back to BETTER_AUTH_SECRET when NUXT_BETTER_AUTH_SECRET is unset', () => {
+    process.env.BETTER_AUTH_SECRET = 'fallback-secret-for-testing-only-32chars'
+    const nuxt = createNuxtWithRuntimeConfig()
+    const consola = createConsolaMock()
+
+    setupRuntimeConfig({
+      nuxt,
+      options: {},
+      clientOnly: false,
+      databaseProvider: 'none',
+      hasNuxtHub: false,
+      consola,
+    })
+
+    expect((nuxt.options as any).runtimeConfig.betterAuthSecret).toBe('fallback-secret-for-testing-only-32chars')
+  })
+
+  it('throws in production when no secret is configured', () => {
+    const nuxt = createNuxtWithRuntimeConfig()
+    nuxt.options.dev = false
+    const consola = createConsolaMock()
+
+    expect(() => setupRuntimeConfig({
+      nuxt,
+      options: {},
+      clientOnly: false,
+      databaseProvider: 'none',
+      hasNuxtHub: false,
+      consola,
+    })).toThrow('NUXT_BETTER_AUTH_SECRET is required in production')
   })
 })
 

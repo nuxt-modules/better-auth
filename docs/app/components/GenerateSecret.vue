@@ -21,8 +21,8 @@ function generate() {
   for (const block of codeBlocks) {
     const spans = block.querySelectorAll('span.line span')
     for (const span of spans) {
-      if (span.textContent?.includes('BETTER_AUTH_SECRET=')) {
-        span.textContent = `BETTER_AUTH_SECRET=${secretValue.value}`
+      if (span.textContent?.includes('NUXT_BETTER_AUTH_SECRET=')) {
+        span.textContent = `NUXT_BETTER_AUTH_SECRET=${secretValue.value}`
         // Hide copy button on this code block
         const pre = block.closest('pre')
         const copyBtn = pre?.querySelector('button')
@@ -37,8 +37,8 @@ function generate() {
     for (const block of codeBlocks) {
       const spans = block.querySelectorAll('span.line span')
       for (const span of spans) {
-        if (span.textContent?.includes('BETTER_AUTH_SECRET=')) {
-          span.textContent = 'BETTER_AUTH_SECRET='
+        if (span.textContent?.includes('NUXT_BETTER_AUTH_SECRET=')) {
+          span.textContent = 'NUXT_BETTER_AUTH_SECRET='
           // Restore copy button
           const pre = block.closest('pre')
           const copyBtn = pre?.querySelector('button')
@@ -56,7 +56,7 @@ function generate() {
 
 async function copySecret() {
   if (secretValue.value) {
-    await copy(`BETTER_AUTH_SECRET=${secretValue.value}`)
+    await copy(`NUXT_BETTER_AUTH_SECRET=${secretValue.value}`)
     copied.value = true
     toast.add({ title: 'Copied to clipboard', icon: 'i-lucide-check', color: 'success' })
   }

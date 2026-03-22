@@ -4,6 +4,9 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'pathe'
 import { isCI, isTest } from 'std-env'
 
+const DEFAULT_SECRET_ENV = 'NUXT_BETTER_AUTH_SECRET'
+const FALLBACK_SECRET_ENV = 'BETTER_AUTH_SECRET'
+
 const generateSecret = () => randomBytes(32).toString('hex')
 
 function readEnvFile(rootDir: string): string {
@@ -12,8 +15,11 @@ function readEnvFile(rootDir: string): string {
 }
 
 function hasEnvSecret(rootDir: string): boolean {
-  const match = readEnvFile(rootDir).match(/^BETTER_AUTH_SECRET=(.+)$/m)
-  return !!match && !!match[1] && match[1].trim().length > 0
+  const envFile = readEnvFile(rootDir)
+  return [DEFAULT_SECRET_ENV, FALLBACK_SECRET_ENV].some((name) => {
+    const match = envFile.match(new RegExp(`^${name}=(.+)$`, 'm'))
+    return !!match && !!match[1] && match[1].trim().length > 0
+  })
 }
 
 function appendSecretToEnv(rootDir: string, secret: string): void {
@@ -21,7 +27,7 @@ function appendSecretToEnv(rootDir: string, secret: string): void {
   let content = readEnvFile(rootDir)
   if (content.length > 0 && !content.endsWith('\n'))
     content += '\n'
-  content += `BETTER_AUTH_SECRET=${secret}\n`
+  content += `${DEFAULT_SECRET_ENV}=${secret}\n`
   writeFileSync(envPath, content, 'utf-8')
 }
 
@@ -35,23 +41,23 @@ export async function promptForSecret(rootDir: string, consola: ConsolaInstance,
   if (configuredSecret)
     return undefined
 
-  if (process.env.BETTER_AUTH_SECRET || hasEnvSecret(rootDir))
+  if (process.env.NUXT_BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET || hasEnvSecret(rootDir))
     return undefined
 
   const hasTty = Boolean(process.stdin.isTTY && process.stdout.isTTY)
   if (options.prepare || !hasTty) {
-    consola.warn('[nuxt-better-auth] Skipping BETTER_AUTH_SECRET prompt (non-interactive). Set BETTER_AUTH_SECRET or NUXT_BETTER_AUTH_SECRET.')
+    consola.warn('[nuxt-better-auth] Skipping NUXT_BETTER_AUTH_SECRET prompt (non-interactive). Set NUXT_BETTER_AUTH_SECRET or BETTER_AUTH_SECRET.')
     return undefined
   }
 
   if (isCI || isTest) {
     const secret = generateSecret()
     appendSecretToEnv(rootDir, secret)
-    consola.info('Generated BETTER_AUTH_SECRET and added to .env (CI/test mode)')
+    consola.info('Generated NUXT_BETTER_AUTH_SECRET and added to .env (CI/test mode)')
     return secret
   }
 
-  consola.box('BETTER_AUTH_SECRET is required for authentication.\nThis will be appended to your .env file.')
+  consola.box('NUXT_BETTER_AUTH_SECRET is required for authentication.\nThis will be appended to your .env file.\nBETTER_AUTH_SECRET is still supported as a fallback.')
   const choice = await consola.prompt('How do you want to set it?', {
     type: 'select',
     options: [
@@ -63,7 +69,7 @@ export async function promptForSecret(rootDir: string, consola: ConsolaInstance,
   }) as 'generate' | 'paste' | 'skip' | symbol
 
   if (typeof choice === 'symbol' || choice === 'skip') {
-    consola.warn('Skipping BETTER_AUTH_SECRET. Auth will fail without it in production.')
+    consola.warn('Skipping NUXT_BETTER_AUTH_SECRET. Auth will fail without it in production.')
     return undefined
   }
 
@@ -81,13 +87,13 @@ export async function promptForSecret(rootDir: string, consola: ConsolaInstance,
   }
 
   const preview = `${secret.slice(0, 8)}...${secret.slice(-4)}`
-  const confirm = await consola.prompt(`Add to .env:\nBETTER_AUTH_SECRET=${preview}\nProceed?`, { type: 'confirm', initial: true, cancel: 'null' }) as boolean | symbol
+  const confirm = await consola.prompt(`Add to .env:\n${DEFAULT_SECRET_ENV}=${preview}\nProceed?`, { type: 'confirm', initial: true, cancel: 'null' }) as boolean | symbol
   if (typeof confirm === 'symbol' || !confirm) {
     consola.info('Cancelled. Secret not written.')
     return undefined
   }
 
   appendSecretToEnv(rootDir, secret)
-  consola.success('Added BETTER_AUTH_SECRET to .env')
+  consola.success('Added NUXT_BETTER_AUTH_SECRET to .env')
   return secret
 }
