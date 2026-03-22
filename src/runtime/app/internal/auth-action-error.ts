@@ -1,10 +1,7 @@
 import type { AuthActionError } from '../../types'
+import { isRecord } from './utils'
 
 export const DEFAULT_AUTH_ACTION_ERROR_MESSAGE = 'Request failed. Please try again.'
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object')
-}
 
 function getMessage(value: unknown): string {
   if (value instanceof Error)

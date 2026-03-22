@@ -11,14 +11,6 @@
     "type": "git",
     "url": "https://github.com/nuxt-modules/better-auth"
   },
-  "agents": {
-    "skills": [
-      {
-        "name": "nuxt-better-auth",
-        "path": "./skills/nuxt-better-auth"
-      }
-    ]
-  },
   "exports": {
     ".": {
       "types": "./dist/types.d.mts",
@@ -41,8 +33,7 @@
     }
   },
   "files": [
-    "dist",
-    "skills"
+    "dist"
   ],
   "scripts": {
     "prepack": "nuxt-module-build build",

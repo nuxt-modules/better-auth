@@ -1,12 +1,15 @@
 import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { ComputedRef, Ref } from 'vue'
 import createAppAuthClient from '#auth/client'
-import { computed, navigateTo, nextTick, useNuxtApp, useRequestFetch, useRequestHeaders, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
+import { computed, navigateTo, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
 import { normalizeAuthActionError } from '../internal/auth-action-error'
+import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
+import { fetchSessionClient, fetchSessionServer, stripToken } from '../internal/session-fetch'
+import { isRecord } from '../internal/utils'
+import { wrapAuthMethod } from '../internal/wrap-auth-method'
 
 export interface SignOutOptions { onSuccess?: () => void | Promise<void> }
 interface RuntimeFlags { client: boolean, server: boolean }
-interface SessionResponse { session: AuthSession & { token?: string }, user: AuthUser }
 
 let _sessionSignalListenerBound = false
 let _signOutPromise: Promise<void> | null = null
@@ -29,21 +32,10 @@ export interface UseUserSessionReturn {
 let _client: AppAuthClient | null = null
 interface UpdateUserResponse { error?: unknown }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object')
-}
-
 function getClient(baseURL: string): AppAuthClient {
   if (!_client)
     _client = createAppAuthClient(baseURL)
   return _client
-}
-
-function isExpectedSignedOutSessionError(error: unknown): boolean {
-  const normalizedError = normalizeAuthActionError(error)
-  if (normalizedError.status === 401)
-    return true
-  return normalizedError.code === 'UNAUTHORIZED'
 }
 
 function getRuntimeFlags(): RuntimeFlags {
@@ -81,7 +73,6 @@ export function useUserSession(): UseUserSessionReturn {
   const requestURL = useRequestURL()
   const nuxtApp = useNuxtApp()
 
-  // Client only - create better-auth client for client-side operations (singleton)
   const client: AppAuthClient | null = runtimeFlags.client
     ? getClient(runtimeConfig.public.siteUrl || requestURL.origin)
     : null
@@ -114,10 +105,8 @@ export function useUserSession(): UseUserSessionReturn {
       return false
     if (!nuxtApp.payload.serverRendered)
       return false
-    // Don't skip for prerendered/cached payloads; we want a real session check after mount.
     if (isPrerenderedPayload.value)
       return false
-    // SSR already hydrated state: avoid duplicate /api/auth/get-session on first paint.
     return Boolean(session.value && user.value)
   })
 
@@ -140,6 +129,13 @@ export function useUserSession(): UseUserSessionReturn {
   function clearSession() {
     session.value = null
     user.value = null
+  }
+
+  async function fetchSession(options: { headers?: HeadersInit, force?: boolean } = {}) {
+    if (runtimeFlags.server)
+      return fetchSessionServer(session, user, authReady, options)
+    if (client)
+      return fetchSessionClient(client, session, user, authReady, options)
   }
 
   async function updateUser(updates: Partial<AuthUser>) {
@@ -173,11 +169,9 @@ export function useUserSession(): UseUserSessionReturn {
   }
 
   // On client, subscribe to better-auth's reactive session store
-  // This auto-updates when signIn/signUp/signOut triggers the session signal
   if (runtimeFlags.client && client && !shouldSkipInitialClientSessionFetch.value) {
     const clientSession = client.useSession()
 
-    // Sync better-auth's reactive session to our useState
     watch(
       () => clientSession.value,
       (newSession) => {
@@ -190,9 +184,7 @@ export function useUserSession(): UseUserSessionReturn {
           return
 
         if (newSession?.data?.session && newSession?.data?.user) {
-          // Filter out sensitive token field
-          const { token: _, ...safeSession } = newSession.data.session as AuthSession & { token?: string }
-          session.value = safeSession as AuthSession
+          session.value = stripToken(newSession.data.session as AuthSession & { token?: string })
           user.value = newSession.data.user as AuthUser
         }
         else if (!newSession?.isPending && !newSession?.isRefetching) {
@@ -235,7 +227,6 @@ export function useUserSession(): UseUserSessionReturn {
           resolve()
         }
       })
-      // Timeout fallback to prevent hanging
       setTimeout(() => {
         unwatch()
         resolve()
@@ -243,134 +234,15 @@ export function useUserSession(): UseUserSessionReturn {
     })
   }
 
-  function isSafeLocalRedirect(redirect: unknown): string | undefined {
-    if (typeof redirect !== 'string')
-      return
-    if (!redirect.startsWith('/') || redirect.startsWith('//'))
-      return
-    return redirect
-  }
-
-  function resolvePostAuthRedirect(): string | undefined {
-    const authConfig = runtimeConfig.public.auth as { redirects?: { authenticated?: string }, redirectQueryKey?: string } | undefined
-    const redirectQueryKey = authConfig?.redirectQueryKey ?? 'redirect'
-    const queryRedirect = requestURL.searchParams?.get(redirectQueryKey)
-    const safeQueryRedirect = isSafeLocalRedirect(queryRedirect)
-    if (safeQueryRedirect)
-      return safeQueryRedirect
-    return isSafeLocalRedirect(authConfig?.redirects?.authenticated)
-  }
-
-  function resolvePostAuthSuccessRedirect(): (() => Promise<void>) | undefined {
-    const target = resolvePostAuthRedirect()
-    if (!target)
-      return
-    return async () => {
-      await navigateTo(target)
-    }
-  }
-
-  function withFallbackSocialCallbackURL(data: unknown): unknown {
-    const callbackURL = resolvePostAuthRedirect()
-    if (!callbackURL)
-      return data
-
-    if (!isRecord(data))
-      return { callbackURL }
-    if (typeof data.callbackURL === 'string')
-      return data
-
-    return {
-      ...data,
-      callbackURL,
-    }
-  }
-
-  // Wrap signIn methods to wait for session sync before calling onSuccess
+  // Wrap signIn/signUp methods to sync session before executing onSuccess
   type SignIn = NonNullable<AppAuthClient>['signIn']
   type SignUp = NonNullable<AppAuthClient>['signUp']
 
-  // Wraps onSuccess callback to sync session before executing
-  function wrapOnSuccess(cb: (ctx: unknown) => void | Promise<void>) {
-    return async (ctx: unknown) => {
-      await fetchSession({ force: true })
-      if (!loggedIn.value)
-        await waitForSession()
-      await nextTick()
-      await cb(ctx)
-    }
-  }
-
-  function wrapAuthMethod<T extends (...args: unknown[]) => Promise<unknown>>(
-    method: T,
-    wrapOptions: {
-      shouldSkipSessionSync?: (data: unknown, options: unknown) => boolean
-      transformData?: (data: unknown, options: unknown) => unknown
-    } = {},
-  ): T {
-    return (async (...args: unknown[]) => {
-      const originalData = args[0]
-      const options = args[1]
-      const data = wrapOptions.transformData?.(originalData, options) ?? originalData
-      const dataRecord = isRecord(data) ? data : undefined
-      const optionsRecord = isRecord(options) ? options : undefined
-
-      if (wrapOptions.shouldSkipSessionSync?.(data, options))
-        return method(data, options)
-
-      type OnSuccess = (ctx: unknown) => void | Promise<void>
-      const fetchOptions = isRecord(dataRecord?.fetchOptions) ? dataRecord.fetchOptions : undefined
-      const nestedOnSuccess = fetchOptions?.onSuccess
-      const topLevelOnSuccess = optionsRecord?.onSuccess
-
-      const fallbackOnSuccess = resolvePostAuthSuccessRedirect()
-      const wrappedFallbackOnSuccess = fallbackOnSuccess && wrapOnSuccess(async () => {
-        if (!loggedIn.value)
-          return
-        await fallbackOnSuccess()
-      })
-
-      // Passkey pattern: onSuccess in data.fetchOptions
-      if (typeof nestedOnSuccess === 'function') {
-        const nextData = {
-          ...dataRecord,
-          fetchOptions: {
-            ...fetchOptions,
-            onSuccess: wrapOnSuccess(nestedOnSuccess as OnSuccess),
-          },
-        }
-        return method(nextData as unknown as Parameters<T>[0], options as unknown as Parameters<T>[1])
-      }
-      // Email/social pattern: onSuccess in options
-      if (typeof topLevelOnSuccess === 'function') {
-        const nextOptions = {
-          ...optionsRecord,
-          onSuccess: wrapOnSuccess(topLevelOnSuccess as OnSuccess),
-        }
-        return method(data as unknown as Parameters<T>[0], nextOptions as unknown as Parameters<T>[1])
-      }
-
-      if (wrappedFallbackOnSuccess) {
-        if (fetchOptions) {
-          const nextData = {
-            ...dataRecord,
-            fetchOptions: {
-              ...fetchOptions,
-              onSuccess: wrappedFallbackOnSuccess,
-            },
-          }
-          return method(nextData as unknown as Parameters<T>[0], options as unknown as Parameters<T>[1])
-        }
-
-        const nextOptions = {
-          ...optionsRecord,
-          onSuccess: wrappedFallbackOnSuccess,
-        }
-        return method(data as unknown as Parameters<T>[0], nextOptions as unknown as Parameters<T>[1])
-      }
-
-      return method(data, options)
-    }) as T
+  const wrapDeps = {
+    fetchSession,
+    loggedIn,
+    waitForSession,
+    resolvePostAuthSuccessRedirect: () => resolvePostAuthSuccessRedirect(requestURL),
   }
 
   const signIn: SignIn = client?.signIn
@@ -386,10 +258,10 @@ export function useUserSession(): UseUserSessionReturn {
                 return socialData?.disableRedirect !== true
               }
             : undefined
-          const transformData = prop === 'social' ? withFallbackSocialCallbackURL : undefined
-          // Don't bind - call through target to preserve better-auth's Proxy context
+          const transformData = prop === 'social' ? (data: unknown) => withFallbackSocialCallbackURL(data, requestURL) : undefined
           return wrapAuthMethod(
             (...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args),
+            wrapDeps,
             { shouldSkipSessionSync, transformData },
           )
         },
@@ -405,69 +277,12 @@ export function useUserSession(): UseUserSessionReturn {
           const method = targetRecord[prop]
           if (typeof method !== 'function')
             return method
-          // Don't bind - call through target to preserve better-auth's Proxy context
-          return wrapAuthMethod((...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args))
+          return wrapAuthMethod((...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args), wrapDeps)
         },
       })
     : new Proxy({} as SignUp, {
         get: (_, prop) => { throw new Error(`signUp.${String(prop)}() can only be called on client-side`) },
       })
-
-  async function fetchSession(options: { headers?: HeadersInit, force?: boolean } = {}) {
-    if (runtimeFlags.server) {
-      try {
-        const headers = options.headers || useRequestHeaders(['cookie'])
-        const requestFetch = useRequestFetch()
-        const data = await requestFetch<SessionResponse | null>('/api/auth/get-session', { headers })
-
-        if (data?.session && data?.user) {
-          const { token: _, ...safeSession } = data.session
-          session.value = safeSession as AuthSession
-          user.value = data.user
-        }
-        else {
-          clearSession()
-        }
-      }
-      catch {
-        clearSession()
-      }
-      finally {
-        if (!authReady.value)
-          authReady.value = true
-      }
-      return
-    }
-
-    if (client) {
-      try {
-        const headers = options.headers || useRequestHeaders(['cookie'])
-        const fetchOptions = headers ? { headers } : undefined
-        const query = options.force ? { disableCookieCache: true } : undefined
-        const result = await client.getSession({ query }, fetchOptions)
-        const data = result.data as SessionResponse | null
-
-        if (data?.session && data?.user) {
-          // Filter out sensitive token field
-          const { token: _, ...safeSession } = data.session
-          session.value = safeSession as AuthSession
-          user.value = data.user
-        }
-        else {
-          clearSession()
-        }
-      }
-      catch (error) {
-        clearSession()
-        if (!isExpectedSignedOutSessionError(error))
-          console.error('[nuxt-better-auth] Failed to fetch session:', error)
-      }
-      finally {
-        if (!authReady.value)
-          authReady.value = true
-      }
-    }
-  }
 
   if (runtimeFlags.client && client && shouldSkipInitialClientSessionFetch.value) {
     ensureSessionSignalListener(client, () => fetchSession({ force: true }))

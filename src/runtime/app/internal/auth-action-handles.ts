@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import type { AuthActionError } from '../../types'
 import { ref } from '#imports'
 import { normalizeAuthActionError } from './auth-action-error'
+import { isRecord } from './utils'
 
 export type UserAuthActionStatus = 'idle' | 'pending' | 'success' | 'error'
 
@@ -22,10 +23,6 @@ export type ActionHandleFor<T> = T extends (...args: infer A) => Promise<infer R
   : never
 export type ActionHandleMap<T> = {
   [K in keyof T]: ActionHandleFor<T[K]>
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === 'object')
 }
 
 function isErrorResult(value: unknown): value is { error: unknown } {
