@@ -1,7 +1,7 @@
 import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { ComputedRef, Ref } from 'vue'
 import createAppAuthClient from '#auth/client'
-import { computed, navigateTo, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
+import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
 import { fetchSessionClient, fetchSessionServer, stripToken } from '../internal/session-fetch'
@@ -308,8 +308,10 @@ export function useUserSession(): UseUserSessionReturn {
 
       const authConfig = runtimeConfig.public.auth as { redirects?: { logout?: string } } | undefined
       const logoutRedirect = authConfig?.redirects?.logout
-      if (logoutRedirect)
+      if (logoutRedirect) {
+        await nextTick()
         await navigateTo(logoutRedirect)
+      }
     })().finally(() => {
       _signOutPromise = null
     })

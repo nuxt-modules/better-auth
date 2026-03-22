@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 interface SessionState {
   data: { session: Record<string, unknown>, user: Record<string, unknown> } | null
@@ -766,6 +766,29 @@ describe('useUserSession hydration bootstrap', () => {
 
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
+    await auth.signOut()
+
+    expect(navigateTo).toHaveBeenCalledWith('/logged-out')
+  })
+
+  it('signOut waits for logout reactivity to flush before auto-navigation', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    auth.session.value = { id: 'session-1' } as any
+    auth.user.value = { id: 'user-1', email: 'user@example.com' } as any
+
+    const authSettled = ref(false)
+    watch(auth.loggedIn, (isLoggedIn) => {
+      if (!isLoggedIn)
+        authSettled.value = true
+    })
+
+    navigateTo.mockImplementationOnce(async () => {
+      expect(authSettled.value).toBe(true)
+    })
+
     await auth.signOut()
 
     expect(navigateTo).toHaveBeenCalledWith('/logged-out')
