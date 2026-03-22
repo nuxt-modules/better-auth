@@ -1,8 +1,8 @@
 import type { Nuxt } from '@nuxt/schema'
 import type { ConsolaInstance } from 'consola'
-import { defu } from 'defu'
 import type { AuthPrivateRuntimeConfig, AuthRuntimeConfig, BetterAuthModuleOptions, ModuleDatabaseProviderId } from '../runtime/config'
 import type { NuxtHubOptions } from './hub'
+import { defu } from 'defu'
 
 interface SetupRuntimeConfigInput {
   nuxt: Nuxt
