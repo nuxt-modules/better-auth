@@ -34,7 +34,8 @@ export default defineNuxtConfig({
 
 ```bash
 # Required (min 32 chars)
-BETTER_AUTH_SECRET=your-secret-key-at-least-32-characters
+NUXT_BETTER_AUTH_SECRET=your-secret-key-at-least-32-characters
+# Legacy fallback also supported: BETTER_AUTH_SECRET=your-secret-key-at-least-32-characters
 
 # Required in production for OAuth
 NUXT_PUBLIC_SITE_URL=https://your-domain.com
