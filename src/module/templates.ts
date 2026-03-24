@@ -97,7 +97,6 @@ export function createDatabase(event) {
     registerClientCleanup(event, client)
     return database
   }
-
   const client = postgres(hyperdrive.connectionString, {
     prepare: false,
     onnotice: () => {},
