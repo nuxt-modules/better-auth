@@ -1,6 +1,8 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { H3Event } from 'h3'
+// @ts-ignore Nuxt generates this virtual module in app builds.
 import { createDatabase, db } from '#auth/database'
+// @ts-ignore Nuxt generates this virtual module in app builds.
 import { createSecondaryStorage } from '#auth/secondary-storage'
 import createServerAuth from '#auth/server'
 import { betterAuth } from 'better-auth'
