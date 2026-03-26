@@ -1,9 +1,44 @@
+import type { CookieOptions } from 'better-call'
+import { serializeSignedCookie } from 'better-call'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getSessionMock = vi.fn()
 const createSessionMock = vi.fn()
 
 const authContextMock = {
+  authCookies: {
+    sessionToken: {
+      name: '__Secure-better-auth.session_token',
+      attributes: {
+        httpOnly: true,
+        path: '/',
+        sameSite: 'lax',
+        secure: true,
+      } satisfies CookieOptions,
+    },
+    sessionData: {
+      name: '__Secure-better-auth.session_data',
+      attributes: {
+        httpOnly: true,
+        path: '/',
+        sameSite: 'lax',
+        secure: true,
+      } satisfies CookieOptions,
+    },
+    dontRememberToken: {
+      name: '__Secure-better-auth.dont_remember',
+      attributes: {
+        httpOnly: true,
+        path: '/',
+        sameSite: 'lax',
+        secure: true,
+      } satisfies CookieOptions,
+    },
+  },
+  secret: 'test-secret-for-testing-only-32chars!',
+  sessionConfig: {
+    expiresIn: 60 * 60 * 24 * 7,
+  },
   internalAdapter: {
     createSession: createSessionMock,
   },
@@ -19,10 +54,27 @@ vi.mock('../src/runtime/server/utils/auth', () => ({
 }))
 
 function createEvent() {
+  const headers = new Map<string, string | string[]>()
   return {
     headers: new Headers(),
     context: {},
+    node: {
+      res: {
+        getHeader(name: string) {
+          return headers.get(name.toLowerCase())
+        },
+        setHeader(name: string, value: string | string[]) {
+          headers.set(name.toLowerCase(), value)
+        },
+      },
+    },
   } as any
+}
+
+function getCookieValueFromSetCookieHeader(header: string): string {
+  const separatorIndex = header.indexOf(';')
+  const cookiePair = separatorIndex >= 0 ? header.slice(0, separatorIndex) : header
+  return cookiePair.slice(cookiePair.indexOf('=') + 1)
 }
 
 function createEventWithoutContext() {
@@ -215,6 +267,90 @@ describe('requireUserSession', () => {
       statusCode: 403,
       statusMessage: 'Access denied',
     })
+  })
+})
+
+describe('setSessionCookie', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    getSessionMock.mockReset()
+    createSessionMock.mockReset()
+  })
+
+  it('writes the signed session cookie and expires stale cache cookies', async () => {
+    const { setSessionCookie } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    await setSessionCookie(event, 'session-token')
+
+    const header = event.node.res.getHeader('set-cookie')
+    expect(Array.isArray(header)).toBe(true)
+    expect(header).toHaveLength(3)
+    expect(header[0]).toBe(await serializeSignedCookie(
+      authContextMock.authCookies.sessionToken.name,
+      'session-token',
+      authContextMock.secret,
+      {
+        ...authContextMock.authCookies.sessionToken.attributes,
+        maxAge: authContextMock.sessionConfig.expiresIn,
+      },
+    ))
+    expect(header[1]).toContain(`${authContextMock.authCookies.sessionData.name}=`)
+    expect(header[1]).toContain('Max-Age=0')
+    expect(header[2]).toContain(`${authContextMock.authCookies.dontRememberToken.name}=`)
+    expect(header[2]).toContain('Max-Age=0')
+  })
+
+  it('expires chunked session cache cookies left on the request', async () => {
+    const { setSessionCookie } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+    event.headers.set('cookie', [
+      `${authContextMock.authCookies.sessionData.name}.0=chunk-0`,
+      `${authContextMock.authCookies.sessionData.name}.1=chunk-1`,
+      `${authContextMock.authCookies.dontRememberToken.name}=remember-me`,
+    ].join('; '))
+
+    await setSessionCookie(event, 'session-token')
+
+    const header = event.node.res.getHeader('set-cookie')
+    expect(Array.isArray(header)).toBe(true)
+    expect(header).toEqual(expect.arrayContaining([
+      expect.stringContaining(`${authContextMock.authCookies.sessionData.name}=`),
+      expect.stringContaining(`${authContextMock.authCookies.sessionData.name}.0=`),
+      expect.stringContaining(`${authContextMock.authCookies.sessionData.name}.1=`),
+      expect.stringContaining(`${authContextMock.authCookies.dontRememberToken.name}=`),
+    ]))
+  })
+
+  it('makes the new session visible later in the same request', async () => {
+    const { getRequestSession, setSessionCookie } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+    const expectedCookie = await serializeSignedCookie(
+      authContextMock.authCookies.sessionToken.name,
+      'session-token',
+      authContextMock.secret,
+      {
+        ...authContextMock.authCookies.sessionToken.attributes,
+        maxAge: authContextMock.sessionConfig.expiresIn,
+      },
+    )
+    const expectedCookieValue = getCookieValueFromSetCookieHeader(expectedCookie)
+    const session = {
+      user: { id: 'u1' },
+      session: { id: 's1' },
+    }
+
+    getSessionMock.mockImplementation(({ headers }: { headers: Headers }) => {
+      const cookies = headers.get('cookie')
+      return cookies?.includes(`${authContextMock.authCookies.sessionToken.name}=${expectedCookieValue}`)
+        ? Promise.resolve(session)
+        : Promise.resolve(null)
+    })
+
+    await setSessionCookie(event, 'session-token')
+
+    await expect(getRequestSession(event)).resolves.toEqual(session)
+    expect(getSessionMock).toHaveBeenCalledTimes(1)
   })
 })
 
