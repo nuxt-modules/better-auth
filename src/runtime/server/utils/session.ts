@@ -1,12 +1,43 @@
 import type { AppSession, RequireSessionOptions } from '#nuxt-better-auth'
-import type { CookieOptions } from 'better-call'
 import type { H3Event } from 'h3'
-import { serializeCookie, serializeSignedCookie } from 'better-call'
-import { appendResponseHeader, createError } from 'h3'
+import { createError } from 'h3'
 import { matchesUser } from '../../utils/match-user'
 import { serverAuth } from './auth'
 
 const requestSessionLoadKey = Symbol.for('nuxt-better-auth.requestSessionLoad')
+const signingAlgorithm: HmacImportParams = { name: 'HMAC', hash: 'SHA-256' }
+
+interface CookieOptions {
+  domain?: string
+  expires?: Date
+  httpOnly?: boolean
+  maxAge?: number
+  path?: string
+  secure?: boolean
+  sameSite?: 'Strict' | 'Lax' | 'None' | 'strict' | 'lax' | 'none'
+  partitioned?: boolean
+  prefix?: 'host' | 'secure'
+}
+
+interface AuthCookie {
+  name: string
+  attributes: CookieOptions
+}
+
+interface ServerAuthContextLike {
+  authCookies: {
+    sessionToken: AuthCookie
+    sessionData: AuthCookie
+    dontRememberToken: AuthCookie
+  }
+  internalAdapter: {
+    createSession?: (userId: string, rememberMe: boolean) => Promise<unknown>
+  }
+  secret: string
+  sessionConfig: {
+    expiresIn: number
+  }
+}
 
 interface RequestSessionContext {
   requestSession?: AppSession | null
@@ -38,8 +69,125 @@ function loadSession(event: H3Event): Promise<AppSession | null> {
   return auth.api.getSession({ headers: getRequestHeaders(event) }) as Promise<AppSession | null>
 }
 
+function getServerAuthContext(event: H3Event): Promise<ServerAuthContextLike> {
+  const auth = serverAuth(event) as ReturnType<typeof serverAuth> & { $context: Promise<ServerAuthContextLike> }
+  return auth.$context
+}
+
+function getCookieName(name: string, prefix?: CookieOptions['prefix']): string | undefined {
+  if (prefix === 'secure')
+    return name.startsWith('__Secure-') ? name : `__Secure-${name}`
+
+  if (prefix === 'host')
+    return name.startsWith('__Host-') ? name : `__Host-${name}`
+
+  if (prefix)
+    return undefined
+
+  return name
+}
+
+function serializeCookieHeader(name: string, value: string, attributes: CookieOptions = {}, valueIsEncoded = false): string {
+  const cookieName = getCookieName(name, attributes.prefix)
+  if (!cookieName)
+    throw new Error(`Unsupported cookie prefix: ${attributes.prefix}`)
+
+  const cookieValue = valueIsEncoded ? value : encodeURIComponent(value)
+  const cookie = [`${cookieName}=${cookieValue}`]
+  const options = { ...attributes }
+
+  if (cookieName.startsWith('__Secure-') && !options.secure)
+    options.secure = true
+
+  if (cookieName.startsWith('__Host-')) {
+    options.secure = true
+    options.path = '/'
+    delete options.domain
+  }
+
+  if (typeof options.maxAge === 'number' && options.maxAge >= 0)
+    cookie.push(`Max-Age=${Math.floor(options.maxAge)}`)
+
+  if (options.domain && options.prefix !== 'host')
+    cookie.push(`Domain=${options.domain}`)
+
+  if (options.path)
+    cookie.push(`Path=${options.path}`)
+
+  if (options.expires)
+    cookie.push(`Expires=${options.expires.toUTCString()}`)
+
+  if (options.httpOnly)
+    cookie.push('HttpOnly')
+
+  if (options.partitioned)
+    options.secure = true
+
+  if (options.secure)
+    cookie.push('Secure')
+
+  if (options.sameSite) {
+    const normalizedSameSite = options.sameSite.charAt(0).toUpperCase() + options.sameSite.slice(1)
+    cookie.push(`SameSite=${normalizedSameSite}`)
+  }
+
+  if (options.partitioned)
+    cookie.push('Partitioned')
+
+  return cookie.join('; ')
+}
+
+function serializeCookie(name: string, value: string, attributes: CookieOptions = {}): string {
+  return serializeCookieHeader(name, value, attributes)
+}
+
+async function signCookieValue(value: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    signingAlgorithm,
+    false,
+    ['sign', 'verify'],
+  )
+  const signature = await crypto.subtle.sign(
+    signingAlgorithm.name,
+    key,
+    new TextEncoder().encode(value),
+  )
+
+  return encodeURIComponent(`${value}.${btoa(String.fromCharCode(...new Uint8Array(signature)))}`)
+}
+
+async function serializeSignedCookie(name: string, value: string, secret: string, attributes: CookieOptions = {}): Promise<string> {
+  return serializeCookieHeader(name, await signCookieValue(value, secret), attributes, true)
+}
+
 function appendCookieHeader(event: H3Event, header: string): void {
-  appendResponseHeader(event, 'set-cookie', header)
+  const nodeResponse = (event as H3Event & {
+    node?: {
+      res?: {
+        getHeader?: (name: string) => string | string[] | number | undefined
+        setHeader?: (name: string, value: string | string[]) => void
+      }
+    }
+    response?: {
+      headers?: Headers
+    }
+  }).node?.res
+
+  if (nodeResponse?.setHeader) {
+    const current = nodeResponse.getHeader?.('set-cookie')
+    if (Array.isArray(current))
+      nodeResponse.setHeader('set-cookie', [...current, header])
+    else if (typeof current === 'string')
+      nodeResponse.setHeader('set-cookie', [current, header])
+    else
+      nodeResponse.setHeader('set-cookie', [header])
+    return
+  }
+
+  const responseHeaders = (event as H3Event & { response?: { headers?: Headers } }).response?.headers
+  responseHeaders?.append('set-cookie', header)
 }
 
 function parseRequestCookies(cookieHeader: string | null): Map<string, string> {
@@ -151,8 +299,7 @@ export async function getUserSession(event: H3Event): Promise<AppSession | null>
 }
 
 export async function setSessionCookie(event: H3Event, token: string): Promise<void> {
-  const auth = serverAuth(event)
-  const context = await auth.$context
+  const context = await getServerAuthContext(event)
   const sessionCookie = await serializeSignedCookie(
     context.authCookies.sessionToken.name,
     token,
