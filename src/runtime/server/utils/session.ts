@@ -6,6 +6,12 @@ import { serverAuth } from './auth'
 
 const requestSessionLoadKey = Symbol.for('nuxt-better-auth.requestSessionLoad')
 
+interface ServerAuthContextLike {
+  internalAdapter: {
+    createSession: (userId: string, rememberMe: boolean) => Promise<unknown>
+  }
+}
+
 interface RequestSessionContext {
   requestSession?: AppSession | null
   [requestSessionLoadKey]?: Promise<AppSession | null>
@@ -29,6 +35,11 @@ function getRequestSessionContext(event: H3Event): RequestSessionContext {
 function loadSession(event: H3Event): Promise<AppSession | null> {
   const auth = serverAuth(event)
   return auth.api.getSession({ headers: event.headers }) as Promise<AppSession | null>
+}
+
+function getServerAuthContext(event: H3Event): Promise<ServerAuthContextLike> {
+  const auth = serverAuth(event) as ReturnType<typeof serverAuth> & { $context: Promise<ServerAuthContextLike> }
+  return auth.$context
 }
 
 export async function getRequestSession(event: H3Event): Promise<AppSession | null> {
@@ -66,8 +77,7 @@ export async function getUserSession(event: H3Event): Promise<AppSession | null>
 }
 
 export async function createSession(event: H3Event, userId: string): Promise<AuthSession> {
-  const auth = serverAuth(event)
-  const context = await auth.$context
+  const context = await getServerAuthContext(event)
   return context.internalAdapter.createSession(userId, false) as Promise<AuthSession>
 }
 
