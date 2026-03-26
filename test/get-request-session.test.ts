@@ -1,12 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getSessionMock = vi.fn()
+const createSessionMock = vi.fn()
+
+const authContextMock = {
+  internalAdapter: {
+    createSession: createSessionMock,
+  },
+}
 
 vi.mock('../src/runtime/server/utils/auth', () => ({
   serverAuth: () => ({
     api: {
       getSession: getSessionMock,
     },
+    $context: Promise.resolve(authContextMock),
   }),
 }))
 
@@ -27,6 +35,7 @@ describe('getRequestSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     getSessionMock.mockReset()
+    createSessionMock.mockReset()
   })
 
   it('memoizes session on event.context.requestSession', async () => {
@@ -89,6 +98,7 @@ describe('getUserSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     getSessionMock.mockReset()
+    createSessionMock.mockReset()
   })
 
   it('does not memoize when session exists', async () => {
@@ -178,6 +188,7 @@ describe('requireUserSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     getSessionMock.mockReset()
+    createSessionMock.mockReset()
   })
 
   it('keeps existing 401 behavior when no session exists', async () => {
@@ -203,6 +214,36 @@ describe('requireUserSession', () => {
     await expect(requireUserSession(event, { user: { role: 'admin' } })).rejects.toMatchObject({
       statusCode: 403,
       statusMessage: 'Access denied',
+    })
+  })
+})
+
+describe('createSession', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    getSessionMock.mockReset()
+    createSessionMock.mockReset()
+  })
+
+  it('delegates to Better Auth internalAdapter.createSession with dontRememberMe disabled', async () => {
+    createSessionMock.mockResolvedValue({
+      id: 's1',
+      userId: 'u1',
+      token: 'token-1',
+      expiresAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const { createSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+    const session = await createSession(event, 'u1')
+
+    expect(createSessionMock).toHaveBeenCalledWith('u1', false)
+    expect(session).toMatchObject({
+      id: 's1',
+      userId: 'u1',
+      token: 'token-1',
     })
   })
 })
