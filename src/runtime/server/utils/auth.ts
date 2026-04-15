@@ -10,6 +10,7 @@ import { getRequestHost, getRequestProtocol } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime'
 import { withoutProtocol } from 'ufo'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
+import { validateAuthSecret } from './validate-secret'
 
 type AuthOptions = ReturnType<typeof createServerAuth>
 type AuthInstance = ReturnType<typeof betterAuth<AuthOptions>>
@@ -17,16 +18,6 @@ type AuthInstance = ReturnType<typeof betterAuth<AuthOptions>>
 const _authCache = new Map<string, AuthInstance>()
 let _baseURLInferenceLogged = false
 let _customSecondaryStorageMisconfigWarned = false
-
-function validateAuthSecret(secret: string | undefined): string {
-  if (!secret) {
-    throw new Error('[nuxt-better-auth] NUXT_BETTER_AUTH_SECRET is required in production. Set NUXT_BETTER_AUTH_SECRET or BETTER_AUTH_SECRET environment variable.')
-  }
-  if (secret.length < 32)
-    throw new Error('[nuxt-better-auth] NUXT_BETTER_AUTH_SECRET must be at least 32 characters for security')
-
-  return secret
-}
 
 function normalizeLoopbackOrigin(origin: string): string {
   if (!import.meta.dev)
@@ -258,7 +249,6 @@ function withDevTrustedOrigins(
 /** Returns Better Auth instance. Caches per resolved host (or single instance when siteUrl is explicit). */
 export function serverAuth(event?: H3Event): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
-  const betterAuthSecret = validateAuthSecret(runtimeConfig.betterAuthSecret)
   const siteUrl = getBaseURL(event)
   const hasExplicitSiteUrl = runtimeConfig.public.siteUrl && typeof runtimeConfig.public.siteUrl === 'string'
   const cacheKey = hasExplicitSiteUrl ? '__explicit__' : siteUrl
@@ -267,6 +257,7 @@ export function serverAuth(event?: H3Event): AuthInstance {
   if (cached)
     return cached
 
+  const betterAuthSecret = validateAuthSecret(runtimeConfig.betterAuthSecret)
   const database = createDatabase()
   const userConfig = createServerAuth({ runtimeConfig, db }) as BetterAuthOptions & {
     secondaryStorage?: BetterAuthOptions['secondaryStorage']
