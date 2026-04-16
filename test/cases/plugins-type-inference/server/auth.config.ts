@@ -24,7 +24,8 @@ function customAdminLikePlugin() {
   } as const
 }
 
-export default defineServerAuth({
+export default defineServerAuth(ctx => ({
+  appName: ctx.requestOrigin ? 'request-origin' : 'fallback',
   emailAndPassword: { enabled: true },
   plugins: [customAdminLikePlugin(), username()] as const,
   user: {
@@ -35,4 +36,4 @@ export default defineServerAuth({
       },
     },
   },
-})
+}))

@@ -157,6 +157,15 @@ describe('defineServerAuth', () => {
     expect(factory({ runtimeConfig: {} as any, db: {} as any })).toEqual({ hasDb: true })
     expect(factory({ runtimeConfig: {} as any, db: undefined })).toEqual({ hasDb: false })
   })
+
+  it('function syntax receives requestOrigin context', () => {
+    const factory = defineServerAuth(({ requestOrigin }) => ({ requestOrigin }))
+    expect(factory({
+      runtimeConfig: {} as any,
+      db: undefined,
+      requestOrigin: 'https://example.com',
+    })).toEqual({ requestOrigin: 'https://example.com' })
+  })
 })
 
 describe('defineClientAuth', () => {

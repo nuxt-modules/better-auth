@@ -250,6 +250,7 @@ function withDevTrustedOrigins(
 export function serverAuth(event?: H3Event): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
   const siteUrl = getBaseURL(event)
+  const requestOrigin = resolveEventOrigin(event)
   const hasExplicitSiteUrl = runtimeConfig.public.siteUrl && typeof runtimeConfig.public.siteUrl === 'string'
   const cacheKey = hasExplicitSiteUrl ? '__explicit__' : siteUrl
 
@@ -259,7 +260,7 @@ export function serverAuth(event?: H3Event): AuthInstance {
 
   const betterAuthSecret = validateAuthSecret(runtimeConfig.betterAuthSecret)
   const database = createDatabase()
-  const userConfig = createServerAuth({ runtimeConfig, db }) as BetterAuthOptions & {
+  const userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as BetterAuthOptions & {
     secondaryStorage?: BetterAuthOptions['secondaryStorage']
   }
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins, Boolean(hasExplicitSiteUrl))

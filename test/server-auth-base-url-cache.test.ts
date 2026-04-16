@@ -15,7 +15,7 @@ describe('serverAuth baseURL inference', async () => {
       },
     })
     expect(firstResponse.status).toBe(200)
-    const firstBody = await firstResponse.json() as { baseURL: string | undefined }
+    const firstBody = await firstResponse.json() as { appName: string | undefined, baseURL: string | undefined }
 
     const secondResponse = await fetch(url('/api/test/base-url'), {
       headers: {
@@ -24,9 +24,11 @@ describe('serverAuth baseURL inference', async () => {
       },
     })
     expect(secondResponse.status).toBe(200)
-    const secondBody = await secondResponse.json() as { baseURL: string | undefined }
+    const secondBody = await secondResponse.json() as { appName: string | undefined, baseURL: string | undefined }
 
+    expect(firstBody.appName).toBe('https://first.example.com')
     expect(firstBody.baseURL).toBe('https://first.example.com')
+    expect(secondBody.appName).toBe('https://second.example.com')
     expect(secondBody.baseURL).toBe('https://second.example.com')
   })
 })

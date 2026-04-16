@@ -30,6 +30,7 @@ export interface AuthSession {
 export interface ServerAuthContext {
   runtimeConfig: Record<string, unknown>
   db: unknown
+  requestOrigin?: string
 }
 
 // Extended by generated types from configured socialProviders keys.

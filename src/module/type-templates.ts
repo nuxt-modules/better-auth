@@ -91,6 +91,7 @@ declare module '#nuxt-better-auth' {
   interface ServerAuthContext {
     runtimeConfig: RuntimeConfig
     db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
+    requestOrigin?: string
   }
   type PluginTypes = InferPluginTypes<_Config>
 }
@@ -98,6 +99,7 @@ declare module '#nuxt-better-auth' {
 interface _AugmentedServerAuthContext {
   runtimeConfig: RuntimeConfig
   db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
+  requestOrigin?: string
 }
 
 declare module '@onmax/nuxt-better-auth/config' {
