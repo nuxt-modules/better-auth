@@ -48,6 +48,7 @@
     "typecheck": "vue-tsc --noEmit",
     "typecheck:runtime-server": "tsc --noEmit --pretty false -p src/runtime/server/tsconfig.json",
     "typecheck:playground": "pnpm -C playground exec nuxi prepare && pnpm -C playground exec vue-tsc --noEmit -p .nuxt/tsconfig.app.json",
+    "verify:preview-artifacts": "node scripts/check-preview-artifacts.mjs",
     "test": "vitest run",
     "test:watch": "vitest watch"
   },
@@ -92,6 +93,7 @@
     "eslint": "^10.0.3",
     "npm-agentskills": "https://pkg.pr.new/onmax/npm-agentskills@394499e",
     "nuxt": "^4.3.1",
+    "postgres": "^3.4.9",
     "tinyexec": "^1.0.2",
     "typescript": "~5.9.3",
     "vitest": "^4.0.18",

@@ -1,13 +1,11 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { H3Event } from 'h3'
-// @ts-expect-error Nuxt generates this virtual module in app builds.
 import { createDatabase, db } from '#auth/database'
-// @ts-expect-error Nuxt generates this virtual module in app builds.
 import { createSecondaryStorage } from '#auth/secondary-storage'
 import createServerAuth from '#auth/server'
+import { useRuntimeConfig } from '#imports'
 import { betterAuth } from 'better-auth'
 import { getRequestHost, getRequestProtocol } from 'h3'
-import { useRuntimeConfig } from 'nitropack/runtime'
 import { withoutProtocol } from 'ufo'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
 import { validateAuthSecret } from './validate-secret'
@@ -16,8 +14,30 @@ type AuthOptions = ReturnType<typeof createServerAuth>
 type AuthInstance = ReturnType<typeof betterAuth<AuthOptions>>
 
 const _authCache = new Map<string, AuthInstance>()
+const requestAuthKey = Symbol.for('nuxt-better-auth.requestAuth')
+const requestDatabaseCleanupKey = Symbol.for('nuxt-better-auth.requestDatabaseCleanup')
 let _baseURLInferenceLogged = false
 let _customSecondaryStorageMisconfigWarned = false
+
+interface RequestAuthContext {
+  [requestAuthKey]?: AuthInstance
+  [requestDatabaseCleanupKey]?: () => Promise<void>
+}
+
+const fallbackRequestAuthContext = new WeakMap<object, RequestAuthContext>()
+
+function getRequestAuthContext(event: H3Event): RequestAuthContext {
+  const eventWithContext = event as H3Event & { context?: unknown }
+  if (eventWithContext.context && typeof eventWithContext.context === 'object')
+    return eventWithContext.context as RequestAuthContext
+
+  let context = fallbackRequestAuthContext.get(event as object)
+  if (!context) {
+    context = {}
+    fallbackRequestAuthContext.set(event as object, context)
+  }
+  return context
+}
 
 function normalizeLoopbackOrigin(origin: string): string {
   if (!import.meta.dev)
@@ -252,13 +272,13 @@ export function serverAuth(event?: H3Event): AuthInstance {
   const siteUrl = getBaseURL(event)
   const hasExplicitSiteUrl = runtimeConfig.public.siteUrl && typeof runtimeConfig.public.siteUrl === 'string'
   const cacheKey = hasExplicitSiteUrl ? '__explicit__' : siteUrl
+  const requestContext = event ? getRequestAuthContext(event) : undefined
 
-  const cached = _authCache.get(cacheKey)
-  if (cached)
-    return cached
+  if (requestContext?.[requestAuthKey])
+    return requestContext[requestAuthKey]
 
   const betterAuthSecret = validateAuthSecret(runtimeConfig.betterAuthSecret)
-  const database = createDatabase()
+  const database = createDatabase(event)
   const userConfig = createServerAuth({ runtimeConfig, db }) as BetterAuthOptions & {
     secondaryStorage?: BetterAuthOptions['secondaryStorage']
   }
@@ -273,6 +293,15 @@ export function serverAuth(event?: H3Event): AuthInstance {
     console.warn(customSecondaryStorage.message)
   }
 
+  if (!database) {
+    const cached = _authCache.get(cacheKey)
+    if (cached) {
+      if (requestContext)
+        requestContext[requestAuthKey] = cached
+      return cached
+    }
+  }
+
   const auth = betterAuth({
     ...userConfig,
     ...(database && { database }),
@@ -282,6 +311,24 @@ export function serverAuth(event?: H3Event): AuthInstance {
     trustedOrigins,
   })
 
-  _authCache.set(cacheKey, auth)
+  if (requestContext)
+    requestContext[requestAuthKey] = auth
+
+  if (!database)
+    _authCache.set(cacheKey, auth)
+
   return auth
+}
+
+export async function cleanupRequestDatabase(event?: H3Event): Promise<void> {
+  if (!event)
+    return
+
+  const requestContext = getRequestAuthContext(event)
+  const cleanup = requestContext[requestDatabaseCleanupKey]
+  if (!cleanup)
+    return
+
+  delete requestContext[requestDatabaseCleanupKey]
+  await cleanup()
 }

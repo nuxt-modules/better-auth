@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   }
   catch (error: unknown) {
     if (error instanceof z.ZodError) {
-      throw createError({ statusCode: 400, message: error.errors[0]?.message || 'Invalid request' })
+      throw createError({ statusCode: 400, message: error.issues[0]?.message || 'Invalid request' })
     }
     console.error('[DevTools] Delete session failed:', error)
     throw createError({ statusCode: 500, message: 'Failed to delete session' })
