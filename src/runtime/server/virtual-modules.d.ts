@@ -16,11 +16,6 @@ declare module '#auth/server' {
   export default createServerAuth
 }
 
-declare module '#imports' {
-  export const getRouteRules: any
-  export const useRuntimeConfig: any
-}
-
 declare module '@nuxthub/db' {
   export const db: any
   export const schema: any

@@ -135,7 +135,7 @@ describe('setupRuntimeConfig secret resolution', () => {
     expect((nuxt.options as any).runtimeConfig.betterAuthSecret).toBe('fallback-secret-for-testing-only-32chars')
   })
 
-  it('does not throw in production when no secret is configured', () => {
+  it('throws in production when no secret is configured', () => {
     const nuxt = createNuxtWithRuntimeConfig()
     nuxt.options.dev = false
     const consola = createConsolaMock()
@@ -147,8 +147,7 @@ describe('setupRuntimeConfig secret resolution', () => {
       databaseProvider: 'none',
       hasNuxtHub: false,
       consola,
-    })).not.toThrow()
-    expect((nuxt.options as any).runtimeConfig.betterAuthSecret).toBe('')
+    })).toThrow('NUXT_BETTER_AUTH_SECRET is required in production')
   })
 })
 

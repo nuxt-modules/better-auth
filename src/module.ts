@@ -210,8 +210,21 @@ export { schema }
         runtimeTypesPath: resolver.resolve('./runtime/types'),
       })
 
-      if (hasHubDb)
+      if (hasHubDb) {
+        // Keep @nuxthub/db as a bare specifier during Nitro bundling so the
+        // prerender entry doesn't rewrite it to a broken relative path like
+        // `../../../../../../../../@nuxthub/db/db.mjs` when `.nuxt` lives
+        // inside `node_modules/.cache/nuxt/`.
+        // @ts-expect-error Nitro augments NuxtHooks at runtime.
+        nuxt.hook('nitro:config', (nitroConfig: { externals?: { external?: string[] } }) => {
+          nitroConfig.externals ||= {}
+          nitroConfig.externals.external ||= []
+          if (!nitroConfig.externals.external.includes('@nuxthub/db'))
+            nitroConfig.externals.external.push('@nuxthub/db')
+        })
+
         await setupBetterAuthSchema(nuxt, serverConfigPath, options, consola, options.hubSecondaryStorage ?? false)
+      }
     }
 
     registerSharedTypeTemplates({

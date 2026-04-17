@@ -7,7 +7,6 @@ export default defineNuxtConfig({
       driver: 'postgres-js',
       applyMigrationsDuringBuild: false,
       connection: {
-        hyperdriveId: process.env.HYPERDRIVE_ID,
         url: process.env.DATABASE_URL || '',
       },
     },

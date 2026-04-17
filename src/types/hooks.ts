@@ -7,7 +7,6 @@ export interface BetterAuthDatabaseProviderBuildContext {
   hubDialect: DbDialect
   usePlural: boolean
   camelCase: boolean
-  hubDbImportSource?: string
 }
 
 export interface BetterAuthDatabaseProviderSetupContext {

@@ -4,12 +4,11 @@ import { fileURLToPath } from 'node:url'
 import { join } from 'pathe'
 import { describe, expect, it } from 'vitest'
 
-const fixtureDir = fileURLToPath(new URL('./cases/nuxthub-postgres-hyperdrive-imports', import.meta.url))
+const fixtureDir = fileURLToPath(new URL('./cases/nuxthub-prerender-db', import.meta.url))
 const env = {
   ...process.env,
   BETTER_AUTH_SECRET: 'test-secret-for-testing-only-32chars',
-  DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/nuxt_better_auth_hyperdrive_demo',
-  HYPERDRIVE_ID: 'dummy-hyperdrive-id',
+  DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/nuxt_better_auth_prerender_demo',
 }
 
 function walk(dir: string): string[] {
@@ -32,8 +31,8 @@ function readGeneratedPrerenderOutput(): string {
     .join('\n')
 }
 
-describe('nuxthub postgresql prerender build', () => {
-  it('does not emit broken relative @nuxthub/db imports in prerender output', () => {
+describe('nuxthub prerender @nuxthub/db imports', () => {
+  it('keeps @nuxthub/db as an external import in prerender output', () => {
     const build = spawnSync('npx', ['nuxi', 'build'], {
       cwd: fixtureDir,
       env,
@@ -46,8 +45,10 @@ describe('nuxthub postgresql prerender build', () => {
     const prerenderOutput = readGeneratedPrerenderOutput()
 
     expect(generatedDatabase).toContain('import { db } from \'@nuxthub/db\'')
-    expect(prerenderOutput).not.toContain('../../../../@nuxthub')
-    expect(prerenderOutput).not.toContain('/@nuxthub/db/db.mjs')
+    // The bug emits a broken relative path like `../../../../../../../../@nuxthub/db/db.mjs`
+    // that escapes the build dir and crashes the prerender step.
+    expect(prerenderOutput).not.toMatch(/\.\.\/\.\.\/\.\.\/\.\.\/[^'"`]*@nuxthub\/db/)
+    // The generated better-auth database template must not be inlined into the prerender output.
     expect(prerenderOutput).not.toContain('node_modules/.cache/nuxt/.nuxt/better-auth/database.mjs')
   }, 120_000)
 })

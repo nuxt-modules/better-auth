@@ -48,7 +48,6 @@
     "typecheck": "vue-tsc --noEmit",
     "typecheck:runtime-server": "tsc --noEmit --pretty false -p src/runtime/server/tsconfig.json",
     "typecheck:playground": "pnpm -C playground exec nuxi prepare && pnpm -C playground exec vue-tsc --noEmit -p .nuxt/tsconfig.app.json",
-    "verify:preview-artifacts": "node scripts/check-preview-artifacts.mjs",
     "test": "vitest run",
     "test:watch": "vitest watch"
   },
