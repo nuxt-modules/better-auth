@@ -23,7 +23,7 @@ vi.mock('better-auth', () => ({
   betterAuth: betterAuthMock,
 }))
 
-vi.mock('#imports', () => ({
+vi.mock('nitropack/runtime', () => ({
   useRuntimeConfig: useRuntimeConfigMock,
 }))
 
