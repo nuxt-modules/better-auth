@@ -111,7 +111,7 @@ declare module '@onmax/nuxt-better-auth/config' {
   export function defineServerAuth<const R>(config: R & ServerAuthConfig): (ctx: _AugmentedServerAuthContext) => R
 }
 `,
-  }, { nuxt: true, nitro: true, node: true })
+  }, { nuxt: true, nitro: true, node: true, shared: true })
 
   addTypeTemplate({
     filename: 'types/nuxt-better-auth-social-providers.d.ts',
@@ -128,7 +128,7 @@ declare module '#nuxt-better-auth' {
   }
 }
 `,
-  }, { nuxt: true, nitro: true, node: true })
+  }, { nuxt: true, nitro: true, node: true, shared: true })
 
   addTypeTemplate({
     filename: 'types/nuxt-better-auth-nitro.d.ts',

@@ -11,6 +11,15 @@ function customAdminLikePlugin() {
       },
     },
     schema: {
+      session: {
+        fields: {
+          workspaceId: {
+            type: 'string',
+            required: false,
+            input: false,
+          },
+        },
+      },
       user: {
         fields: {
           role: {
@@ -27,6 +36,12 @@ function customAdminLikePlugin() {
 export default defineServerAuth(() => ({
   emailAndPassword: { enabled: true },
   plugins: [customAdminLikePlugin(), username()] as const,
+  socialProviders: {
+    github: {
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+    },
+  },
   user: {
     additionalFields: {
       internalCode: {

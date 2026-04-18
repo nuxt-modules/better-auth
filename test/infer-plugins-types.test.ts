@@ -30,5 +30,12 @@ describe('type inference regressions #107 and #192', () => {
     expect(output).not.toContain(`'internalCode' does not exist in type`)
     expect(output).not.toContain(`Property 'signInUsername' does not exist on type`)
     expect(output).not.toContain(`'signInUsername' does not exist on type`)
+
+    const sharedTypecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', '.nuxt/tsconfig.shared.json'], {
+      cwd: fixtureDir,
+      env,
+      encoding: 'utf8',
+    })
+    expect(sharedTypecheck.status, `shared vue-tsc failed:\n${sharedTypecheck.stdout}\n${sharedTypecheck.stderr}`).toBe(0)
   }, 60_000)
 })
