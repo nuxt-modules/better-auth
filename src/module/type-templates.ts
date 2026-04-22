@@ -21,7 +21,7 @@ declare module '#auth/secondary-storage' {
   export function createSecondaryStorage(): SecondaryStorage | undefined
 }
 `,
-  }, { nitro: true, node: true })
+  }, { nitro: true })
 
   addTypeTemplate({
     filename: 'types/auth-database.d.ts',
@@ -32,7 +32,7 @@ declare module '#auth/database' {
   export const db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
 }
 `,
-  }, { nitro: true, node: true })
+  }, { nitro: true })
 
   addTypeTemplate({
     filename: 'types/auth-schema.d.ts',
@@ -51,29 +51,7 @@ declare module '#auth/schema' {
   } | undefined
 }
 `,
-  }, { nitro: true, node: true })
-
-  addTypeTemplate({
-    filename: 'types/nuxt-better-auth-server-context.d.ts',
-    getContents: () => `
-/// <reference path="./nitro-imports.d.ts" />
-/// <reference path="./auth-database.d.ts" />
-/// <reference path="./auth-schema.d.ts" />
-/// <reference path="./auth-secondary-storage.d.ts" />
-${hasHubDb
-  ? '/// <reference path="../hub/db.d.ts" />'
-  : ''}
-
-${hasHubDb
-  ? `declare module '@nuxthub/db' {
-  export const db: typeof import('#auth/database')['db']
-  export const schema: typeof import('#auth/schema')['schema']
-}
-`
-  : ''}
-export {}
-`,
-  }, { node: true, shared: true })
+  }, { nitro: true })
 
   addTypeTemplate({
     filename: 'types/nuxt-better-auth-infer.d.ts',
