@@ -64,10 +64,14 @@ declare global {
   var __nuxtBetterAuthDefineServerAuth: RuntimeDefineServerAuthFn | undefined
 }
 
-export async function loadUserAuthConfig(configPath: string, throwOnError = false): Promise<Partial<BetterAuthOptions>> {
+export async function loadUserAuthConfig(
+  configPath: string,
+  throwOnError = false,
+  alias?: Record<string, string>,
+): Promise<Partial<BetterAuthOptions>> {
   const { createJiti } = await import('jiti')
   const { defineServerAuth: runtimeDefineServerAuth } = await import('./runtime/config')
-  const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false })
+  const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false, alias })
   const schemaGlobals = globalThis as typeof globalThis & SchemaGeneratorGlobals
 
   if (!schemaGlobals.__nuxtBetterAuthDefineServerAuth) {

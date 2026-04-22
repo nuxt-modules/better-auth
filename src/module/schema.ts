@@ -68,7 +68,12 @@ export function resolveHubSchemaPath(
 async function loadAuthOptions(context: SchemaContext) {
   const isProduction = !context.nuxt.options.dev
   const configFile = `${context.serverConfigPath}.ts`
-  const userConfig = await loadUserAuthConfig(configFile, isProduction)
+  const alias = Object.fromEntries(
+    Object.entries(context.nuxt.options.alias)
+      .filter(([, value]) => typeof value === 'string')
+      .map(([key, value]) => [key, value as string]),
+  )
+  const userConfig = await loadUserAuthConfig(configFile, isProduction, alias)
 
   const extendedConfig: { plugins?: BetterAuthPlugin[] } = {}
   await context.nuxt.callHook('better-auth:config:extend', extendedConfig)

@@ -109,6 +109,32 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       nuxt.options.alias['#auth/server'] = serverConfigPath
     nuxt.options.alias['#auth/client'] = clientConfigPath
 
+    if (!clientOnly) {
+      nuxt.hook('prepare:types', ({ nodeTsConfig }) => {
+        nodeTsConfig.compilerOptions ||= {}
+        nodeTsConfig.compilerOptions.paths ||= {}
+
+        const serverDir = dirname(serverConfigPath)
+        const exactNodeAliases = {
+          '#server': serverDir,
+          '#auth/server': nuxt.options.alias['#auth/server'],
+          '#auth/client': nuxt.options.alias['#auth/client'],
+          '#auth/database': nuxt.options.alias['#auth/database'],
+          '#auth/schema': nuxt.options.alias['#auth/schema'],
+          '#auth/secondary-storage': nuxt.options.alias['#auth/secondary-storage'],
+          '#auth/route-rules': nuxt.options.alias['#auth/route-rules'],
+          '#nuxt-better-auth': nuxt.options.alias['#nuxt-better-auth'],
+        } as const
+
+        for (const [key, value] of Object.entries(exactNodeAliases)) {
+          if (typeof value === 'string')
+            nodeTsConfig.compilerOptions.paths[key] = [value]
+        }
+
+        nodeTsConfig.compilerOptions.paths['#server/*'] = [join(serverDir, '*')]
+      })
+    }
+
     if (clientOnly) {
       setupRuntimeConfig({
         nuxt,

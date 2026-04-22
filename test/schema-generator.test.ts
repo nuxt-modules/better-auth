@@ -135,6 +135,20 @@ describe('loadUserAuthConfig', () => {
     const result = await loadUserAuthConfig(configPath, false)
     expect(result).toEqual({ appName: 'Readonly', plugins: [{ id: 'test-plugin', schema: { user: { fields: {} } } }] })
   })
+
+  it('resolves aliased imports when provided', async () => {
+    const helperPath = join(TEST_DIR, 'helper.ts')
+    const configPath = join(TEST_DIR, 'aliased-config.ts')
+
+    writeFileSync(helperPath, `export function getPlugins() { return [] }`)
+    writeFileSync(configPath, `import { getPlugins } from '#server/helper'\nexport default defineServerAuth(() => ({ plugins: getPlugins() }))`)
+
+    const result = await loadUserAuthConfig(configPath, false, {
+      '#server': TEST_DIR,
+    })
+
+    expect(result).toEqual({ plugins: [] })
+  })
 })
 
 describe('defineServerAuth', () => {

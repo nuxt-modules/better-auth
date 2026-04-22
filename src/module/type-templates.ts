@@ -54,6 +54,24 @@ declare module '#auth/schema' {
   }, { nitro: true, node: true })
 
   addTypeTemplate({
+    filename: 'types/nuxt-better-auth-server-context.d.ts',
+    getContents: () => `
+/// <reference path="./nitro-imports.d.ts" />
+/// <reference path="./auth-database.d.ts" />
+/// <reference path="./auth-schema.d.ts" />
+/// <reference path="./auth-secondary-storage.d.ts" />
+${hasHubDb ? '/// <reference path="../hub/db.d.ts" />' : ''}
+
+${hasHubDb ? `declare module '@nuxthub/db' {
+  export const db: typeof import('#auth/database')['db']
+  export const schema: typeof import('#auth/schema')['schema']
+}
+` : ''}
+export {}
+`,
+  }, { node: true, shared: true })
+
+  addTypeTemplate({
     filename: 'types/nuxt-better-auth-infer.d.ts',
     getContents: () => `
 import type { BetterAuthOptions, BetterAuthPlugin, InferPluginTypes, UnionToIntersection } from 'better-auth'
@@ -307,6 +325,15 @@ declare module 'nitropack' {
   interface InternalApi extends _GeneratedAuthInternalApi {}
 }
 declare module 'nitropack/types' {
+  interface NitroRouteRules {
+    auth?: import('${runtimeTypesPath}').AuthMeta
+  }
+  interface NitroRouteConfig {
+    auth?: import('${runtimeTypesPath}').AuthMeta
+  }
+  interface InternalApi extends _GeneratedAuthInternalApi {}
+}
+declare module 'nitro/types' {
   interface NitroRouteRules {
     auth?: import('${runtimeTypesPath}').AuthMeta
   }
