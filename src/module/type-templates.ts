@@ -60,13 +60,17 @@ declare module '#auth/schema' {
 /// <reference path="./auth-database.d.ts" />
 /// <reference path="./auth-schema.d.ts" />
 /// <reference path="./auth-secondary-storage.d.ts" />
-${hasHubDb ? '/// <reference path="../hub/db.d.ts" />' : ''}
+${hasHubDb
+  ? '/// <reference path="../hub/db.d.ts" />'
+  : ''}
 
-${hasHubDb ? `declare module '@nuxthub/db' {
+${hasHubDb
+  ? `declare module '@nuxthub/db' {
   export const db: typeof import('#auth/database')['db']
   export const schema: typeof import('#auth/schema')['schema']
 }
-` : ''}
+`
+  : ''}
 export {}
 `,
   }, { node: true, shared: true })
