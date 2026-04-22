@@ -3,6 +3,11 @@ declare module '#auth/database' {
   export function createDatabase(...args: any[]): any
 }
 
+declare module '#imports' {
+  export function getRouteRules(event: any): any
+  export function useRuntimeConfig(): any
+}
+
 declare module '#auth/secondary-storage' {
   export function createSecondaryStorage(...args: any[]): any
 }

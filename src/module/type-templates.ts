@@ -28,7 +28,7 @@ declare module '#auth/secondary-storage' {
     getContents: () => `
 declare module '#auth/database' {
   import type { BetterAuthOptions } from 'better-auth'
-  export function createDatabase(): BetterAuthOptions['database']
+  export function createDatabase(event?: import('h3').H3Event): BetterAuthOptions['database']
   export const db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
 }
 `,

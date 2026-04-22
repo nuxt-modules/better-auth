@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
 
@@ -6,15 +7,21 @@ const env = {
   ...process.env,
   BETTER_AUTH_SECRET: 'test-secret-for-testing-only-32chars',
 }
+const rootDir = fileURLToPath(new URL('..', import.meta.url))
 
 beforeAll(() => {
+  if (existsSync(fileURLToPath(new URL('../dist/module.mjs', import.meta.url)))
+    && existsSync(fileURLToPath(new URL('../dist/runtime/config.js', import.meta.url)))) {
+    return
+  }
+
   const build = spawnSync('pnpm', ['exec', 'nuxt-module-build', 'build'], {
-    cwd: fileURLToPath(new URL('..', import.meta.url)),
+    cwd: rootDir,
     env,
     encoding: 'utf8',
   })
   expect(build.status, `nuxt-module-build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
-})
+}, 180_000)
 
 function runProjectReferenceTypecheck(fixtureDir: string) {
   const prepare = spawnSync('npx', ['nuxi', 'prepare'], {

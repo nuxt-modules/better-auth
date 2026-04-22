@@ -1,8 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { H3Event } from 'h3'
-// @ts-expect-error Nuxt generates this virtual module in app builds.
 import { createDatabase, db } from '#auth/database'
-// @ts-expect-error Nuxt generates this virtual module in app builds.
 import { createSecondaryStorage } from '#auth/secondary-storage'
 import createServerAuth from '#auth/server'
 import { betterAuth } from 'better-auth'
@@ -12,11 +10,41 @@ import { withoutProtocol } from 'ufo'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
 
 type AuthOptions = ReturnType<typeof createServerAuth>
-type AuthInstance = ReturnType<typeof betterAuth<AuthOptions>>
+type UserAuthConfig = AuthOptions & {
+  trustedOrigins?: BetterAuthOptions['trustedOrigins']
+  secondaryStorage?: BetterAuthOptions['secondaryStorage']
+}
+type ResolvedAuthOptions = UserAuthConfig & {
+  secret: string
+  baseURL: string
+  trustedOrigins?: BetterAuthOptions['trustedOrigins']
+  database?: BetterAuthOptions['database']
+}
+type AuthInstance = ReturnType<typeof betterAuth<ResolvedAuthOptions>>
 
 const _authCache = new Map<string, AuthInstance>()
+const requestAuthKey = Symbol.for('nuxt-better-auth.requestAuth')
 let _baseURLInferenceLogged = false
 let _customSecondaryStorageMisconfigWarned = false
+
+interface RequestAuthContext {
+  [requestAuthKey]?: AuthInstance
+}
+
+const fallbackRequestAuthContext = new WeakMap<object, RequestAuthContext>()
+
+function getRequestAuthContext(event: H3Event): RequestAuthContext {
+  const eventWithContext = event as H3Event & { context?: unknown }
+  if (eventWithContext.context && typeof eventWithContext.context === 'object')
+    return eventWithContext.context as RequestAuthContext
+
+  let context = fallbackRequestAuthContext.get(event as object)
+  if (!context) {
+    context = {}
+    fallbackRequestAuthContext.set(event as object, context)
+  }
+  return context
+}
 
 function normalizeLoopbackOrigin(origin: string): string {
   if (!import.meta.dev)
@@ -252,15 +280,13 @@ export function serverAuth(event?: H3Event): AuthInstance {
   const requestOrigin = resolveEventOrigin(event)
   const hasExplicitSiteUrl = runtimeConfig.public.siteUrl && typeof runtimeConfig.public.siteUrl === 'string'
   const cacheKey = hasExplicitSiteUrl ? '__explicit__' : siteUrl
+  const requestContext = event ? getRequestAuthContext(event) : undefined
 
-  const cached = _authCache.get(cacheKey)
-  if (cached)
-    return cached
+  if (requestContext?.[requestAuthKey])
+    return requestContext[requestAuthKey]
 
-  const database = createDatabase()
-  const userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as BetterAuthOptions & {
-    secondaryStorage?: BetterAuthOptions['secondaryStorage']
-  }
+  const database = createDatabase(event)
+  const userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins, Boolean(hasExplicitSiteUrl))
 
   const hubSecondaryStorage = (runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' })?.hubSecondaryStorage
@@ -272,15 +298,30 @@ export function serverAuth(event?: H3Event): AuthInstance {
     console.warn(customSecondaryStorage.message)
   }
 
-  const auth = betterAuth({
+  if (!database) {
+    const cached = _authCache.get(cacheKey)
+    if (cached) {
+      if (requestContext)
+        requestContext[requestAuthKey] = cached
+      return cached
+    }
+  }
+
+  const authOptions: ResolvedAuthOptions = {
     ...userConfig,
-    ...(database && { database }),
-    ...(hubSecondaryStorage === true && { secondaryStorage: createSecondaryStorage() }),
+    ...(database ? { database } : {}),
+    ...(hubSecondaryStorage === true ? { secondaryStorage: createSecondaryStorage() } : {}),
     secret: runtimeConfig.betterAuthSecret,
     baseURL: siteUrl,
     trustedOrigins,
-  })
+  }
+  const auth = betterAuth(authOptions)
 
-  _authCache.set(cacheKey, auth)
+  if (requestContext)
+    requestContext[requestAuthKey] = auth
+
+  if (!database)
+    _authCache.set(cacheKey, auth)
+
   return auth
 }
