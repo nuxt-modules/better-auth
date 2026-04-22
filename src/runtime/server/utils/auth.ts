@@ -242,9 +242,8 @@ function getRequestOrigin(request?: Request): string | undefined {
 
 function withDevTrustedOrigins(
   trustedOrigins: BetterAuthOptions['trustedOrigins'] | undefined,
-  hasExplicitSiteUrl: boolean,
 ): BetterAuthOptions['trustedOrigins'] | undefined {
-  if (!import.meta.dev || !hasExplicitSiteUrl)
+  if (!import.meta.dev)
     return trustedOrigins
 
   const devOrigins = getDevTrustedOrigins()
@@ -287,7 +286,7 @@ export function serverAuth(event?: H3Event): AuthInstance {
 
   const database = createDatabase(event)
   const userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
-  const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins, Boolean(hasExplicitSiteUrl))
+  const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins)
 
   const hubSecondaryStorage = (runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' })?.hubSecondaryStorage
   const customSecondaryStorage = resolveCustomSecondaryStorageRequirement(hubSecondaryStorage, userConfig.secondaryStorage != null, Boolean(import.meta.dev))
