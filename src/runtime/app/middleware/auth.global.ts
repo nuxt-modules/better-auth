@@ -47,6 +47,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   const config = useRuntimeConfig().public.auth as AuthRuntimeConfig | undefined
   const { fetchSession, user, loggedIn } = useUserSession()
+  
+  // Fetch cached session from cookie to ensure we have the latest user state
+  // This also resolve race condition where middleware executes while computed session state is not yet updated after logout
+  await fetchSession()
 
   // Always fetch session if not logged in - state may not have synced yet
   if (!loggedIn.value) {
