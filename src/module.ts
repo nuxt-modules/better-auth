@@ -1,6 +1,7 @@
 import type { Nuxt } from '@nuxt/schema'
 import type { BetterAuthModuleOptions } from './runtime/config'
 import type { BetterAuthDatabaseProviderSetupContext } from './types/hooks'
+import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { consola as _consola } from 'consola'
@@ -17,6 +18,33 @@ import { registerServerTypeTemplates, registerSharedTypeTemplates } from './modu
 import './types/hooks'
 
 const consola = _consola.withTag('nuxt-better-auth')
+
+function isServerConfigSharedTypeSafe(serverConfigPath: string): boolean {
+  const resolvedPath = [
+    serverConfigPath,
+    `${serverConfigPath}.ts`,
+    `${serverConfigPath}.mts`,
+    `${serverConfigPath}.cts`,
+    `${serverConfigPath}.js`,
+    `${serverConfigPath}.mjs`,
+    `${serverConfigPath}.cjs`,
+  ].find(path => existsSync(path))
+
+  if (!resolvedPath)
+    return false
+
+  const contents = readFileSync(resolvedPath, 'utf8')
+
+  return !(
+    /from\s+['"]#server/.test(contents)
+    || /from\s+['"]#layers\//.test(contents)
+    || /from\s+['"]~~/.test(contents)
+    || /from\s+['"]@@/.test(contents)
+    || /\bdb\b/.test(contents)
+    || /\bsessionHookAfter\b/.test(contents)
+    || /@nuxthub\/db/.test(contents)
+  )
+}
 
 async function createDefaultAuthConfigFiles(nuxt: Nuxt): Promise<void> {
   const configs = resolveAuthConfigDescriptors(nuxt)
@@ -136,6 +164,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
         serverConfigPath: setup.serverTypes.serverConfigPath,
         hasHubDb: setup.serverTypes.hasHubDb,
         runtimeTypesPath: resolver.resolve('./runtime/types'),
+        sharedServerConfigSafe: isServerConfigSharedTypeSafe(setup.serverTypes.serverConfigPath),
       })
     }
 
