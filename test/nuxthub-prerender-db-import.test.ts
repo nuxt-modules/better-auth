@@ -64,7 +64,7 @@ describe('nuxthub prerender @nuxthub/db imports', () => {
     const prerenderOutput = readGeneratedPrerenderOutput()
     const nitroEntry = readNitroEntry(outputDir!)
 
-    expect(nitroEntry).toContain('import { db } from \'@nuxthub/db\'')
+    expect(nitroEntry).toMatch(/import\s+\{\s*db\s*\}\s+from\s+['"][^'"]*@nuxthub\/db(?:\/db\.mjs)?['"]/)
     // The bug emits a broken relative path like `../../../../../../../../@nuxthub/db/db.mjs`
     // that escapes the build dir and crashes the prerender step.
     expect(prerenderOutput).not.toMatch(/\.\.\/\.\.\/\.\.\/\.\.\/[^'"`]*@nuxthub\/db/)
