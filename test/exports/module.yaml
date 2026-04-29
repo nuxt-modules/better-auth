@@ -2,6 +2,14 @@
   default: function
   defineClientAuth: function
   defineServerAuth: function
+./composables:
+  useAction: function
+  useAuthAsyncData: function
+  useAuthClientAction: function
+  useAuthRequestFetch: function
+  useSignIn: function
+  useSignUp: function
+  useUserSession: function
 ./config:
   defineClientAuth: function
   defineServerAuth: function

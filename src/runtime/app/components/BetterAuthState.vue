@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { useUserSession } from '#imports'
+import { useUserSession } from '../composables/useUserSession'
 
 const { loggedIn, user, session, signOut, ready } = useUserSession()
 </script>

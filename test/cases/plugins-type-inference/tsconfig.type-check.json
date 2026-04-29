@@ -1,14 +1,11 @@
 {
-  "extends": "./.nuxt/tsconfig.server.json",
+  "extends": "./.nuxt/tsconfig.json",
   "compilerOptions": {
     "noEmit": true
   },
   "include": [
-    "./.nuxt/types/auth-database.d.ts",
-    "./.nuxt/types/auth-secondary-storage.d.ts",
-    "./.nuxt/types/nuxt-better-auth-infer.d.ts",
-    "./.nuxt/types/nuxt-better-auth-social-providers.d.ts",
-    "./.nuxt/types/nuxt-better-auth-nitro.d.ts",
+    "./.nuxt/nuxt.d.ts",
+    "./virtual-modules.d.ts",
     "./typecheck-target.ts"
   ]
 }

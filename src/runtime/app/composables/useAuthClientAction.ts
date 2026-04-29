@@ -1,7 +1,7 @@
 import type { UserAuthActionHandle } from '../internal/auth-action-handles'
 import type { UseUserSessionReturn } from './useUserSession'
-import { useUserSession } from '#imports'
 import { useAction } from './useAction'
+import { useUserSession } from './useUserSession'
 
 type AppAuthClient = NonNullable<UseUserSessionReturn['client']>
 

@@ -72,9 +72,10 @@ export function useUserSession(): UseUserSessionReturn {
   const runtimeConfig = useRuntimeConfig()
   const requestURL = useRequestURL()
   const nuxtApp = useNuxtApp()
+  const siteUrl = typeof runtimeConfig.public.siteUrl === 'string' ? runtimeConfig.public.siteUrl : requestURL.origin
 
   const client: AppAuthClient | null = runtimeFlags.client
-    ? getClient(runtimeConfig.public.siteUrl || requestURL.origin)
+    ? getClient(siteUrl)
     : null
 
   // Shared state via useState for SSR hydration

@@ -21,11 +21,15 @@ function walk(dir: string): string[] {
 }
 
 function readGeneratedPrerenderOutput(): string {
-  const prerenderDir = join(fixtureDir, '.nuxt/prerender')
-  if (!statSync(prerenderDir, { throwIfNoEntry: false })?.isDirectory())
+  const candidateDirs = [
+    join(fixtureDir, '.nuxt/prerender'),
+    join(fixtureDir, '.output/server'),
+  ]
+  const outputDir = candidateDirs.find(dir => statSync(dir, { throwIfNoEntry: false })?.isDirectory())
+  if (!outputDir)
     return ''
 
-  return walk(prerenderDir)
+  return walk(outputDir)
     .filter(path => /\.(?:mjs|js)$/.test(path))
     .map(path => readFileSync(path, 'utf8'))
     .join('\n')
@@ -41,10 +45,9 @@ describe('nuxthub prerender @nuxthub/db imports', () => {
 
     expect(build.status, `nuxi build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
 
-    const generatedDatabase = readFileSync(`${fixtureDir}/.nuxt/better-auth/database.mjs`, 'utf8')
     const prerenderOutput = readGeneratedPrerenderOutput()
 
-    expect(generatedDatabase).toContain('import { db } from \'@nuxthub/db\'')
+    expect(prerenderOutput).toContain('import { db } from \'@nuxthub/db\'')
     // The bug emits a broken relative path like `../../../../../../../../@nuxthub/db/db.mjs`
     // that escapes the build dir and crashes the prerender step.
     expect(prerenderOutput).not.toMatch(/\.\.\/\.\.\/\.\.\/\.\.\/[^'"`]*@nuxthub\/db/)

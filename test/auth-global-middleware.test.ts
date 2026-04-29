@@ -38,6 +38,9 @@ vi.mock('#imports', () => ({
   useNuxtApp: () => nuxtApp,
   useRequestHeaders: () => ({ cookie: 'session=test' }),
   useRuntimeConfig: () => runtimeConfig,
+}))
+
+vi.mock('../src/runtime/app/composables/useUserSession', () => ({
   useUserSession: () => ({
     fetchSession,
     user,

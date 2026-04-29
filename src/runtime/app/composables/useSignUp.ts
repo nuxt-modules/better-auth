@@ -1,7 +1,7 @@
 import type { AppAuthClient } from '#nuxt-better-auth'
 import type { ActionHandleFor, ActionHandleMap } from '../internal/auth-action-handles'
-import { useUserSession } from '#imports'
 import { createActionHandles } from '../internal/auth-action-handles'
+import { useUserSession } from './useUserSession'
 
 type SignUp = NonNullable<AppAuthClient>['signUp']
 

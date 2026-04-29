@@ -7,9 +7,12 @@ vi.mock('#imports', async () => {
   return {
     ref: vue.ref,
     computed: vue.computed,
-    useUserSession: () => sessionMock,
   }
 })
+
+vi.mock('../src/runtime/app/composables/useUserSession', () => ({
+  useUserSession: () => sessionMock,
+}))
 
 async function loadUseAuthClientAction() {
   vi.resetModules()

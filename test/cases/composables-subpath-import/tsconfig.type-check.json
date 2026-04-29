@@ -1,0 +1,13 @@
+{
+  "extends": "./.nuxt/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "./.nuxt/types/nuxt-better-auth-client.d.ts",
+    "./.nuxt/types/nuxt-better-auth-infer.d.ts",
+    "./.nuxt/types/nuxt-better-auth-social-providers.d.ts",
+    "./.nuxt/types/nuxt-better-auth-nitro.d.ts",
+    "./typecheck-target.ts"
+  ]
+}
