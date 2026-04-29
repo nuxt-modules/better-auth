@@ -73,7 +73,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^7.6.1",
     "@libsql/client": "^0.17.3",
-    "@libsql/linux-x64-gnu": "0.5.22",
+    "@libsql/linux-x64-gnu": "0.5.29",
     "@nuxt/devtools": "^3.2.3",
     "@nuxt/devtools-kit": "^3.2.2",
     "@nuxt/module-builder": "^1.0.2",

@@ -45,8 +45,8 @@ importers:
         specifier: ^0.17.3
         version: 0.17.3
       '@libsql/linux-x64-gnu':
-        specifier: 0.5.22
-        version: 0.5.22
+        specifier: 0.5.29
+        version: 0.5.29
       '@nuxt/devtools':
         specifier: ^3.2.3
         version: 3.2.4(vite@7.3.1(@types/node@25.6.0)(jiti@2.6.1)(lightningcss@1.31.1)(terser@5.46.0)(yaml@2.8.2))(vue@3.5.29(typescript@5.9.3))
@@ -1670,11 +1670,6 @@ packages:
   '@libsql/linux-arm64-musl@0.5.29':
     resolution: {integrity: sha512-fwgYZ0H8mUkyVqXZHF3mT/92iIh1N94Owi/f66cPVNsk9BdGKq5gVpoKO+7UxaNzuEH1roJp2QEwsCZMvBLpqg==}
     cpu: [arm64]
-    os: [linux]
-
-  '@libsql/linux-x64-gnu@0.5.22':
-    resolution: {integrity: sha512-kNBHaIkSg78Y4BqAdgjcR2mBilZXs4HYkAmi58J+4GRwDQZh5fIUWbnQvB9f95DkWUIGVeenqLRFY2pcTmlsew==}
-    cpu: [x64]
     os: [linux]
 
   '@libsql/linux-x64-gnu@0.5.29':
@@ -10873,10 +10868,7 @@ snapshots:
   '@libsql/linux-arm64-musl@0.5.29':
     optional: true
 
-  '@libsql/linux-x64-gnu@0.5.22': {}
-
-  '@libsql/linux-x64-gnu@0.5.29':
-    optional: true
+  '@libsql/linux-x64-gnu@0.5.29': {}
 
   '@libsql/linux-x64-musl@0.5.29':
     optional: true
