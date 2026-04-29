@@ -18,7 +18,7 @@
     "db:migrate": "nuxt db migrate"
   },
   "dependencies": {
-    "@better-auth/passkey": "1.5.5",
+    "@better-auth/passkey": "1.6.9",
     "@nuxt/fonts": "^0.14.0",
     "@nuxt/ui": "^4.5.0",
     "@nuxthub/core": "^0.10.6",
