@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import yaml from 'yaml'
@@ -9,7 +9,7 @@ function listRuntimeFiles(dir: string): string[] {
     const path = join(dir, entry.name)
     if (entry.isDirectory())
       return listRuntimeFiles(path)
-    return /\.(m|c)?js$/.test(entry.name) ? [path] : []
+    return /\.(?:m|c)?js$/.test(entry.name) ? [path] : []
   })
 }
 
