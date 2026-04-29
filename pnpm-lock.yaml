@@ -190,8 +190,8 @@ importers:
         specifier: ^0.4.10
         version: 0.4.10(magicast@0.5.2)(vue@3.5.29(typescript@5.9.3))
       resend:
-        specifier: ^6.9.3
-        version: 6.9.3
+        specifier: ^6.12.2
+        version: 6.12.2
     devDependencies:
       '@better-auth/cli':
         specifier: 1.5.0-beta.13
@@ -7536,8 +7536,8 @@ packages:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
 
-  postal-mime@2.7.3:
-    resolution: {integrity: sha512-MjhXadAJaWgYzevi46+3kLak8y6gbg0ku14O1gO/LNOuay8dO+1PtcSGvAdgDR0DoIsSaiIA8y/Ddw6MnrO0Tw==}
+  postal-mime@2.7.4:
+    resolution: {integrity: sha512-0WdnFQYUrPGGTFu1uOqD2s7omwua8xaeYGdO6rb88oD5yJ/4pPHDA4sdWqfD8wQVfCny563n/HQS7zTFft+f/g==}
 
   postcss-calc@10.1.1:
     resolution: {integrity: sha512-NYEsLHh8DgG/PRH2+G9BTuUdtf9ViS+vdoQ0YA5OQdGsfN4ztiwtDWNtBl9EKeqNMFnIu8IKZ0cLxEQ5r5KVMw==}
@@ -8021,8 +8021,8 @@ packages:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
 
-  resend@6.9.3:
-    resolution: {integrity: sha512-GRXjH9XZBJA+daH7bBVDuTShr22iWCxXA8P7t495G4dM/RC+d+3gHBK/6bz9K6Vpcq11zRQKmD+B+jECwQlyGQ==}
+  resend@6.12.2:
+    resolution: {integrity: sha512-xwgmU4b0OqoabJsIoK/x0Whk0Fcs3bpbK4i/DEWPiE5hYJHyHl0TbB6QbI3gIr+bLdLUJ1GYm/fe41aVFuHXgw==}
     engines: {node: '>=20'}
     peerDependencies:
       '@react-email/render': '*'
@@ -8457,8 +8457,8 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  svix@1.84.1:
-    resolution: {integrity: sha512-K8DPPSZaW/XqXiz1kEyzSHYgmGLnhB43nQCMeKjWGCUpLIpAMMM8kx3rVVOSm6Bo6EHyK1RQLPT4R06skM/MlQ==}
+  svix@1.90.0:
+    resolution: {integrity: sha512-ljkZuyy2+IBEoESkIpn8sLM+sxJHQcPxlZFxU+nVDhltNfUMisMBzWX/UR8SjEnzoI28ZjCzMbmYAPwSTucoMw==}
 
   swrv@1.1.0:
     resolution: {integrity: sha512-pjllRDr2s0iTwiE5Isvip51dZGR7GjLH1gCSVyE8bQnbAx6xackXsFdojau+1O5u98yHF5V73HQGOFxKUXO9gQ==}
@@ -19067,7 +19067,7 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
-  postal-mime@2.7.3: {}
+  postal-mime@2.7.4: {}
 
   postcss-calc@10.1.1(postcss@8.5.6):
     dependencies:
@@ -19664,10 +19664,10 @@ snapshots:
 
   require-from-string@2.0.2: {}
 
-  resend@6.9.3:
+  resend@6.12.2:
     dependencies:
-      postal-mime: 2.7.3
-      svix: 1.84.1
+      postal-mime: 2.7.4
+      svix: 1.90.0
 
   reserved-identifiers@1.2.0: {}
 
@@ -20231,7 +20231,7 @@ snapshots:
       picocolors: 1.1.1
       sax: 1.5.0
 
-  svix@1.84.1:
+  svix@1.90.0:
     dependencies:
       standardwebhooks: 1.0.0
       uuid: 10.0.0
