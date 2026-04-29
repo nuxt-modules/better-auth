@@ -1,123 +1,65 @@
-# Installation & Configuration
+# Installation and configuration
 
-## Install
-
-```bash
-pnpm add @onmax/nuxt-better-auth better-auth
-```
-
-**Version Requirements:**
-
-- `@onmax/nuxt-better-auth`: `^0.0.2-alpha.12` (alpha)
-- `better-auth`: `^1.0.0` (module tested with `1.4.7`)
-- `@nuxthub/core`: `^0.10.0` (optional, for database)
-
-## Module Setup
-
-```ts
-// nuxt.config.ts
-export default defineNuxtConfig({
-  modules: ['@onmax/nuxt-better-auth'],
-  auth: {
-    serverConfig: 'server/auth.config',  // default
-    clientConfig: 'app/auth.config',     // default
-    clientOnly: false,                   // true for external auth backend
-    redirects: {
-      login: '/login',  // redirect when auth required
-      guest: '/'        // redirect when already logged in
-    }
-  }
-})
-```
-
-## Environment Variables
+## Happy path
 
 ```bash
-# Required (min 32 chars)
-NUXT_BETTER_AUTH_SECRET=your-secret-key-at-least-32-characters
-# Legacy fallback also supported: BETTER_AUTH_SECRET=your-secret-key-at-least-32-characters
+npx nuxi module add @onmax/nuxt-better-auth@alpha
+```
 
-# Required in production for OAuth
+Required files:
+
+- `server/auth.config.ts`
+- `app/auth.config.ts` or the equivalent file inside your `srcDir`
+- `.env` with `NUXT_BETTER_AUTH_SECRET`
+
+## Required environment variables
+
+```ini
+NUXT_BETTER_AUTH_SECRET=replace-with-a-random-32-character-secret
+```
+
+Optional but commonly required in production:
+
+```ini
 NUXT_PUBLIC_SITE_URL=https://your-domain.com
 ```
 
-## Server Config
+`BETTER_AUTH_SECRET` is still accepted as a fallback. Prefer `NUXT_BETTER_AUTH_SECRET`.
+
+## Minimal module setup
 
 ```ts
-// server/auth.config.ts
+export default defineNuxtConfig({
+  modules: ['@onmax/nuxt-better-auth'],
+})
+```
+
+## Minimal server config
+
+```ts
 import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
 
-// Object syntax (simplest)
 export default defineServerAuth({
-  emailAndPassword: { enabled: true },
-  // OAuth providers
-  socialProviders: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID as string,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET as string
-    }
+  emailAndPassword: {
+    enabled: true,
   },
 })
-
-// Or function syntax (access context like runtimeConfig, db)
-export default defineServerAuth(({ runtimeConfig, db }) => ({
-  emailAndPassword: { enabled: true },
-  socialProviders: {
-    github: {
-      clientId: runtimeConfig.github.clientId,
-      clientSecret: runtimeConfig.github.clientSecret
-    }
-  },
-  session: {
-    expiresIn: 60 * 60 * 24 * 7,      // 7 days (default)
-    updateAge: 60 * 60 * 24,           // Update every 24h (default)
-    freshAge: 60 * 60 * 24,            // Consider fresh for 24h (default, 0 to disable)
-    cookieCache: {
-      enabled: true,
-      maxAge: 60 * 5                   // 5 minutes cookie cache
-    }
-  }
-}))
 ```
 
-Context available in `defineServerAuth`:
-
-- `runtimeConfig` - Nuxt runtime config
-- `db` - Database adapter (when NuxtHub enabled)
-
-### Session Options
-
-| Option                  | Default            | Description                                   |
-| ----------------------- | ------------------ | --------------------------------------------- |
-| `expiresIn`             | `604800` (7 days)  | Session lifetime in seconds                   |
-| `updateAge`             | `86400` (24 hours) | How often to refresh session expiry           |
-| `freshAge`              | `86400` (24 hours) | Session considered "fresh" period (0 = never) |
-| `cookieCache.enabled`   | `false`            | Enable cookie caching to reduce DB queries    |
-| `cookieCache.maxAge`    | `300` (5 minutes)  | Cookie cache lifetime                         |
-| `disableSessionRefresh` | `false`            | Disable automatic session refresh             |
-
-## Client Config
+## Minimal client config
 
 ```ts
-// app/auth.config.ts
 import { defineClientAuth } from '@onmax/nuxt-better-auth/config'
 
-// Object syntax (simplest)
-export default defineClientAuth({
-  // Client-side plugin options (e.g., passkey, twoFactor)
-})
-
-// Or function syntax (access context like siteUrl)
-export default defineClientAuth(({ siteUrl }) => ({
-  // siteUrl contains the resolved base URL
-}))
+export default defineClientAuth({})
 ```
 
-## NuxtHub Integration
+## Important rules
 
-```ts
-// nuxt.config.ts
-export default defineNuxtConfig({
+- Do not set `secret` manually in `defineServerAuth()`. The module injects it.
+- Do not set `baseURL` manually in full mode. The module resolves it.
+- Use `auth.clientOnly = true` only when Better Auth runs on an external backend.
+- For database-backed auth with the shortest setup, prefer NuxtHub.
   modules: ['@nuxthub/core', '@onmax/nuxt-better-auth'],
   hub: { database: true },
   auth: {

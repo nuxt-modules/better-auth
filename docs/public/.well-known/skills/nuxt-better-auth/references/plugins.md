@@ -1,123 +1,42 @@
-# Better Auth Plugins
+# Better Auth plugins
 
-The module supports all Better Auth plugins. Configure in both server and client configs.
+## Rule of thumb
 
-## Server Plugin Setup
+If a Better Auth plugin has a client companion, register both:
+
+- server plugin in `server/auth.config.ts`
+- client plugin in `app/auth.config.ts`
+
+## Example
 
 ```ts
-// server/auth.config.ts
-import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
-import { admin, twoFactor, passkey, multiSession } from 'better-auth/plugins'
+import { admin, twoFactor } from 'better-auth/plugins'
 
 export default defineServerAuth({
-  emailAndPassword: { enabled: true },
-  plugins: [
-    admin(),
-    twoFactor({ issuer: 'MyApp' }),
-    passkey(),
-    multiSession()
-  ]
+  plugins: [admin(), twoFactor()],
 })
 ```
 
-## Client Plugin Setup
-
 ```ts
-// app/auth.config.ts
-import { defineClientAuth } from '@onmax/nuxt-better-auth/config'
-import { adminClient, twoFactorClient, passkeyClient, multiSessionClient } from 'better-auth/client/plugins'
+import { adminClient, twoFactorClient } from 'better-auth/client/plugins'
 
 export default defineClientAuth({
-  plugins: [
-    adminClient(),
-    twoFactorClient(),
-    passkeyClient(),
-    multiSessionClient()
-  ]
+  plugins: [adminClient(), twoFactorClient()],
 })
 ```
 
-## Common Plugins
+## Common plugin pairs
 
-### Admin
+| Server | Client |
+| --- | --- |
+| `admin()` | `adminClient()` |
+| `twoFactor()` | `twoFactorClient()` |
+| `passkey()` | `passkeyClient()` |
+| `multiSession()` | `multiSessionClient()` |
 
-Role-based access control:
+## Why it matters
 
-```ts
-// Server
-import { admin } from 'better-auth/plugins'
-plugins: [admin()]
-
-// Client
-import { adminClient } from 'better-auth/client/plugins'
-plugins: [adminClient()]
-```
-
-Usage:
-
-```ts
-// Protect route
-await requireUserSession(event, { user: { role: 'admin' } })
-
-// Client: set user role
-await client.admin.setRole({ userId: 'xxx', role: 'admin' })
-```
-
-### Two-Factor (2FA)
-
-```ts
-// Server
-import { twoFactor } from 'better-auth/plugins'
-plugins: [twoFactor({ issuer: 'MyApp' })]
-
-// Client
-import { twoFactorClient } from 'better-auth/client/plugins'
-plugins: [twoFactorClient()]
-```
-
-Usage:
-
-```ts
-// Enable 2FA
-const { totpURI } = await client.twoFactor.enable({ password: 'xxx' })
-// Show QR code with totpURI
-
-// Verify OTP on login
-await client.twoFactor.verifyTotp({ code: '123456' })
-```
-
-### Passkey
-
-WebAuthn/FIDO2 authentication:
-
-```ts
-// Server
-import { passkey } from 'better-auth/plugins'
-plugins: [passkey()]
-
-// Client
-import { passkeyClient } from 'better-auth/client/plugins'
-plugins: [passkeyClient()]
-```
-
-Usage:
-
-```ts
-// Register passkey
-await client.passkey.addPasskey()
-
-// Sign in with passkey
-await signIn.passkey()
-```
-
-### Multi-Session
-
-Allow multiple concurrent sessions:
-
-```ts
-// Server
-import { multiSession } from 'better-auth/plugins'
-plugins: [multiSession()]
+Without the matching client plugin, client-side methods and inferred types for that feature are incomplete.
 
 // Client
 import { multiSessionClient } from 'better-auth/client/plugins'
