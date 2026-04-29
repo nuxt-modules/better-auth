@@ -98,6 +98,6 @@
     "vitest": "^4.0.18",
     "vitest-package-exports": "^1.2.0",
     "vue-tsc": "^3.2.7",
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.3"
   }
 }
