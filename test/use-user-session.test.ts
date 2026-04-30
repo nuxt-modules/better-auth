@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ref, watch } from 'vue'
+import { isReactive, isRef, ref, watch } from 'vue'
 
 interface SessionState {
   data: { session: Record<string, unknown>, user: Record<string, unknown> } | null
@@ -107,6 +107,11 @@ async function triggerNuxtHook(name: string) {
   const hooks = nuxtHooks.get(name) || []
   for (const hook of hooks)
     await hook()
+}
+
+function isPiniaStateLike(value: unknown) {
+  const isComputedLike = isRef(value) && Boolean((value as { effect?: unknown }).effect)
+  return (isRef(value) && !isComputedLike) || isReactive(value)
 }
 
 function seedHydratedState() {
@@ -438,6 +443,58 @@ describe('useUserSession hydration bootstrap', () => {
     const auth = useUserSession()
 
     expect(auth.client).toBeNull()
+  })
+
+  it('allows SSR metadata introspection on signIn and signUp without throwing', async () => {
+    setRuntimeFlags({ client: false, server: true })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    expect(isRef(auth.signIn as unknown)).toBe(false)
+    expect(isReactive(auth.signIn as unknown)).toBe(false)
+    expect(isRef(auth.signUp as unknown)).toBe(false)
+    expect(isReactive(auth.signUp as unknown)).toBe(false)
+    expect((auth.signIn as Record<string, unknown>).__v_isRef).toBeUndefined()
+    expect((auth.signIn as Record<string, unknown>).__v_isReactive).toBeUndefined()
+    expect((auth.signUp as Record<string, unknown>).__v_isRef).toBeUndefined()
+    expect((auth.signUp as Record<string, unknown>).__v_isReactive).toBeUndefined()
+  })
+
+  it('allows server-side auth method reads but still rejects invocation', async () => {
+    setRuntimeFlags({ client: false, server: true })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    const signInEmail = (auth.signIn as Record<string, (...args: unknown[]) => Promise<unknown>>).email
+    const signUpEmail = (auth.signUp as Record<string, (...args: unknown[]) => Promise<unknown>>).email
+
+    expect(isRef(signInEmail as unknown)).toBe(false)
+    expect(isReactive(signInEmail as unknown)).toBe(false)
+    expect(isRef(signUpEmail as unknown)).toBe(false)
+    expect(isReactive(signUpEmail as unknown)).toBe(false)
+
+    await expect(signInEmail({ email: 'user@example.com', password: 'password' })).rejects.toThrow('signIn.email() can only be called on client-side')
+    await expect(signUpEmail({ email: 'user@example.com', password: 'password', name: 'User' })).rejects.toThrow('signUp.email() can only be called on client-side')
+  })
+
+  it('keeps forwarded useUserSession actions out of Pinia setup-store state classification during SSR', async () => {
+    setRuntimeFlags({ client: false, server: true })
+
+    const useUserSession = await loadUseUserSession()
+    const { user, client: authClient, fetchSession, ...rest } = useUserSession()
+    const store = {
+      user,
+      authClient,
+      fetchSession,
+      ...rest,
+    }
+
+    expect(isPiniaStateLike(store.signIn as unknown)).toBe(false)
+    expect(isPiniaStateLike(store.signUp as unknown)).toBe(false)
+    expect(isPiniaStateLike((store.signIn as Record<string, unknown>).email)).toBe(false)
+    expect(isPiniaStateLike((store.signUp as Record<string, unknown>).email)).toBe(false)
   })
 
   it('signIn uses auth.redirects.authenticated when no callback is provided', async () => {

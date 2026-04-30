@@ -13,6 +13,15 @@ interface RuntimeFlags { client: boolean, server: boolean }
 
 let _sessionSignalListenerBound = false
 let _signOutPromise: Promise<void> | null = null
+const SSR_SAFE_ACTION_METADATA_KEYS = new Set([
+  'then',
+  '__v_isRef',
+  '__v_isReactive',
+  '__v_isReadonly',
+  '__v_isShallow',
+  '__v_raw',
+  '__v_skip',
+])
 
 export interface UseUserSessionReturn {
   client: AppAuthClient | null
@@ -43,6 +52,34 @@ function getRuntimeFlags(): RuntimeFlags {
   if (globalFlags)
     return globalFlags
   return { client: Boolean(import.meta.client), server: Boolean(import.meta.server) }
+}
+
+function createServerOnlyActionMethod(path: string) {
+  const method = async () => {
+    throw new Error(`${path}() can only be called on client-side`)
+  }
+
+  return new Proxy(method, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'symbol')
+        return undefined
+      if (SSR_SAFE_ACTION_METADATA_KEYS.has(prop))
+        return undefined
+      return Reflect.get(target, prop, receiver)
+    },
+  })
+}
+
+function createServerOnlyActionNamespace(path: string) {
+  return new Proxy({}, {
+    get(_target, prop) {
+      if (typeof prop === 'symbol')
+        return undefined
+      if (SSR_SAFE_ACTION_METADATA_KEYS.has(prop))
+        return undefined
+      return createServerOnlyActionMethod(`${path}.${prop}`)
+    },
+  })
 }
 
 function ensureSessionSignalListener(client: AppAuthClient, onSignal: () => Promise<void>) {
@@ -267,9 +304,7 @@ export function useUserSession(): UseUserSessionReturn {
           )
         },
       })
-    : new Proxy({} as SignIn, {
-        get: (_, prop) => { throw new Error(`signIn.${String(prop)}() can only be called on client-side`) },
-      })
+    : createServerOnlyActionNamespace('signIn') as SignIn
 
   const signUp: SignUp = client?.signUp
     ? new Proxy(client.signUp, {
@@ -281,9 +316,7 @@ export function useUserSession(): UseUserSessionReturn {
           return wrapAuthMethod((...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args), wrapDeps)
         },
       })
-    : new Proxy({} as SignUp, {
-        get: (_, prop) => { throw new Error(`signUp.${String(prop)}() can only be called on client-side`) },
-      })
+    : createServerOnlyActionNamespace('signUp') as SignUp
 
   if (runtimeFlags.client && client && shouldSkipInitialClientSessionFetch.value) {
     ensureSessionSignalListener(client, () => fetchSession({ force: true }))
