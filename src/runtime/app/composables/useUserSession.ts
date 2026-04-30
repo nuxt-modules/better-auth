@@ -13,15 +13,6 @@ interface RuntimeFlags { client: boolean, server: boolean }
 
 let _sessionSignalListenerBound = false
 let _signOutPromise: Promise<void> | null = null
-const SSR_SAFE_ACTION_METADATA_KEYS = new Set([
-  'then',
-  '__v_isRef',
-  '__v_isReactive',
-  '__v_isReadonly',
-  '__v_isShallow',
-  '__v_raw',
-  '__v_skip',
-])
 
 export interface UseUserSessionReturn {
   client: AppAuthClient | null
@@ -55,7 +46,9 @@ function getRuntimeFlags(): RuntimeFlags {
 }
 
 function isReactiveProbeKey(prop: PropertyKey): boolean {
-  return typeof prop === 'symbol' || SSR_SAFE_ACTION_METADATA_KEYS.has(prop)
+  if (typeof prop === 'symbol')
+    return true
+  return prop === 'then' || prop.startsWith('__v')
 }
 
 function createServerOnlyActionMethod(path: string) {
