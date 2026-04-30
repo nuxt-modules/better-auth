@@ -54,6 +54,10 @@ function getRuntimeFlags(): RuntimeFlags {
   return { client: Boolean(import.meta.client), server: Boolean(import.meta.server) }
 }
 
+function isReactiveProbeKey(prop: PropertyKey): boolean {
+  return typeof prop === 'symbol' || SSR_SAFE_ACTION_METADATA_KEYS.has(prop)
+}
+
 function createServerOnlyActionMethod(path: string) {
   const method = async () => {
     throw new Error(`${path}() can only be called on client-side`)
@@ -61,9 +65,7 @@ function createServerOnlyActionMethod(path: string) {
 
   return new Proxy(method, {
     get(target, prop, receiver) {
-      if (typeof prop === 'symbol')
-        return undefined
-      if (SSR_SAFE_ACTION_METADATA_KEYS.has(prop))
+      if (isReactiveProbeKey(prop))
         return undefined
       return Reflect.get(target, prop, receiver)
     },
@@ -71,16 +73,24 @@ function createServerOnlyActionMethod(path: string) {
 }
 
 function createServerOnlyActionNamespace(path: string) {
+  const cache = new Map<string, ReturnType<typeof createServerOnlyActionMethod>>()
   return new Proxy({}, {
     get(_target, prop) {
-      if (typeof prop === 'symbol')
+      if (isReactiveProbeKey(prop))
         return undefined
-      if (SSR_SAFE_ACTION_METADATA_KEYS.has(prop))
-        return undefined
-      return createServerOnlyActionMethod(`${path}.${prop}`)
+      const key = prop as string
+      let method = cache.get(key)
+      if (!method) {
+        method = createServerOnlyActionMethod(`${path}.${key}`)
+        cache.set(key, method)
+      }
+      return method
     },
   })
 }
+
+const _signInServerOnly = createServerOnlyActionNamespace('signIn')
+const _signUpServerOnly = createServerOnlyActionNamespace('signUp')
 
 function ensureSessionSignalListener(client: AppAuthClient, onSignal: () => Promise<void>) {
   if (_sessionSignalListenerBound)
@@ -304,7 +314,7 @@ export function useUserSession(): UseUserSessionReturn {
           )
         },
       })
-    : createServerOnlyActionNamespace('signIn') as SignIn
+    : _signInServerOnly as SignIn
 
   const signUp: SignUp = client?.signUp
     ? new Proxy(client.signUp, {
@@ -316,7 +326,7 @@ export function useUserSession(): UseUserSessionReturn {
           return wrapAuthMethod((...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args), wrapDeps)
         },
       })
-    : createServerOnlyActionNamespace('signUp') as SignUp
+    : _signUpServerOnly as SignUp
 
   if (runtimeFlags.client && client && shouldSkipInitialClientSessionFetch.value) {
     ensureSessionSignalListener(client, () => fetchSession({ force: true }))

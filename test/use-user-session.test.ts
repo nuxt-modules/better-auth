@@ -109,11 +109,6 @@ async function triggerNuxtHook(name: string) {
     await hook()
 }
 
-function isPiniaStateLike(value: unknown) {
-  const isComputedLike = isRef(value) && Boolean((value as { effect?: unknown }).effect)
-  return (isRef(value) && !isComputedLike) || isReactive(value)
-}
-
 function seedHydratedState() {
   state.set('auth:session', ref({ id: 'session-1' }))
   state.set('auth:user', ref({ id: 'user-1' }))
@@ -490,11 +485,12 @@ describe('useUserSession hydration bootstrap', () => {
       fetchSession,
       ...rest,
     }
+    const isStateLike = (value: unknown) => isRef(value) || isReactive(value)
 
-    expect(isPiniaStateLike(store.signIn as unknown)).toBe(false)
-    expect(isPiniaStateLike(store.signUp as unknown)).toBe(false)
-    expect(isPiniaStateLike((store.signIn as Record<string, unknown>).email)).toBe(false)
-    expect(isPiniaStateLike((store.signUp as Record<string, unknown>).email)).toBe(false)
+    expect(isStateLike(store.signIn)).toBe(false)
+    expect(isStateLike(store.signUp)).toBe(false)
+    expect(isStateLike((store.signIn as Record<string, unknown>).email)).toBe(false)
+    expect(isStateLike((store.signUp as Record<string, unknown>).email)).toBe(false)
   })
 
   it('signIn uses auth.redirects.authenticated when no callback is provided', async () => {
