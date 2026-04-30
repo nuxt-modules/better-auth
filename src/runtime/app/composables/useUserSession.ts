@@ -54,8 +54,9 @@ function createServerOnlyActionNamespace(path: string) {
     get(_target, prop) {
       if (isReactiveProbeKey(prop))
         return undefined
+      const key = prop as string
       return async () => {
-        throw new Error(`${path}.${prop}() can only be called on client-side`)
+        throw new Error(`${path}.${key}() can only be called on client-side`)
       }
     },
   })
