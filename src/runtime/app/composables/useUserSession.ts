@@ -46,38 +46,17 @@ function getRuntimeFlags(): RuntimeFlags {
 }
 
 function isReactiveProbeKey(prop: PropertyKey): boolean {
-  if (typeof prop === 'symbol')
-    return true
-  return prop === 'then' || prop.startsWith('__v')
-}
-
-function createServerOnlyActionMethod(path: string) {
-  const method = async () => {
-    throw new Error(`${path}() can only be called on client-side`)
-  }
-
-  return new Proxy(method, {
-    get(target, prop, receiver) {
-      if (isReactiveProbeKey(prop))
-        return undefined
-      return Reflect.get(target, prop, receiver)
-    },
-  })
+  return typeof prop !== 'string' || prop === 'then' || prop.startsWith('__v')
 }
 
 function createServerOnlyActionNamespace(path: string) {
-  const cache = new Map<string, ReturnType<typeof createServerOnlyActionMethod>>()
   return new Proxy({}, {
     get(_target, prop) {
       if (isReactiveProbeKey(prop))
         return undefined
-      const key = prop as string
-      let method = cache.get(key)
-      if (!method) {
-        method = createServerOnlyActionMethod(`${path}.${key}`)
-        cache.set(key, method)
+      return async () => {
+        throw new Error(`${path}.${prop}() can only be called on client-side`)
       }
-      return method
     },
   })
 }
