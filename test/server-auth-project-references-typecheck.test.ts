@@ -53,7 +53,6 @@ function expectSharedTypeReferencesToStayClientSafe(fixtureDir: string) {
   const sharedReferences = generatedReferences(fixtureDir, 'tsconfig.shared.json')
   const serverOnlyReferences = [
     'types/nuxt-better-auth-server-context.d.ts',
-    'types/nuxt-better-auth-config-context.d.ts',
     'types/nuxt-better-auth-infer.d.ts',
     'types/nuxt-better-auth-social-providers.d.ts',
     'types/nuxt-better-auth-nitro.d.ts',
@@ -82,6 +81,14 @@ function expectNuxtTypesToStayClientSafe(fixtureDir: string) {
   expect(contents).not.toContain('types/nuxt-better-auth-nitro.d.ts')
 }
 
+function expectSharedTypesToIncludeOnlySafeConfigContext(fixtureDir: string) {
+  const contents = readFileSync(`${fixtureDir}/.nuxt/nuxt.shared.d.ts`, 'utf8')
+  expect(contents).toContain('types/nuxt-better-auth-config-context.d.ts')
+  expect(contents).not.toContain('types/nuxt-better-auth-infer.d.ts')
+  expect(contents).not.toContain('types/nuxt-better-auth-social-providers.d.ts')
+  expect(contents).not.toContain('types/nuxt-better-auth-nitro.d.ts')
+}
+
 describe('server auth config project-reference typecheck regression #309', () => {
   it('typechecks a layered auth config that uses Nitro auto-imported helpers', () => {
     const fixtureDir = fileURLToPath(new URL('./cases/layer-server-auth-typecheck', import.meta.url))
@@ -89,6 +96,7 @@ describe('server auth config project-reference typecheck regression #309', () =>
     expectSharedTypeReferencesToStayClientSafe(fixtureDir)
     expectServerContextToAvoidNuxthubAugmentation(fixtureDir)
     expectNuxtTypesToStayClientSafe(fixtureDir)
+    expectSharedTypesToIncludeOnlySafeConfigContext(fixtureDir)
   }, 60_000)
 
   it('typechecks auth config imports that use the #server alias', () => {
@@ -97,5 +105,6 @@ describe('server auth config project-reference typecheck regression #309', () =>
     expectSharedTypeReferencesToStayClientSafe(fixtureDir)
     expectServerContextToAvoidNuxthubAugmentation(fixtureDir)
     expectNuxtTypesToStayClientSafe(fixtureDir)
+    expectSharedTypesToIncludeOnlySafeConfigContext(fixtureDir)
   }, 60_000)
 })

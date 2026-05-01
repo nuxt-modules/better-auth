@@ -1,11 +1,11 @@
 import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import type { BetterAuthClientOptions } from 'better-auth/client'
 import type { Casing } from 'drizzle-orm/utils'
-import type { ServerAuthContext } from './types/augment'
+import type { ServerAuthContext as BaseServerAuthContext } from './types/augment'
 import { createAuthClient } from 'better-auth/vue'
 
-// Re-export for declaration merging with generated types
-export type { ServerAuthContext }
+export interface ServerAuthContextExtension {}
+export type ServerAuthContext = BaseServerAuthContext & ServerAuthContextExtension
 
 export interface ClientAuthContext {
   siteUrl: string

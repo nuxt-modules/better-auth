@@ -73,25 +73,18 @@ export {}
   addTypeTemplate({
     filename: 'types/nuxt-better-auth-config-context.d.ts',
     getContents: () => `
-import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import type { RuntimeConfig } from 'nuxt/schema'
 
-interface _BetterAuthServerConfigContext {
-  runtimeConfig: RuntimeConfig
-  db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
-  requestOrigin?: string
-}
-
 declare module '@onmax/nuxt-better-auth/config' {
-  type ServerAuthConfig = Omit<BetterAuthOptions, 'secret' | 'baseURL'> & {
-    plugins?: readonly BetterAuthPlugin[]
+  interface ServerAuthContextExtension {
+    runtimeConfig: RuntimeConfig
+    db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
+    requestOrigin?: string
   }
-  export function defineServerAuth<const R>(config: (ctx: _BetterAuthServerConfigContext) => R & ServerAuthConfig): (ctx: _BetterAuthServerConfigContext) => R
-  export function defineServerAuth<const R>(config: R & ServerAuthConfig): (ctx: _BetterAuthServerConfigContext) => R
 }
 
 `,
-  }, { nuxt: true, nitro: true, node: true })
+  }, { nuxt: true, nitro: true, node: true, shared: true })
 
   addTypeTemplate({
     filename: 'types/nuxt-better-auth-infer.d.ts',
