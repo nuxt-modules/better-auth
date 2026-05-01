@@ -1,4 +1,3 @@
-import type {} from '@nuxt/nitro-server'
 import type { Nuxt, NuxtPage } from '@nuxt/schema'
 import type { AuthRouteRules } from '../runtime/types'
 import { addComponentsDir, addImportsDir, addPlugin, addServerHandler, addServerImports, addServerImportsDir, addServerScanDir, extendPages, hasNuxtModule, installModule, updateTemplates } from '@nuxt/kit'
@@ -105,7 +104,8 @@ export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): 
 export function registerNuxtHubDatabaseExternalHook(nuxt: Nuxt): void {
   // Keep @nuxthub/db as a bare specifier during Nitro bundling so the prerender
   // entry does not rewrite it to a broken relative path when `.nuxt` is nested.
-  nuxt.hook('nitro:config', (nitroConfig) => {
+  // @ts-expect-error Nitro augments NuxtHooks at runtime.
+  nuxt.hook('nitro:config', (nitroConfig: { externals?: { external?: string[] } }) => {
     nitroConfig.externals ||= {}
     nitroConfig.externals.external ||= []
     if (!nitroConfig.externals.external.includes('@nuxthub/db'))
