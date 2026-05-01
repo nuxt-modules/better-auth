@@ -1,7 +1,7 @@
 import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
 
-export default defineServerAuth(({ db }) => {
-  type _DbSelect = typeof db.select
+export default defineServerAuth(({ db: _db }) => {
+  type _DbSelect = typeof _db.select
 
   return {
     emailAndPassword: {
