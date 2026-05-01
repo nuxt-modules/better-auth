@@ -76,6 +76,7 @@ function expectServerContextToAvoidNuxthubAugmentation(fixtureDir: string) {
 
 function expectNuxtTypesToStayClientSafe(fixtureDir: string) {
   const contents = readFileSync(`${fixtureDir}/.nuxt/nuxt.d.ts`, 'utf8')
+  expect(contents).toContain('types/nuxt-better-auth-config-context.d.ts')
   expect(contents).not.toContain('types/nuxt-better-auth-infer.d.ts')
   expect(contents).not.toContain('types/nuxt-better-auth-social-providers.d.ts')
   expect(contents).not.toContain('types/nuxt-better-auth-nitro.d.ts')
