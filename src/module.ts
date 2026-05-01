@@ -10,7 +10,7 @@ import { getEffectiveModuleConfigFile, shouldCreateDefaultModuleConfig } from '.
 import { registerAuthMiddlewareHook, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
-import { resolveAuthModuleSetup } from './module/setup'
+import { collectAuthRouteRules, resolveAuthModuleSetup } from './module/setup'
 import { buildAuthRouteRulesCode, buildSchemaExportCode, buildSecondaryStorageCode } from './module/templates'
 import { registerServerTypeTemplates, registerSharedTypeTemplates } from './module/type-templates'
 
@@ -110,13 +110,6 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       nuxt.options.alias['#auth/schema'] = schemaTemplate.dst
     }
 
-    const authRouteRulesTemplate = addTemplate({
-      filename: 'better-auth/route-rules.mjs',
-      getContents: () => buildAuthRouteRulesCode(setup.authRouteRules),
-      write: true,
-    })
-    nuxt.options.alias['#auth/route-rules'] = authRouteRulesTemplate.dst
-
     if (setup.prepareTypes) {
       registerPrepareTypesHook({
         nuxt,
@@ -133,6 +126,13 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       }
       await setup.database.providerDefinition.setup?.(setupCtx)
     }
+
+    const authRouteRulesTemplate = addTemplate({
+      filename: 'better-auth/route-rules.mjs',
+      getContents: () => buildAuthRouteRulesCode(collectAuthRouteRules(nuxt)),
+      write: true,
+    })
+    nuxt.options.alias['#auth/route-rules'] = authRouteRulesTemplate.dst
 
     if (setup.serverTypes) {
       registerServerTypeTemplates({

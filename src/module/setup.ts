@@ -49,7 +49,6 @@ export interface ResolvedAuthModuleSetup {
     useHubKV: boolean
     secondaryStorageEnabled: boolean
   }
-  authRouteRules: Record<string, { auth: unknown }>
   prepareTypes?: {
     serverDir: string
     hasHubDb: boolean
@@ -129,7 +128,7 @@ function createDefaultDatabaseProviders(
   }
 }
 
-function collectAuthRouteRules(nuxt: Nuxt): Record<string, { auth: unknown }> {
+export function collectAuthRouteRules(nuxt: Nuxt): Record<string, { auth: unknown }> {
   const runtimeRouteRulesSource = (
     (nuxt.options as { nitro?: { routeRules?: Record<string, unknown> } }).nitro?.routeRules
     || (nuxt.options as { routeRules?: Record<string, unknown> }).routeRules
@@ -161,6 +160,17 @@ export async function resolveAuthModuleSetup(
   }
 
   assertConfigPresence(configs, clientOnly)
+
+  const aliases: ResolvedAuthModuleSetup['aliases'] = {
+    '#nuxt-better-auth': runtimeTypesAugmentPath,
+    '#auth/server': clientOnly ? undefined : configs.server.path,
+    '#auth/client': configs.client.path,
+  }
+
+  nuxt.options.alias['#nuxt-better-auth'] = aliases['#nuxt-better-auth']
+  if (aliases['#auth/server'])
+    nuxt.options.alias['#auth/server'] = aliases['#auth/server']
+  nuxt.options.alias['#auth/client'] = aliases['#auth/client']
 
   const hasNuxtHub = hasNuxtModuleFn('@nuxthub/core', nuxt)
   const hub = hasNuxtHub ? (nuxt.options as { hub?: NuxtHubOptions }).hub : undefined
@@ -215,11 +225,7 @@ export async function resolveAuthModuleSetup(
   return {
     clientOnly,
     configs,
-    aliases: {
-      '#nuxt-better-auth': runtimeTypesAugmentPath,
-      '#auth/server': clientOnly ? undefined : configs.server.path,
-      '#auth/client': configs.client.path,
-    },
+    aliases,
     hub: {
       hasNuxtHub,
       options: hub,
@@ -232,7 +238,6 @@ export async function resolveAuthModuleSetup(
       buildContext: clientOnly ? undefined : { hubDialect, usePlural, camelCase },
     },
     runtime,
-    authRouteRules: collectAuthRouteRules(nuxt),
     prepareTypes: clientOnly
       ? undefined
       : {

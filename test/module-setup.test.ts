@@ -3,7 +3,7 @@ import type { BetterAuthModuleOptions } from '../src/runtime/config'
 import { fileURLToPath } from 'node:url'
 import { loadNuxt } from '@nuxt/kit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { resolveAuthModuleSetup } from '../src/module/setup'
+import { collectAuthRouteRules, resolveAuthModuleSetup } from '../src/module/setup'
 
 const loadedNuxtInstances: Nuxt[] = []
 
@@ -72,7 +72,7 @@ describe('resolveAuthModuleSetup', () => {
     expect(setup.hub.hasHubDbAvailable).toBe(true)
     expect(setup.database.providerId).toBe('nuxthub')
     expect(setup.database.hasHubDb).toBe(true)
-    expect(setup.authRouteRules).toMatchObject({
+    expect(collectAuthRouteRules(nuxt)).toMatchObject({
       '/protected': { auth: 'user' },
       '/admin': { auth: { user: { role: 'admin' } } },
       '/login': { auth: 'guest' },
@@ -120,11 +120,19 @@ describe('resolveAuthModuleSetup', () => {
 
   it('prefers a higher-priority external provider from the provider hook', async () => {
     const nuxt = await loadCase('without-nuxthub')
+    let aliasesDuringProviderSelection: Record<string, string | undefined> | undefined
 
     nuxt.hook('better-auth:database:providers', (providers) => {
       providers.external = {
         priority: 200,
-        isEnabled: () => true,
+        isEnabled: ({ nuxt }) => {
+          aliasesDuringProviderSelection = {
+            server: nuxt.options.alias['#auth/server'],
+            client: nuxt.options.alias['#auth/client'],
+            augment: nuxt.options.alias['#nuxt-better-auth'],
+          }
+          return true
+        },
         buildDatabaseCode: () => 'export function createDatabase() { return "external" }',
       }
     })
@@ -138,6 +146,44 @@ describe('resolveAuthModuleSetup', () => {
 
     expect(setup.database.providerId).toBe('external')
     expect(setup.database.hasHubDb).toBe(false)
+    expect(aliasesDuringProviderSelection).toEqual({
+      server: setup.configs.server.path,
+      client: setup.configs.client.path,
+      augment: '/virtual/runtime-types/augment',
+    })
+  })
+
+  it('allows provider setup route-rule mutations to affect collected auth route rules', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+
+    nuxt.hook('better-auth:database:providers', (providers) => {
+      providers.external = {
+        priority: 200,
+        isEnabled: () => true,
+        setup: ({ nuxt }) => {
+          nuxt.options.routeRules ||= {}
+          nuxt.options.routeRules['/provider-protected'] = { auth: 'user' }
+        },
+        buildDatabaseCode: () => 'export function createDatabase() { return "external" }',
+      }
+    })
+
+    const setup = await resolveAuthModuleSetup({
+      nuxt,
+      options: createModuleOptions(nuxt),
+      runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
+      consola: createConsolaMock(),
+    })
+
+    await setup.database.providerDefinition?.setup?.({
+      nuxt,
+      options: createModuleOptions(nuxt),
+      clientOnly: setup.clientOnly,
+    })
+
+    expect(collectAuthRouteRules(nuxt)).toMatchObject({
+      '/provider-protected': { auth: 'user' },
+    })
   })
 
   it('throws when the effective server auth config is missing', async () => {
