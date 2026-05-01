@@ -2,11 +2,11 @@ import type { Nuxt } from '@nuxt/schema'
 import type { BetterAuthModuleOptions } from './runtime/config'
 import type { BetterAuthDatabaseProviderSetupContext } from './types/hooks'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { addTemplate, createResolver, defineNuxtModule, getLayerDirectories } from '@nuxt/kit'
+import { addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { consola as _consola } from 'consola'
-import { dirname, join, relative } from 'pathe'
+import { dirname, relative } from 'pathe'
 import { version } from '../package.json'
-import { getEffectiveModuleConfigFile, shouldCreateDefaultModuleConfig } from './module/config-paths'
+import { resolveAuthConfigDescriptors } from './module/config-paths'
 import { registerAuthMiddlewareHook, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
@@ -19,12 +19,7 @@ import './types/hooks'
 const consola = _consola.withTag('nuxt-better-auth')
 
 async function createDefaultAuthConfigFiles(nuxt: Nuxt): Promise<void> {
-  const project = getLayerDirectories(nuxt)[0]!
-  const rootDir = project.root
-  const serverPath = join(project.server, 'auth.config.ts')
-  const clientPath = join(project.app, 'auth.config.ts')
-  const serverConfigFile = getEffectiveModuleConfigFile(nuxt, 'server')
-  const clientConfigFile = getEffectiveModuleConfigFile(nuxt, 'client')
+  const configs = resolveAuthConfigDescriptors(nuxt)
 
   const serverTemplate = `import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
 
@@ -38,16 +33,18 @@ export default defineServerAuth({
 export default defineClientAuth({})
 `
 
-  if (shouldCreateDefaultModuleConfig(nuxt, 'server', serverConfigFile)) {
+  if (configs.server.shouldCreateDefaultFile) {
+    const serverPath = `${configs.server.path}.ts`
     await mkdir(dirname(serverPath), { recursive: true })
     await writeFile(serverPath, serverTemplate)
-    consola.success(`Created ${relative(rootDir, serverPath)}`)
+    consola.success(`Created ${relative(configs.server.declaringLayerRoot, serverPath)}`)
   }
 
-  if (shouldCreateDefaultModuleConfig(nuxt, 'client', clientConfigFile)) {
+  if (configs.client.shouldCreateDefaultFile) {
+    const clientPath = `${configs.client.path}.ts`
     await mkdir(dirname(clientPath), { recursive: true })
     await writeFile(clientPath, clientTemplate)
-    consola.success(`Created ${relative(rootDir, clientPath)}`)
+    consola.success(`Created ${relative(configs.client.declaringLayerRoot, clientPath)}`)
   }
 }
 

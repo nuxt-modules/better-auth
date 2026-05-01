@@ -5,23 +5,15 @@ import type {
   BetterAuthDatabaseProviderDefinition,
   BetterAuthDatabaseProviderEnabledContext,
 } from '../types/hooks'
+import type { AuthConfigDescriptor } from './config-paths'
 import type { NuxtHubOptions } from './hub'
-import { existsSync } from 'node:fs'
 import { hasNuxtModule } from '@nuxt/kit'
 import { dirname } from 'pathe'
 import { resolveDatabaseProvider } from '../database-provider'
-import { resolveModuleConfigPath } from './config-paths'
+import { resolveAuthConfigDescriptors } from './config-paths'
 import { getHubCasing, getHubDialect } from './hub'
 import { setupRuntimeConfig } from './runtime'
 import { buildDatabaseCode } from './templates'
-
-export interface AuthConfigDescriptor {
-  kind: 'server' | 'client'
-  file: string
-  path: string
-  isDefault: boolean
-  exists: boolean
-}
 
 export interface ResolvedAuthModuleSetup {
   clientOnly: boolean
@@ -79,25 +71,6 @@ interface ResolveAuthModuleSetupDependencies {
   hasNuxtModule?: typeof hasNuxtModule
 }
 
-function defaultConfigExists(path: string): boolean {
-  return existsSync(`${path}.ts`) || existsSync(`${path}.js`)
-}
-
-function resolveConfigDescriptor(
-  nuxt: Nuxt,
-  kind: 'server' | 'client',
-  file: string,
-  configExists: (path: string) => boolean,
-): AuthConfigDescriptor {
-  const resolved = resolveModuleConfigPath(nuxt, kind, file)
-
-  return {
-    kind,
-    ...resolved,
-    exists: configExists(resolved.path),
-  }
-}
-
 function assertConfigPresence(configs: ResolvedAuthModuleSetup['configs'], clientOnly: boolean): void {
   if (!clientOnly && !configs.server.exists)
     throw new Error(`[nuxt-better-auth] Missing ${configs.server.file}.ts - export default defineServerAuth(...)`)
@@ -150,14 +123,15 @@ export async function resolveAuthModuleSetup(
   dependencies: ResolveAuthModuleSetupDependencies = {},
 ): Promise<ResolvedAuthModuleSetup> {
   const { nuxt, options, runtimeTypesAugmentPath, consola } = input
-  const configExists = dependencies.configExists ?? defaultConfigExists
   const hasNuxtModuleFn = dependencies.hasNuxtModule ?? hasNuxtModule
   const clientOnly = options.clientOnly ?? false
 
-  const configs = {
-    server: resolveConfigDescriptor(nuxt, 'server', options.serverConfig!, configExists),
-    client: resolveConfigDescriptor(nuxt, 'client', options.clientConfig!, configExists),
-  }
+  const configs = resolveAuthConfigDescriptors(nuxt, {
+    server: options.serverConfig,
+    client: options.clientConfig,
+  }, {
+    configExists: dependencies.configExists,
+  })
 
   assertConfigPresence(configs, clientOnly)
 
