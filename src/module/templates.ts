@@ -121,3 +121,17 @@ export { db }`
   return `export function createDatabase() { return undefined }
 export const db = undefined`
 }
+
+export function buildSchemaExportCode(hasHubDb: boolean, hubDialect: DbDialect): string {
+  if (!hasHubDb)
+    return 'export const schema = undefined\n'
+
+  return `export * from './schema.${hubDialect}.mjs'
+import * as schema from './schema.${hubDialect}.mjs'
+export { schema }
+`
+}
+
+export function buildAuthRouteRulesCode(authRouteRules: Record<string, { auth: unknown }>): string {
+  return `export const authRouteRules = ${JSON.stringify(authRouteRules, null, 2)}\n`
+}

@@ -1,26 +1,17 @@
 import type { Nuxt } from '@nuxt/schema'
-import type { NuxtHubOptions } from './module/hub'
-import type { BetterAuthModuleOptions, ModuleDatabaseProviderId } from './runtime/config'
-import type {
-  BetterAuthDatabaseProviderBuildContext,
-  BetterAuthDatabaseProviderDefinition,
-  BetterAuthDatabaseProviderEnabledContext,
-  BetterAuthDatabaseProviderSetupContext,
-} from './types/hooks'
-import { existsSync } from 'node:fs'
+import type { BetterAuthModuleOptions } from './runtime/config'
+import type { BetterAuthDatabaseProviderSetupContext } from './types/hooks'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { addTemplate, createResolver, defineNuxtModule, getLayerDirectories, hasNuxtModule } from '@nuxt/kit'
+import { addTemplate, createResolver, defineNuxtModule, getLayerDirectories } from '@nuxt/kit'
 import { consola as _consola } from 'consola'
 import { dirname, join, relative } from 'pathe'
 import { version } from '../package.json'
-import { resolveDatabaseProvider } from './database-provider'
-import { getEffectiveModuleConfigFile, resolveModuleConfigPath, shouldCreateDefaultModuleConfig } from './module/config-paths'
-import { registerAuthMiddlewareHook, registerDevtools, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
-import { getHubCasing, getHubDialect } from './module/hub'
-import { setupRuntimeConfig } from './module/runtime'
+import { getEffectiveModuleConfigFile, shouldCreateDefaultModuleConfig } from './module/config-paths'
+import { registerAuthMiddlewareHook, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
-import { buildDatabaseCode, buildSecondaryStorageCode } from './module/templates'
+import { resolveAuthModuleSetup } from './module/setup'
+import { buildAuthRouteRulesCode, buildSchemaExportCode, buildSecondaryStorageCode } from './module/templates'
 import { registerServerTypeTemplates, registerSharedTypeTemplates } from './module/type-templates'
 
 import './types/hooks'
@@ -84,224 +75,97 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
 
-    const clientOnly = options.clientOnly!
-    const serverConfigFile = options.serverConfig!
-    const clientConfigFile = options.clientConfig!
-    const { file: resolvedServerConfigFile, path: serverConfigPath } = resolveModuleConfigPath(nuxt, 'server', serverConfigFile)
-    const { file: resolvedClientConfigFile, path: clientConfigPath } = resolveModuleConfigPath(nuxt, 'client', clientConfigFile)
+    const setup = await resolveAuthModuleSetup({
+      nuxt,
+      options,
+      runtimeTypesAugmentPath: resolver.resolve('./runtime/types/augment'),
+      consola,
+    })
 
-    const serverConfigExists = existsSync(`${serverConfigPath}.ts`) || existsSync(`${serverConfigPath}.js`)
-    const clientConfigExists = existsSync(`${clientConfigPath}.ts`) || existsSync(`${clientConfigPath}.js`)
+    nuxt.options.alias['#nuxt-better-auth'] = setup.aliases['#nuxt-better-auth']
+    if (setup.aliases['#auth/server'])
+      nuxt.options.alias['#auth/server'] = setup.aliases['#auth/server']
+    nuxt.options.alias['#auth/client'] = setup.aliases['#auth/client']
 
-    if (!clientOnly && !serverConfigExists)
-      throw new Error(`[nuxt-better-auth] Missing ${resolvedServerConfigFile}.ts - export default defineServerAuth(...)`)
-    if (!clientConfigExists)
-      throw new Error(`[nuxt-better-auth] Missing ${resolvedClientConfigFile}.ts - export default defineClientAuth(...)`)
-
-    const hasNuxtHub = hasNuxtModule('@nuxthub/core', nuxt)
-    const hub = hasNuxtHub ? (nuxt.options as { hub?: NuxtHubOptions }).hub : undefined
-    const hasHubDbAvailable = !clientOnly && hasNuxtHub && !!hub?.db
-    let databaseProvider: ModuleDatabaseProviderId = 'none'
-    let hasHubDb = false
-
-    nuxt.options.alias['#nuxt-better-auth'] = resolver.resolve('./runtime/types/augment')
-    if (!clientOnly)
-      nuxt.options.alias['#auth/server'] = serverConfigPath
-    nuxt.options.alias['#auth/client'] = clientConfigPath
-
-    if (!clientOnly) {
-      nuxt.hook('prepare:types', ({ nodeTsConfig, nodeReferences, sharedReferences }) => {
-        nodeTsConfig.compilerOptions ||= {}
-        nodeTsConfig.compilerOptions.paths ||= {}
-
-        const serverDir = dirname(serverConfigPath)
-        const projectReferenceTypePaths = [
-          join(nuxt.options.buildDir, 'types/nitro-imports.d.ts'),
-          join(nuxt.options.buildDir, 'types/auth-database.d.ts'),
-          join(nuxt.options.buildDir, 'types/auth-schema.d.ts'),
-          join(nuxt.options.buildDir, 'types/auth-secondary-storage.d.ts'),
-        ]
-
-        if (hasHubDb)
-          projectReferenceTypePaths.push(join(nuxt.options.buildDir, 'hub/db.d.ts'))
-
-        const exactNodeAliases = {
-          '#server': serverDir,
-          '#auth/server': nuxt.options.alias['#auth/server'],
-          '#auth/client': nuxt.options.alias['#auth/client'],
-          '#auth/database': nuxt.options.alias['#auth/database'],
-          '#auth/schema': nuxt.options.alias['#auth/schema'],
-          '#auth/secondary-storage': nuxt.options.alias['#auth/secondary-storage'],
-          '#auth/route-rules': nuxt.options.alias['#auth/route-rules'],
-          '#nuxt-better-auth': nuxt.options.alias['#nuxt-better-auth'],
-        } as const
-
-        for (const [key, value] of Object.entries(exactNodeAliases)) {
-          if (typeof value === 'string')
-            nodeTsConfig.compilerOptions.paths[key] = [value]
-        }
-
-        nodeTsConfig.compilerOptions.paths['#server/*'] = [join(serverDir, '*')]
-
-        for (const path of projectReferenceTypePaths) {
-          if (!nodeReferences.some(reference => 'path' in reference && reference.path === path))
-            nodeReferences.push({ path })
-          if (!sharedReferences.some(reference => 'path' in reference && reference.path === path))
-            sharedReferences.push({ path })
-        }
-      })
-    }
-
-    if (clientOnly) {
-      setupRuntimeConfig({
-        nuxt,
-        options,
-        clientOnly,
-        databaseProvider,
-        hasNuxtHub,
-        hub,
-        consola,
-      })
-    }
-    else {
-      const hubDialect = getHubDialect(hub) ?? 'sqlite'
-      const usePlural = options.schema?.usePlural ?? false
-      const camelCase = (options.schema?.casing ?? getHubCasing(hub)) !== 'snake_case'
-
-      const providers: Record<string, BetterAuthDatabaseProviderDefinition> = {
-        nuxthub: {
-          priority: 100,
-          isEnabled: ({ hasHubDbAvailable }) => hasHubDbAvailable,
-          buildDatabaseCode: () => buildDatabaseCode({
-            provider: 'nuxthub',
-            hubDialect,
-            usePlural,
-            camelCase,
-          }),
-        },
-        none: {
-          priority: 0,
-          buildDatabaseCode: () => buildDatabaseCode({
-            provider: 'none',
-            hubDialect,
-            usePlural,
-            camelCase,
-          }),
-        },
-      }
-
-      const enabledCtx: BetterAuthDatabaseProviderEnabledContext = { nuxt, options, clientOnly, hasHubDbAvailable }
-      await nuxt.callHook('better-auth:database:providers', providers)
-      const resolvedProvider = resolveDatabaseProvider({ providers, context: enabledCtx })
-      databaseProvider = resolvedProvider.id
-      hasHubDb = databaseProvider === 'nuxthub'
-
-      const { useHubKV } = setupRuntimeConfig({
-        nuxt,
-        options,
-        clientOnly,
-        databaseProvider,
-        hasNuxtHub,
-        hub,
-        consola,
-      })
-
-      if (useHubKV && !nuxt.options.alias['hub:kv']) {
-        throw new Error('[nuxt-better-auth] hub:kv not found. Ensure @nuxthub/core is loaded before this module and hub.kv is enabled.')
-      }
-
+    if (!setup.clientOnly) {
       const secondaryStorageTemplate = addTemplate({
         filename: 'better-auth/secondary-storage.mjs',
-        getContents: () => buildSecondaryStorageCode(useHubKV),
+        getContents: () => buildSecondaryStorageCode(setup.runtime.useHubKV),
         write: true,
       })
       nuxt.options.alias['#auth/secondary-storage'] = secondaryStorageTemplate.dst
 
-      if (hasHubDb && !nuxt.options.alias['hub:db']) {
-        throw new Error('[nuxt-better-auth] hub:db not found. Ensure @nuxthub/core is loaded before this module and hub.db is configured.')
-      }
-
-      const setupCtx: BetterAuthDatabaseProviderSetupContext = { nuxt, options, clientOnly }
-      await resolvedProvider.definition.setup?.(setupCtx)
-
-      const buildCtx: BetterAuthDatabaseProviderBuildContext = { hubDialect, usePlural, camelCase }
       const databaseTemplate = addTemplate({
         filename: 'better-auth/database.mjs',
-        getContents: () => resolvedProvider.definition.buildDatabaseCode(buildCtx),
+        getContents: () => setup.database.providerDefinition!.buildDatabaseCode(setup.database.buildContext!),
         write: true,
       })
       nuxt.options.alias['#auth/database'] = databaseTemplate.dst
 
       const schemaTemplate = addTemplate({
         filename: 'better-auth/schema.mjs',
-        getContents: () => {
-          if (!hasHubDb)
-            return 'export const schema = undefined\n'
-
-          return `export * from './schema.${hubDialect}.mjs'
-import * as schema from './schema.${hubDialect}.mjs'
-export { schema }
-`
-        },
+        getContents: () => buildSchemaExportCode(setup.database.hasHubDb, setup.database.buildContext?.hubDialect ?? 'sqlite'),
         write: true,
       })
       nuxt.options.alias['#auth/schema'] = schemaTemplate.dst
-
-      registerServerTypeTemplates({
-        serverConfigPath,
-        hasHubDb,
-        runtimeTypesPath: resolver.resolve('./runtime/types'),
-      })
-
-      if (hasHubDb) {
-        // Keep @nuxthub/db as a bare specifier during Nitro bundling so the
-        // prerender entry doesn't rewrite it to a broken relative path like
-        // `../../../../../../../../@nuxthub/db/db.mjs` when `.nuxt` lives
-        // inside `node_modules/.cache/nuxt/`.
-        // @ts-expect-error Nitro augments NuxtHooks at runtime.
-        nuxt.hook('nitro:config', (nitroConfig: { externals?: { external?: string[] } }) => {
-          nitroConfig.externals ||= {}
-          nitroConfig.externals.external ||= []
-          if (!nitroConfig.externals.external.includes('@nuxthub/db'))
-            nitroConfig.externals.external.push('@nuxthub/db')
-        })
-
-        await setupBetterAuthSchema(nuxt, serverConfigPath, options, consola, options.hubSecondaryStorage ?? false)
-      }
     }
-
-    registerSharedTypeTemplates({
-      runtimeTypesAugmentPath: resolver.resolve('./runtime/types/augment'),
-      runtimeTypesPath: resolver.resolve('./runtime/types'),
-      clientConfigPath,
-    })
-
-    const runtimeRouteRulesSource = (
-      (nuxt.options as { nitro?: { routeRules?: Record<string, unknown> } }).nitro?.routeRules
-      || (nuxt.options as { routeRules?: Record<string, unknown> }).routeRules
-      || {}
-    ) as Record<string, unknown>
-
-    const authRouteRules = Object.fromEntries(
-      Object.entries(runtimeRouteRulesSource).flatMap(([path, rule]) => {
-        if (!rule || typeof rule !== 'object' || !('auth' in rule))
-          return []
-        return [[path, { auth: (rule as { auth?: unknown }).auth }]]
-      }),
-    )
 
     const authRouteRulesTemplate = addTemplate({
       filename: 'better-auth/route-rules.mjs',
-      getContents: () => `export const authRouteRules = ${JSON.stringify(authRouteRules, null, 2)}\n`,
+      getContents: () => buildAuthRouteRulesCode(setup.authRouteRules),
       write: true,
     })
     nuxt.options.alias['#auth/route-rules'] = authRouteRulesTemplate.dst
 
+    if (setup.prepareTypes) {
+      registerPrepareTypesHook({
+        nuxt,
+        serverDir: setup.prepareTypes.serverDir,
+        hasHubDb: setup.prepareTypes.hasHubDb,
+      })
+    }
+
+    if (setup.database.providerDefinition) {
+      const setupCtx: BetterAuthDatabaseProviderSetupContext = {
+        nuxt,
+        options,
+        clientOnly: setup.clientOnly,
+      }
+      await setup.database.providerDefinition.setup?.(setupCtx)
+    }
+
+    if (setup.serverTypes) {
+      registerServerTypeTemplates({
+        serverConfigPath: setup.serverTypes.serverConfigPath,
+        hasHubDb: setup.serverTypes.hasHubDb,
+        runtimeTypesPath: resolver.resolve('./runtime/types'),
+      })
+    }
+
+    if (setup.schemaGeneration) {
+      if (setup.schemaGeneration.externalizeNuxtHubDatabase)
+        registerNuxtHubDatabaseExternalHook(nuxt)
+
+      await setupBetterAuthSchema(
+        nuxt,
+        setup.schemaGeneration.serverConfigPath,
+        options,
+        consola,
+        setup.schemaGeneration.hubSecondaryStorage,
+      )
+    }
+
+    registerSharedTypeTemplates({
+      runtimeTypesAugmentPath: setup.aliases['#nuxt-better-auth'],
+      runtimeTypesPath: resolver.resolve('./runtime/types'),
+      clientConfigPath: setup.sharedTypes.clientConfigPath,
+    })
+
     registerTemplateHmrHook(nuxt)
-    registerServerRuntime({ clientOnly, resolve: resolver.resolve })
+    registerServerRuntime({ clientOnly: setup.clientOnly, resolve: resolver.resolve })
     registerAuthMiddlewareHook(nuxt, resolver.resolve)
 
-    await registerDevtools({ nuxt, clientOnly, hasHubDb, resolve: resolver.resolve })
+    await registerDevtools({ nuxt, clientOnly: setup.clientOnly, hasHubDb: setup.database.hasHubDb, resolve: resolver.resolve })
     registerRouteRulesMetaHook(nuxt)
   },
 })
