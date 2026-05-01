@@ -1,8 +1,9 @@
 import type { Nuxt, NuxtPage } from '@nuxt/schema'
 import type { AuthRouteRules } from '../runtime/types'
+import { existsSync, statSync } from 'node:fs'
 import { addComponentsDir, addImportsDir, addPlugin, addServerHandler, addServerImports, addServerImportsDir, addServerScanDir, extendPages, hasNuxtModule, installModule, updateTemplates } from '@nuxt/kit'
 import { defu } from 'defu'
-import { join } from 'pathe'
+import { isAbsolute, join } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
 import { setupDevTools } from '../devtools'
 
@@ -88,6 +89,15 @@ export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): 
     for (const [key, value] of Object.entries(exactNodeAliases)) {
       if (typeof value === 'string')
         nodeTsConfig.compilerOptions.paths[key] = [value]
+    }
+
+    for (const [key, value] of Object.entries(nuxt.options.alias)) {
+      if (typeof value !== 'string' || !isAbsolute(value))
+        continue
+
+      nodeTsConfig.compilerOptions.paths[key] ||= [value]
+      if (!key.includes('*') && existsSync(value) && statSync(value).isDirectory())
+        nodeTsConfig.compilerOptions.paths[`${key}/*`] ||= [join(value, '*')]
     }
 
     nodeTsConfig.compilerOptions.paths['#server/*'] = [join(serverDir, '*')]

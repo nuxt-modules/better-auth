@@ -10,8 +10,8 @@ interface RegisterServerTypeTemplatesInput {
 export function registerServerTypeTemplates(input: RegisterServerTypeTemplatesInput): void {
   const { serverConfigPath, hasHubDb, runtimeTypesPath, sharedServerConfigSafe } = input
   const serverConfigTypeTemplateOptions = sharedServerConfigSafe
-    ? { nitro: true, node: true, shared: true }
-    : { nitro: true, node: true }
+    ? { nuxt: true, nitro: true, node: true, shared: true }
+    : { nuxt: true, nitro: true, node: true }
 
   addTypeTemplate({
     filename: 'types/auth-secondary-storage.d.ts',
