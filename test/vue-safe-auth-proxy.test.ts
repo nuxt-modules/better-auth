@@ -48,4 +48,24 @@ describe('createVueSafeAuthProxy', () => {
     await result
     expect(fetch).toHaveBeenCalledOnce()
   })
+
+  it('does not probe then/catch/finally on raw dynamic proxy values while wrapping', () => {
+    const probed: PropertyKey[] = []
+    const rawDynamicProxy = new Proxy(() => Promise.resolve({}), {
+      get(_target, prop) {
+        probed.push(prop)
+        return rawDynamicProxy
+      },
+      apply() {
+        return Promise.resolve({})
+      },
+    })
+
+    const safeProxy = createVueSafeAuthProxy(rawDynamicProxy)
+
+    void safeProxy.signIn.email
+    expect(probed).toEqual(['signIn', 'email'])
+    expect((safeProxy as Record<string, unknown>).then).toBeUndefined()
+    expect(probed).toEqual(['signIn', 'email'])
+  })
 })

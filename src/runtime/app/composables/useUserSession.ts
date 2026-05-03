@@ -31,12 +31,19 @@ export interface UseUserSessionReturn {
 
 // Singleton client instance to ensure consistent state across all useUserSession calls
 let _client: AppAuthClient | null = null
+let _clientFacade: AppAuthClient | null = null
 interface UpdateUserResponse { error?: unknown }
 
 function getClient(baseURL: string): AppAuthClient {
   if (!_client)
     _client = createAppAuthClient(baseURL)
   return _client
+}
+
+function getClientFacade(client: AppAuthClient): AppAuthClient {
+  if (!_clientFacade)
+    _clientFacade = createVueSafeAuthProxy(client)
+  return _clientFacade
 }
 
 function getRuntimeFlags(): RuntimeFlags {
@@ -95,7 +102,7 @@ export function useUserSession(): UseUserSessionReturn {
     ? getClient(siteUrl)
     : null
   const client: AppAuthClient | null = rawClient
-    ? createVueSafeAuthProxy(rawClient)
+    ? getClientFacade(rawClient)
     : null
 
   // Shared state via useState for SSR hydration

@@ -499,8 +499,12 @@ describe('useUserSession hydration bootstrap', () => {
 
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
+    const secondAuth = useUserSession()
 
     expect(auth.client).not.toBe(rawClient)
+    expect(secondAuth.client).toBe(auth.client)
+    expect(secondAuth.client!.signIn).toBe(auth.client!.signIn)
+    expect(secondAuth.client!.signIn.email).toBe(auth.client!.signIn.email)
     expectVueInspectionSafe(auth.client)
     expectVueInspectionSafe(auth.client!.signIn)
     expectVueInspectionSafe(auth.client!.signIn.email)

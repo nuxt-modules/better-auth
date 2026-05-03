@@ -8,15 +8,6 @@ function isObjectLike(value: unknown): value is object {
   return (typeof value === 'object' && value !== null) || typeof value === 'function'
 }
 
-function isThenable(value: object): boolean {
-  try {
-    return typeof Reflect.get(value, 'then') === 'function'
-  }
-  catch {
-    return false
-  }
-}
-
 export function createVueSafeAuthProxy<T>(target: T): T {
   if (!isObjectLike(target))
     return target
@@ -24,18 +15,23 @@ export function createVueSafeAuthProxy<T>(target: T): T {
   const cache = new WeakMap<object, unknown>()
 
   const wrap = <V>(value: V): V => {
-    if (!isObjectLike(value) || isThenable(value))
+    if (!isObjectLike(value))
       return value
 
     const cached = cache.get(value)
     if (cached)
       return cached as V
 
+    const propertyCache = new Map<PropertyKey, unknown>()
     const handler: ProxyHandler<object> = {
       get(target, prop, receiver) {
         if (isAuthProxyProbeKey(prop))
           return undefined
-        return wrap(Reflect.get(target, prop, receiver))
+        if (propertyCache.has(prop))
+          return propertyCache.get(prop)
+        const wrapped = wrap(Reflect.get(target, prop, receiver))
+        propertyCache.set(prop, wrapped)
+        return wrapped
       },
     }
 
