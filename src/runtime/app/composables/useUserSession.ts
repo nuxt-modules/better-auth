@@ -6,6 +6,7 @@ import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
 import { fetchSessionClient, fetchSessionServer, stripToken } from '../internal/session-fetch'
 import { isRecord } from '../internal/utils'
+import { createVueSafeAuthProxy, isAuthProxyProbeKey } from '../internal/vue-safe-auth-proxy'
 import { wrapAuthMethod } from '../internal/wrap-auth-method'
 
 export interface SignOutOptions { onSuccess?: () => void | Promise<void> }
@@ -45,14 +46,10 @@ function getRuntimeFlags(): RuntimeFlags {
   return { client: Boolean(import.meta.client), server: Boolean(import.meta.server) }
 }
 
-function isReactiveProbeKey(prop: PropertyKey): boolean {
-  return typeof prop !== 'string' || prop === 'then' || prop.startsWith('__v')
-}
-
 function createServerOnlyActionNamespace(path: string) {
   return new Proxy({}, {
     get(_target, prop) {
-      if (isReactiveProbeKey(prop))
+      if (isAuthProxyProbeKey(prop))
         return undefined
       const key = prop as string
       return async () => {
@@ -94,8 +91,11 @@ export function useUserSession(): UseUserSessionReturn {
   const nuxtApp = useNuxtApp()
   const siteUrl = typeof runtimeConfig.public.siteUrl === 'string' ? runtimeConfig.public.siteUrl : requestURL.origin
 
-  const client: AppAuthClient | null = runtimeFlags.client
+  const rawClient: AppAuthClient | null = runtimeFlags.client
     ? getClient(siteUrl)
+    : null
+  const client: AppAuthClient | null = rawClient
+    ? createVueSafeAuthProxy(rawClient)
     : null
 
   // Shared state via useState for SSR hydration
@@ -155,8 +155,8 @@ export function useUserSession(): UseUserSessionReturn {
   async function fetchSession(options: { headers?: HeadersInit, force?: boolean } = {}) {
     if (runtimeFlags.server)
       return fetchSessionServer(session, user, authReady, options)
-    if (client)
-      return fetchSessionClient(client, session, user, authReady, options)
+    if (rawClient)
+      return fetchSessionClient(rawClient, session, user, authReady, options)
   }
 
   async function updateUser(updates: Partial<AuthUser>) {
@@ -166,11 +166,11 @@ export function useUserSession(): UseUserSessionReturn {
     const previousUser = user.value
     user.value = { ...user.value, ...updates }
 
-    if (!client)
+    if (!rawClient)
       return
 
     try {
-      const clientWithUpdateUser = client as AppAuthClient & { updateUser: (updates: Partial<AuthUser>) => Promise<UpdateUserResponse> }
+      const clientWithUpdateUser = rawClient as AppAuthClient & { updateUser: (updates: Partial<AuthUser>) => Promise<UpdateUserResponse> }
       const result = await clientWithUpdateUser.updateUser(updates)
       if (result?.error) {
         if (result.error instanceof Error)
@@ -190,8 +190,8 @@ export function useUserSession(): UseUserSessionReturn {
   }
 
   // On client, subscribe to better-auth's reactive session store
-  if (runtimeFlags.client && client && !shouldSkipInitialClientSessionFetch.value) {
-    const clientSession = client.useSession()
+  if (runtimeFlags.client && rawClient && !shouldSkipInitialClientSessionFetch.value) {
+    const clientSession = rawClient.useSession()
 
     watch(
       () => clientSession.value,
@@ -266,9 +266,11 @@ export function useUserSession(): UseUserSessionReturn {
     resolvePostAuthSuccessRedirect: () => resolvePostAuthSuccessRedirect(requestURL),
   }
 
-  const signIn: SignIn = client?.signIn
-    ? new Proxy(client.signIn, {
+  const signIn: SignIn = rawClient?.signIn
+    ? new Proxy(rawClient.signIn, {
         get(target, prop) {
+          if (isAuthProxyProbeKey(prop))
+            return undefined
           const targetRecord = target as Record<string | symbol, unknown>
           const method = targetRecord[prop]
           if (typeof method !== 'function')
@@ -289,9 +291,11 @@ export function useUserSession(): UseUserSessionReturn {
       })
     : _signInServerOnly as SignIn
 
-  const signUp: SignUp = client?.signUp
-    ? new Proxy(client.signUp, {
+  const signUp: SignUp = rawClient?.signUp
+    ? new Proxy(rawClient.signUp, {
         get(target, prop) {
+          if (isAuthProxyProbeKey(prop))
+            return undefined
           const targetRecord = target as Record<string | symbol, unknown>
           const method = targetRecord[prop]
           if (typeof method !== 'function')
@@ -301,12 +305,12 @@ export function useUserSession(): UseUserSessionReturn {
       })
     : _signUpServerOnly as SignUp
 
-  if (runtimeFlags.client && client && shouldSkipInitialClientSessionFetch.value) {
-    ensureSessionSignalListener(client, () => fetchSession({ force: true }))
+  if (runtimeFlags.client && rawClient && shouldSkipInitialClientSessionFetch.value) {
+    ensureSessionSignalListener(rawClient, () => fetchSession({ force: true }))
   }
 
   async function signOut(options?: SignOutOptions) {
-    if (!client)
+    if (!rawClient)
       throw new Error('signOut can only be called on client-side')
 
     if (_signOutPromise) {
@@ -315,7 +319,7 @@ export function useUserSession(): UseUserSessionReturn {
     }
 
     _signOutPromise = (async () => {
-      await client.signOut()
+      await rawClient.signOut()
       clearSession()
 
       if (options?.onSuccess) {

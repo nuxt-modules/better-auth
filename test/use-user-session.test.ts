@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { isReactive, isRef, ref, watch } from 'vue'
+import { isReactive, isReadonly, isRef, reactive, ref, watch } from 'vue'
 
 interface SessionState {
   data: { session: Record<string, unknown>, user: Record<string, unknown> } | null
@@ -62,9 +62,10 @@ const mockClient: Record<string, any> = {
   signIn: { social: vi.fn(async () => ({})), email: vi.fn(async () => ({})) },
   signUp: { email: vi.fn(async () => ({})) },
 }
+let activeClient: Record<string, any> = mockClient
 
 vi.mock('#auth/client', () => ({
-  default: vi.fn(() => mockClient),
+  default: vi.fn(() => activeClient),
 }))
 
 vi.mock('#imports', async () => {
@@ -115,6 +116,34 @@ function seedHydratedState() {
   state.set('auth:ready', ref(false))
 }
 
+function createDynamicAuthProxy(routes: Record<string, unknown> = {}, calls: string[] = [], path: string[] = []): any {
+  return new Proxy(async () => ({}), {
+    get(_target, prop) {
+      if (typeof prop !== 'string')
+        return undefined
+      if (prop === 'then' || prop === 'catch' || prop === 'finally')
+        return undefined
+      if (prop in routes)
+        return routes[prop]
+      return createDynamicAuthProxy(routes, calls, [...path, prop])
+    },
+    apply() {
+      calls.push(path.join('.'))
+      return Promise.resolve({})
+    },
+  })
+}
+
+function expectVueInspectionSafe(value: unknown) {
+  expect(() => isRef(value)).not.toThrow()
+  expect(() => isReadonly(value)).not.toThrow()
+  expect(() => isReactive(value)).not.toThrow()
+  expect(() => reactive({ value })).not.toThrow()
+  expect(isRef(value)).toBe(false)
+  expect(isReadonly(value)).toBe(false)
+  expect(isReactive(value)).toBe(false)
+}
+
 describe('useUserSession hydration bootstrap', () => {
   beforeEach(() => {
     state.clear()
@@ -133,6 +162,7 @@ describe('useUserSession hydration bootstrap', () => {
     navigateTo.mockClear()
     $fetch.mockReset()
     $fetch.mockResolvedValue(null)
+    activeClient = mockClient
 
     sessionAtom.value = {
       data: null,
@@ -454,6 +484,59 @@ describe('useUserSession hydration bootstrap', () => {
     expect((auth.signIn as Record<string, unknown>).__v_isReactive).toBeUndefined()
     expect((auth.signUp as Record<string, unknown>).__v_isRef).toBeUndefined()
     expect((auth.signUp as Record<string, unknown>).__v_isReactive).toBeUndefined()
+  })
+
+  it('allows client-side metadata introspection on the Better Auth client facade', async () => {
+    const rawClient = createDynamicAuthProxy({
+      useSession: mockClient.useSession,
+      getSession: mockClient.getSession,
+      signOut: mockClient.signOut,
+      signIn: createDynamicAuthProxy(),
+      signUp: createDynamicAuthProxy(),
+      $store: mockClient.$store,
+    })
+    activeClient = rawClient
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    expect(auth.client).not.toBe(rawClient)
+    expectVueInspectionSafe(auth.client)
+    expectVueInspectionSafe(auth.client!.signIn)
+    expectVueInspectionSafe(auth.client!.signIn.email)
+    expectVueInspectionSafe(auth.client!.signUp)
+    expectVueInspectionSafe(auth.client!.signUp.email)
+    expectVueInspectionSafe(auth.client!.admin.impersonateUser)
+  })
+
+  it('keeps forwarded useUserSession actions out of Pinia setup-store state classification on client', async () => {
+    const rawClient = createDynamicAuthProxy({
+      useSession: mockClient.useSession,
+      getSession: mockClient.getSession,
+      signOut: mockClient.signOut,
+      signIn: createDynamicAuthProxy(),
+      signUp: createDynamicAuthProxy(),
+      $store: mockClient.$store,
+    })
+    activeClient = rawClient
+
+    const useUserSession = await loadUseUserSession()
+    const { user, client: authClient, fetchSession, ...rest } = useUserSession()
+    const store = {
+      user,
+      authClient,
+      fetchSession,
+      ...rest,
+    }
+    const isStateLike = (value: unknown) => isRef(value) || isReactive(value)
+
+    expect(isStateLike(store.authClient)).toBe(false)
+    expect(isStateLike(store.signIn)).toBe(false)
+    expect(isStateLike(store.signUp)).toBe(false)
+    expect(isStateLike((store.authClient as Record<string, unknown>).signIn)).toBe(false)
+    expect(isStateLike((store.authClient as Record<string, unknown>).admin)).toBe(false)
+    expect(isStateLike((store.signIn as Record<string, unknown>).email)).toBe(false)
+    expect(isStateLike((store.signUp as Record<string, unknown>).email)).toBe(false)
   })
 
   it('allows server-side auth method reads but still rejects invocation', async () => {
