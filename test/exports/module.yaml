@@ -10,6 +10,7 @@
   useSignIn: function
   useSignUp: function
   useUserSession: function
+  useUserSessionState: function
 ./config:
   defineClientAuth: function
   defineServerAuth: function

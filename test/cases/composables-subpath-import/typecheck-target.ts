@@ -1,8 +1,14 @@
-import { useAuthAsyncData, useAuthRequestFetch, useSignIn, useSignUp, useUserSession } from '@onmax/nuxt-better-auth/composables'
+import type { UseUserSessionStateReturn } from '@onmax/nuxt-better-auth/composables'
+import { useAuthAsyncData, useAuthRequestFetch, useSignIn, useSignUp, useUserSession, useUserSessionState } from '@onmax/nuxt-better-auth/composables'
 
 const auth = useUserSession()
 auth.loggedIn.value satisfies boolean
 auth.fetchSession({ force: true })
+
+const authState = useUserSessionState()
+authState satisfies UseUserSessionStateReturn
+authState.loggedIn.value satisfies boolean
+authState.fetchSession({ force: true })
 
 const signIn = useSignIn('email')
 signIn.execute({ email: 'user@example.com', password: 'password' })

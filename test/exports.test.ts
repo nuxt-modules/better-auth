@@ -40,6 +40,7 @@ describe('exports-snapshot', async () => {
         useSignIn: 'function',
         useSignUp: 'function',
         useUserSession: 'function',
+        useUserSessionState: 'function',
       },
       './config': {
         defineClientAuth: typeof configExports.defineClientAuth,
