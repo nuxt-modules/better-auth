@@ -44,5 +44,33 @@ export function createVueSafeAuthProxy<T>(target: T): T {
     return proxy as V
   }
 
-  return wrap(target)
+  const createRootFacade = <V>(value: V): V => {
+    if (!isObjectLike(value))
+      return value
+
+    const propertyCache = new Map<PropertyKey, unknown>()
+    const facadeTarget = {}
+    Object.defineProperty(facadeTarget, '__v_skip', {
+      value: true,
+      configurable: true,
+    })
+
+    const proxy = new Proxy(facadeTarget, {
+      get(_target, prop, receiver) {
+        if (prop === '__v_skip')
+          return true
+        if (isAuthProxyProbeKey(prop))
+          return undefined
+        if (propertyCache.has(prop))
+          return propertyCache.get(prop)
+        const wrapped = wrap(Reflect.get(value, prop, receiver))
+        propertyCache.set(prop, wrapped)
+        return wrapped
+      },
+    })
+    cache.set(value, proxy)
+    return proxy as V
+  }
+
+  return createRootFacade(target)
 }

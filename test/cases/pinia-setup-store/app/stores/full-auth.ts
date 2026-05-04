@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 
 export const useFullAuthStore = defineStore('full-auth', () => {
-  const auth = useUserSession()
+  const { client: authClient, ...auth } = useUserSession()
 
-  return { ...auth }
+  return { authClient, ...auth }
 })

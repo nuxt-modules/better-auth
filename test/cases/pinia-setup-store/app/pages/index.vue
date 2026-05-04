@@ -18,5 +18,11 @@ const sessionState = useSessionStateStore()
     <p data-testid="full-actions">
       Full actions: {{ typeof fullAuth.signOut }}
     </p>
+    <p data-testid="client-type">
+      Client type: {{ typeof fullAuth.authClient }}
+    </p>
+    <p data-testid="verification-type">
+      Verification type: {{ typeof fullAuth.authClient?.sendVerificationEmail }}
+    </p>
   </main>
 </template>

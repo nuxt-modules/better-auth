@@ -24,11 +24,13 @@ describe('createVueSafeAuthProxy', () => {
     })
     const safeClient = createVueSafeAuthProxy(client)
 
+    expect(typeof safeClient).toBe('object')
     expectVueInspectionSafe(safeClient)
     expectVueInspectionSafe(safeClient.signIn)
     expectVueInspectionSafe(safeClient.signIn.email)
     expectVueInspectionSafe(safeClient.signUp)
     expectVueInspectionSafe(safeClient.signUp.email)
+    expectVueInspectionSafe((safeClient as Record<string, any>).sendVerificationEmail)
     expectVueInspectionSafe(safeClient.admin.impersonateUser)
     expect(fetch).not.toHaveBeenCalled()
   })
@@ -46,6 +48,25 @@ describe('createVueSafeAuthProxy', () => {
 
     expect(typeof result.then).toBe('function')
     await result
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
+  it('preserves root dynamic client methods without making the root callable', async () => {
+    const fetch = vi.fn(async () => new Response('{}', {
+      headers: { 'content-type': 'application/json' },
+    }))
+    const client = createAuthClient({
+      baseURL: 'http://localhost:3000/api/auth',
+      fetchOptions: { customFetchImpl: fetch },
+    })
+    const safeClient = createVueSafeAuthProxy(client)
+    const sendVerificationEmail = (safeClient as Record<string, any>).sendVerificationEmail
+
+    expect(typeof safeClient).toBe('object')
+    expect(typeof sendVerificationEmail).toBe('function')
+
+    await sendVerificationEmail({ email: 'user@example.com' })
+
     expect(fetch).toHaveBeenCalledOnce()
   })
 
