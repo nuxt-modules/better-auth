@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, defineStore, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isReactive, isReadonly, isRef, reactive, ref, watch } from 'vue'
 
 interface SessionState {
