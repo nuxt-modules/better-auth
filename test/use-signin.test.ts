@@ -13,6 +13,7 @@ vi.mock('#imports', async () => {
 
 vi.mock('../src/runtime/app/composables/useUserSession', () => ({
   useUserSession: () => sessionMock,
+  useAuthActionNamespaces: () => sessionMock,
 }))
 
 async function loadUseSignIn() {

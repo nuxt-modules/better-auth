@@ -35,6 +35,7 @@ describe('exports-snapshot', async () => {
       './composables': {
         useAction: 'function',
         useAuthAsyncData: 'function',
+        useAuthClient: 'function',
         useAuthClientAction: 'function',
         useAuthRequestFetch: 'function',
         useSignIn: 'function',

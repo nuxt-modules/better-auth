@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-let sessionMock: any
+let clientMock: any
 
 vi.mock('#imports', async () => {
   const vue = await import('vue')
@@ -10,8 +10,8 @@ vi.mock('#imports', async () => {
   }
 })
 
-vi.mock('../src/runtime/app/composables/useUserSession', () => ({
-  useUserSession: () => sessionMock,
+vi.mock('../src/runtime/app/composables/useAuthClient', () => ({
+  useAuthClient: () => clientMock,
 }))
 
 async function loadUseAuthClientAction() {
@@ -23,9 +23,7 @@ async function loadUseAuthClientAction() {
 describe('useAuthClientAction', () => {
   it('executes selected top-level client method', async () => {
     const checkout = vi.fn(async () => ({ ok: true }))
-    sessionMock = {
-      client: { checkout },
-    }
+    clientMock = { checkout }
 
     const useAuthClientAction = await loadUseAuthClientAction()
     const action = useAuthClientAction(client => client.checkout as any)
@@ -38,9 +36,7 @@ describe('useAuthClientAction', () => {
 
   it('executes selected nested client method', async () => {
     const portal = vi.fn(async () => ({ opened: true }))
-    sessionMock = {
-      client: { customer: { portal } },
-    }
+    clientMock = { customer: { portal } }
 
     const useAuthClientAction = await loadUseAuthClientAction()
     const action = useAuthClientAction(client => client.customer.portal as any)
@@ -51,7 +47,7 @@ describe('useAuthClientAction', () => {
   })
 
   it('sets normalized error when client is unavailable', async () => {
-    sessionMock = { client: null }
+    clientMock = null
 
     const useAuthClientAction = await loadUseAuthClientAction()
     const action = useAuthClientAction(client => client.checkout as any)
@@ -62,7 +58,7 @@ describe('useAuthClientAction', () => {
   })
 
   it('sets normalized error when selector does not resolve to a function', async () => {
-    sessionMock = { client: { customer: {} } }
+    clientMock = { customer: {} }
 
     const useAuthClientAction = await loadUseAuthClientAction()
     const action = useAuthClientAction(client => (client as any).customer.portal)

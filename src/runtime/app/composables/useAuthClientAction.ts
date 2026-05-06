@@ -1,9 +1,7 @@
+import type { AppAuthClient } from '#nuxt-better-auth'
 import type { UserAuthActionHandle } from '../internal/auth-action-handles'
-import type { UseUserSessionReturn } from './useUserSession'
 import { useAction } from './useAction'
-import { useUserSession } from './useUserSession'
-
-type AppAuthClient = NonNullable<UseUserSessionReturn['client']>
+import { useAuthClient } from './useAuthClient'
 
 export function useAuthClientAction<TArgs extends unknown[], TResult>(
   select: (client: AppAuthClient) => (...args: TArgs) => Promise<TResult>,
@@ -12,7 +10,7 @@ export function useAuthClientAction<TArgs extends unknown[], TResult>(
     throw new TypeError('useAuthClientAction(select) requires a selector function')
 
   return useAction(async (...args: TArgs) => {
-    const { client } = useUserSession()
+    const client = useAuthClient()
     if (!client)
       throw new Error('Auth client is unavailable. This action can only run on client-side.')
 

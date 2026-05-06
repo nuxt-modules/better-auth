@@ -1,5 +1,6 @@
 export { useAction } from './app/composables/useAction'
 export { useAuthAsyncData } from './app/composables/useAuthAsyncData'
+export { useAuthClient } from './app/composables/useAuthClient'
 export { useAuthClientAction } from './app/composables/useAuthClientAction'
 export { useAuthRequestFetch } from './app/composables/useAuthRequestFetch'
 export { useSignIn } from './app/composables/useSignIn'

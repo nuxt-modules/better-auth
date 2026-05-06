@@ -1,6 +1,6 @@
 import { createPinia, defineStore, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { isReactive, isReadonly, isRef, reactive, ref, watch } from 'vue'
+import { isReactive, isRef, ref, watch } from 'vue'
 
 interface SessionState {
   data: { session: Record<string, unknown>, user: Record<string, unknown> } | null
@@ -100,6 +100,11 @@ async function loadUseUserSession() {
   return mod.useUserSession
 }
 
+async function loadAuthComposables() {
+  vi.resetModules()
+  return import('../src/runtime/app/composables/useUserSession')
+}
+
 async function flushPromises() {
   await Promise.resolve()
   await Promise.resolve()
@@ -133,16 +138,6 @@ function createDynamicAuthProxy(routes: Record<string, unknown> = {}, calls: str
       return Promise.resolve({})
     },
   })
-}
-
-function expectVueInspectionSafe(value: unknown) {
-  expect(() => isRef(value)).not.toThrow()
-  expect(() => isReadonly(value)).not.toThrow()
-  expect(() => isReactive(value)).not.toThrow()
-  expect(() => reactive({ value })).not.toThrow()
-  expect(isRef(value)).toBe(false)
-  expect(isReadonly(value)).toBe(false)
-  expect(isReactive(value)).toBe(false)
 }
 
 describe('useUserSession hydration bootstrap', () => {
@@ -228,9 +223,9 @@ describe('useUserSession hydration bootstrap', () => {
     runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
 
     const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    useUserSession()
 
-    expect(auth.client).not.toBeNull()
+    expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
   it('bootstraps client session for prerendered/cached payloads', async () => {
@@ -240,9 +235,9 @@ describe('useUserSession hydration bootstrap', () => {
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    useUserSession()
 
-    expect(auth.client).not.toBeNull()
+    expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
   it('defers ready reset until suspense resolves during prerender hydration empty snapshot', async () => {
@@ -307,9 +302,9 @@ describe('useUserSession hydration bootstrap', () => {
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    useUserSession()
 
-    expect(auth.client).not.toBeNull()
+    expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
   it('reconciles hydrated SSR auth state before clearing it', async () => {
@@ -462,32 +457,28 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.ready.value).toBe(true)
   })
 
-  it('exposes client as null on server runtime', async () => {
+  it('returns only store-safe session state and actions', async () => {
     setRuntimeFlags({ client: false, server: true })
 
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
-    expect(auth.client).toBeNull()
+    expect(Object.keys(auth).sort()).toEqual([
+      'fetchSession',
+      'loggedIn',
+      'ready',
+      'session',
+      'signOut',
+      'updateUser',
+      'user',
+      'waitForSession',
+    ])
+    expect('client' in auth).toBe(false)
+    expect('signIn' in auth).toBe(false)
+    expect('signUp' in auth).toBe(false)
   })
 
-  it('allows SSR metadata introspection on signIn and signUp without throwing', async () => {
-    setRuntimeFlags({ client: false, server: true })
-
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
-
-    expect(isRef(auth.signIn as unknown)).toBe(false)
-    expect(isReactive(auth.signIn as unknown)).toBe(false)
-    expect(isRef(auth.signUp as unknown)).toBe(false)
-    expect(isReactive(auth.signUp as unknown)).toBe(false)
-    expect((auth.signIn as Record<string, unknown>).__v_isRef).toBeUndefined()
-    expect((auth.signIn as Record<string, unknown>).__v_isReactive).toBeUndefined()
-    expect((auth.signUp as Record<string, unknown>).__v_isRef).toBeUndefined()
-    expect((auth.signUp as Record<string, unknown>).__v_isReactive).toBeUndefined()
-  })
-
-  it('allows client-side metadata introspection on the Better Auth client facade', async () => {
+  it('keeps useUserSession safe for Pinia setup-store forwarding on client', async () => {
     const rawClient = createDynamicAuthProxy({
       useSession: mockClient.useSession,
       getSession: mockClient.getSession,
@@ -499,88 +490,35 @@ describe('useUserSession hydration bootstrap', () => {
     activeClient = rawClient
 
     const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
-    const secondAuth = useUserSession()
-
-    expect(auth.client).not.toBe(rawClient)
-    expect(typeof auth.client).toBe('object')
-    expect(secondAuth.client).toBe(auth.client)
-    expect(secondAuth.client!.signIn).toBe(auth.client!.signIn)
-    expect(secondAuth.client!.signIn.email).toBe(auth.client!.signIn.email)
-    expect(typeof (auth.client as Record<string, unknown>).sendVerificationEmail).toBe('function')
-    expectVueInspectionSafe(auth.client)
-    expectVueInspectionSafe(auth.client!.signIn)
-    expectVueInspectionSafe(auth.client!.signIn.email)
-    expectVueInspectionSafe(auth.client!.signUp)
-    expectVueInspectionSafe(auth.client!.signUp.email)
-    expectVueInspectionSafe((auth.client as Record<string, any>).sendVerificationEmail)
-    expectVueInspectionSafe(auth.client!.admin.impersonateUser)
-  })
-
-  it('keeps forwarded useUserSession actions out of Pinia setup-store state classification on client', async () => {
-    const rawClient = createDynamicAuthProxy({
-      useSession: mockClient.useSession,
-      getSession: mockClient.getSession,
-      signOut: mockClient.signOut,
-      signIn: createDynamicAuthProxy(),
-      signUp: createDynamicAuthProxy(),
-      $store: mockClient.$store,
-    })
-    activeClient = rawClient
-
-    const useUserSession = await loadUseUserSession()
-    const { user, client: authClient, fetchSession, ...rest } = useUserSession()
-    const store = {
-      user,
-      authClient,
-      fetchSession,
-      ...rest,
-    }
+    const store = { ...useUserSession() }
     const isStateLike = (value: unknown) => isRef(value) || isReactive(value)
 
-    expect(isStateLike(store.authClient)).toBe(false)
-    expect(isStateLike(store.signIn)).toBe(false)
-    expect(isStateLike(store.signUp)).toBe(false)
-    expect(typeof store.authClient).toBe('object')
-    expect(typeof (store.authClient as Record<string, unknown>).sendVerificationEmail).toBe('function')
-    expect(isStateLike((store.authClient as Record<string, unknown>).signIn)).toBe(false)
-    expect(isStateLike((store.authClient as Record<string, unknown>).admin)).toBe(false)
-    expect(isStateLike((store.authClient as Record<string, unknown>).sendVerificationEmail)).toBe(false)
-    expect(isStateLike((store.signIn as Record<string, unknown>).email)).toBe(false)
-    expect(isStateLike((store.signUp as Record<string, unknown>).email)).toBe(false)
+    expect('client' in store).toBe(false)
+    expect('signIn' in store).toBe(false)
+    expect('signUp' in store).toBe(false)
+    expect(isStateLike(store.signOut)).toBe(false)
+    expect(isStateLike(store.fetchSession)).toBe(false)
   })
 
-  it('keeps forwarded authClient methods callable in an actual Pinia setup store', async () => {
-    const rawClient = createDynamicAuthProxy({
-      useSession: mockClient.useSession,
-      getSession: mockClient.getSession,
-      signOut: mockClient.signOut,
-      signIn: createDynamicAuthProxy(),
-      signUp: createDynamicAuthProxy(),
-      $store: mockClient.$store,
-    })
-    activeClient = rawClient
+  it('can return useUserSession directly from an actual Pinia setup store', async () => {
     setActivePinia(createPinia())
 
     const useUserSession = await loadUseUserSession()
-    const useAuthStore = defineStore('auth-client-forwarding', () => {
-      const { client: authClient, ...auth } = useUserSession()
-      return { authClient, ...auth }
-    })
+    const useAuthStore = defineStore('auth-session-forwarding', () => useUserSession())
     const store = useAuthStore()
 
-    expect(typeof store.authClient).toBe('object')
-    expect(typeof (store.authClient as Record<string, unknown>).sendVerificationEmail).toBe('function')
-    expect(isRef(store.authClient as unknown)).toBe(false)
-    expect(isReactive(store.authClient as unknown)).toBe(false)
-    expect(isReactive((store.authClient as Record<string, unknown>).sendVerificationEmail)).toBe(false)
+    expect('client' in store).toBe(false)
+    expect('signIn' in store).toBe(false)
+    expect('signUp' in store).toBe(false)
+    expect(isReactive(store.signOut)).toBe(false)
+    expect(isReactive(store.fetchSession)).toBe(false)
   })
 
-  it('allows server-side auth method reads but still rejects invocation', async () => {
+  it('allows server-side auth method reads through action namespaces but still rejects invocation', async () => {
     setRuntimeFlags({ client: false, server: true })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     const signInEmail = (auth.signIn as Record<string, (...args: unknown[]) => Promise<unknown>>).email
     const signUpEmail = (auth.signUp as Record<string, (...args: unknown[]) => Promise<unknown>>).email
@@ -594,23 +532,18 @@ describe('useUserSession hydration bootstrap', () => {
     await expect(signUpEmail({ email: 'user@example.com', password: 'password', name: 'User' })).rejects.toThrow('signUp.email() can only be called on client-side')
   })
 
-  it('keeps forwarded useUserSession actions out of Pinia setup-store state classification during SSR', async () => {
+  it('keeps useUserSession safe for Pinia setup-store forwarding during SSR', async () => {
     setRuntimeFlags({ client: false, server: true })
 
     const useUserSession = await loadUseUserSession()
-    const { user, client: authClient, fetchSession, ...rest } = useUserSession()
-    const store = {
-      user,
-      authClient,
-      fetchSession,
-      ...rest,
-    }
+    const store = { ...useUserSession() }
     const isStateLike = (value: unknown) => isRef(value) || isReactive(value)
 
-    expect(isStateLike(store.signIn)).toBe(false)
-    expect(isStateLike(store.signUp)).toBe(false)
-    expect(isStateLike((store.signIn as Record<string, unknown>).email)).toBe(false)
-    expect(isStateLike((store.signUp as Record<string, unknown>).email)).toBe(false)
+    expect('client' in store).toBe(false)
+    expect('signIn' in store).toBe(false)
+    expect('signUp' in store).toBe(false)
+    expect(isStateLike(store.signOut)).toBe(false)
+    expect(isStateLike(store.fetchSession)).toBe(false)
   })
 
   it('signIn uses auth.redirects.authenticated when no callback is provided', async () => {
@@ -625,8 +558,8 @@ describe('useUserSession hydration bootstrap', () => {
       await opts?.onSuccess?.('ctx')
     })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.email({ email: 'user@example.com', password: 'password' })
     expect(navigateTo).toHaveBeenCalledWith('/app')
@@ -645,8 +578,8 @@ describe('useUserSession hydration bootstrap', () => {
       await opts?.onSuccess?.('ctx')
     })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.email({ email: 'user@example.com', password: 'password' })
     expect(navigateTo).toHaveBeenCalledWith('/app/billing')
@@ -665,8 +598,8 @@ describe('useUserSession hydration bootstrap', () => {
       await opts?.onSuccess?.('ctx')
     })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.email({ email: 'user@example.com', password: 'password' })
     expect(navigateTo).toHaveBeenCalledWith('/app')
@@ -683,8 +616,8 @@ describe('useUserSession hydration bootstrap', () => {
       await opts?.onSuccess?.('ctx')
     })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.email({ email: 'user@example.com', password: 'password' })
     expect(navigateTo).not.toHaveBeenCalled()
@@ -694,8 +627,8 @@ describe('useUserSession hydration bootstrap', () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
     mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.social({ provider: 'github' } as never)
 
@@ -709,8 +642,8 @@ describe('useUserSession hydration bootstrap', () => {
     requestURL.searchParams = new URLSearchParams({ redirect: '/app/billing' })
     mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.social({ provider: 'github' } as never)
 
@@ -722,8 +655,8 @@ describe('useUserSession hydration bootstrap', () => {
     requestURL.searchParams = new URLSearchParams({ redirect: 'https://evil.com/phish' })
     mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.social({ provider: 'github' } as never)
 
@@ -735,8 +668,8 @@ describe('useUserSession hydration bootstrap', () => {
     requestURL.searchParams = new URLSearchParams({ redirect: '/app/billing' })
     mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.social({ provider: 'github', callbackURL: '/custom' } as never)
 
@@ -749,8 +682,8 @@ describe('useUserSession hydration bootstrap', () => {
       await opts?.onSuccess?.('ctx')
     })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.social({ provider: 'github' } as never, { onSuccess } as never)
 
@@ -759,10 +692,10 @@ describe('useUserSession hydration bootstrap', () => {
   })
 
   it('signIn.social with disableRedirect wraps explicit onSuccess with session sync', async () => {
-    let auth!: ReturnType<Awaited<ReturnType<typeof loadUseUserSession>>>
+    let sessionAuth!: ReturnType<Awaited<ReturnType<typeof loadUseUserSession>>>
     let sessionAtCallback: unknown
     const onSuccess = vi.fn(() => {
-      sessionAtCallback = auth.session.value
+      sessionAtCallback = sessionAuth.session.value
     })
     mockClient.getSession.mockResolvedValueOnce({
       data: {
@@ -774,8 +707,9 @@ describe('useUserSession hydration bootstrap', () => {
       await opts?.onSuccess?.('ctx')
     })
 
-    const useUserSession = await loadUseUserSession()
-    auth = useUserSession()
+    const { useAuthActionNamespaces, useUserSession } = await loadAuthComposables()
+    sessionAuth = useUserSession()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.social({ provider: 'github', disableRedirect: true } as never, { onSuccess } as never)
 
@@ -795,8 +729,8 @@ describe('useUserSession hydration bootstrap', () => {
       await opts?.onSuccess?.('ctx')
     })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signIn.social({ provider: 'github', disableRedirect: true } as never)
 
@@ -811,8 +745,8 @@ describe('useUserSession hydration bootstrap', () => {
       await opts?.onSuccess?.('ctx')
     })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signUp.email({ email: 'user@example.com', password: 'password', name: 'User' })
 
@@ -831,8 +765,8 @@ describe('useUserSession hydration bootstrap', () => {
       await opts?.onSuccess?.('ctx')
     })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signUp.email({ email: 'user@example.com', password: 'password', name: 'User' })
     expect(navigateTo).toHaveBeenCalledWith('/app')
@@ -851,8 +785,8 @@ describe('useUserSession hydration bootstrap', () => {
       await opts?.onSuccess?.('ctx')
     })
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    const { useAuthActionNamespaces } = await loadAuthComposables()
+    const auth = useAuthActionNamespaces()
 
     await auth.signUp.email({ email: 'user@example.com', password: 'password', name: 'User' })
     expect(navigateTo).toHaveBeenCalledWith('/welcome')

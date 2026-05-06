@@ -34,11 +34,11 @@ tabs:
   - name: pages/login.vue
     code: |
       <script setup lang="ts">
-      const { signIn } = useUserSession()
+      const signInSocial = useSignIn('social')
       </script>
 
       <template>
-        <button @click="signIn.social({ provider: 'github' })">
+        <button @click="signInSocial.execute({ provider: 'github' })">
           Sign in with GitHub
         </button>
       </template>

@@ -10,14 +10,6 @@ vi.mock('../src/runtime/app/composables/useUserSession', () => ({
   useUserSession: authMock.useUserSession,
 }))
 
-function createRecursiveProxy(): any {
-  return new Proxy({}, {
-    get() {
-      return createRecursiveProxy()
-    },
-  })
-}
-
 function expectPiniaInspectionSafe(value: unknown) {
   expect(() => isRef(value)).not.toThrow()
   expect(() => isReadonly(value)).not.toThrow()
@@ -28,9 +20,6 @@ function expectPiniaInspectionSafe(value: unknown) {
 describe('useUserSessionState', () => {
   beforeEach(() => {
     authMock.useUserSession.mockReturnValue({
-      client: createRecursiveProxy(),
-      signIn: createRecursiveProxy(),
-      signUp: createRecursiveProxy(),
       session: ref(null),
       user: ref(null),
       loggedIn: computed(() => false),
