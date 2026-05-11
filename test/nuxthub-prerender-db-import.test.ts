@@ -48,8 +48,13 @@ function readNitroEntry(outputDir: string): string {
   return entry ? readFileSync(entry, 'utf8') : ''
 }
 
+function readGeneratedAuthDatabase(): string {
+  const path = join(fixtureDir, '.nuxt/better-auth/database.mjs')
+  return readFileSync(path, 'utf8')
+}
+
 describe('nuxthub prerender @nuxthub/db imports', () => {
-  it('keeps @nuxthub/db as an external import in prerender output', () => {
+  it('keeps @nuxthub/db external and resolves Hyperdrive per request', () => {
     const build = spawnSync('npx', ['nuxi', 'build'], {
       cwd: fixtureDir,
       env,
@@ -63,6 +68,7 @@ describe('nuxthub prerender @nuxthub/db imports', () => {
 
     const prerenderOutput = readGeneratedPrerenderOutput()
     const nitroEntry = readNitroEntry(outputDir!)
+    const authDatabase = readGeneratedAuthDatabase()
 
     expect(nitroEntry).toMatch(/import\s+\{\s*db\s*\}\s+from\s+['"][^'"]*@nuxthub\/db(?:\/db\.mjs)?['"]/)
     // The bug emits a broken relative path like `../../../../../../../../@nuxthub/db/db.mjs`
@@ -70,5 +76,9 @@ describe('nuxthub prerender @nuxthub/db imports', () => {
     expect(prerenderOutput).not.toMatch(/\.\.\/\.\.\/\.\.\/\.\.\/[^'"`]*@nuxthub\/db/)
     // The generated better-auth database template must not be inlined into the prerender output.
     expect(prerenderOutput).not.toContain('node_modules/.cache/nuxt/.nuxt/better-auth/database.mjs')
+    expect(authDatabase).toContain('export function createDatabase(event)')
+    expect(authDatabase).toContain('event?.context?.cloudflare')
+    expect(authDatabase).toContain('cloudflareEnv?.POSTGRES')
+    expect(authDatabase).toContain('cloudflareContext.context.waitUntil(cleanup)')
   }, 120_000)
 })

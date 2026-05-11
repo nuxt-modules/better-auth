@@ -51,6 +51,34 @@ function createHyperdriveAdapter(client) {
   return drizzleAdapter(drizzle({ client, schema }), { provider: dialect, schema, usePlural: ${input.usePlural}, camelCase: ${input.camelCase} })
 }
 
+function getCloudflareContext(event) {
+  return event?.context?.cloudflare
+}
+
+function resolveHyperdrive(event) {
+  const cloudflareEnv = getCloudflareContext(event)?.env
+  return cloudflareEnv?.POSTGRES || process.env.POSTGRES || globalThis.__env__?.POSTGRES || globalThis.POSTGRES
+}
+
+function scheduleCleanup(event, cleanup) {
+  const cloudflareContext = getCloudflareContext(event)
+  if (typeof cloudflareContext?.context?.waitUntil === 'function') {
+    cloudflareContext.context.waitUntil(cleanup)
+    return
+  }
+
+  if (typeof event?.context?.waitUntil === 'function') {
+    event.context.waitUntil(cleanup)
+    return
+  }
+
+  const waitUntil = event?.waitUntil || event?.req?.waitUntil || event?.node?.req?.waitUntil
+  if (typeof waitUntil === 'function')
+    waitUntil.call(event?.req || event?.node?.req || event, cleanup)
+  else
+    void cleanup
+}
+
 function registerClientCleanup(event, client) {
   const response = event?.node?.res
   if (!response || typeof response.once !== 'function')
@@ -64,11 +92,7 @@ function registerClientCleanup(event, client) {
 
     closed = true
     const close = client.end({ timeout: 0 }).catch(() => {})
-    const waitUntil = event?.waitUntil || event?.req?.waitUntil || event?.node?.req?.waitUntil
-    if (typeof waitUntil === 'function')
-      waitUntil.call(event?.req || event?.node?.req || event, close)
-    else
-      void close
+    scheduleCleanup(event, close)
   }
 
   response.once('finish', cleanup)
@@ -76,7 +100,7 @@ function registerClientCleanup(event, client) {
 }
 
 export function createDatabase(event) {
-  const hyperdrive = process.env.POSTGRES || globalThis.__env__?.POSTGRES || globalThis.POSTGRES
+  const hyperdrive = resolveHyperdrive(event)
   if (!hyperdrive?.connectionString)
     return drizzleAdapter(db, { provider: dialect, schema, usePlural: ${input.usePlural}, camelCase: ${input.camelCase} })
 
