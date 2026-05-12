@@ -98,6 +98,7 @@
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.1",
     "eslint": "^10.0.3",
+    "nitropack": "2.13.1",
     "npm-agentskills": "https://pkg.pr.new/onmax/npm-agentskills@394499e",
     "nuxt": "^4.3.1",
     "pinia": "^3.0.4",
@@ -106,6 +107,7 @@
     "typescript": "~5.9.3",
     "vitest": "^4.0.18",
     "vitest-package-exports": "^1.2.0",
+    "vue": "3.5.29",
     "vue-tsc": "^3.2.7",
     "yaml": "^2.8.3"
   }
