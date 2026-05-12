@@ -107,7 +107,7 @@
     "pinia": "^3.0.4",
     "postgres": "^3.4.9",
     "tinyexec": "^1.1.1",
-    "typescript": "~5.9.3",
+    "typescript": "~6.0.0",
     "unstorage": "^1.17.5",
     "vitest": "^4.0.18",
     "vitest-package-exports": "^1.2.0",
