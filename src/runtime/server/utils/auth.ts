@@ -1,12 +1,12 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { H3Event } from 'h3'
-import { createDatabase, db } from '#auth/database'
-import { createSecondaryStorage } from '#auth/secondary-storage'
-import createServerAuth from '#auth/server'
 import { betterAuth } from 'better-auth'
 import { getRequestHost, getRequestProtocol } from 'h3'
 import { useRuntimeConfig } from 'nitropack/runtime'
 import { withoutProtocol } from 'ufo'
+import { createDatabase, db } from '#auth/database'
+import { createSecondaryStorage } from '#auth/secondary-storage'
+import createServerAuth from '#auth/server'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
 
 type AuthOptions = ReturnType<typeof createServerAuth>

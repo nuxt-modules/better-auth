@@ -1,5 +1,5 @@
-import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { Ref } from 'vue'
+import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
 import { useRequestFetch, useRequestHeaders } from '#imports'
 import { normalizeAuthActionError } from './auth-action-error'
 

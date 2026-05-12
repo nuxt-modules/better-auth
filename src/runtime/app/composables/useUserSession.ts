@@ -1,5 +1,5 @@
-import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { ComputedRef, Ref } from 'vue'
+import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
 import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'

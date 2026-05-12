@@ -1,11 +1,12 @@
-import type { AppSession, AuthSession, RequireSessionOptions } from '#nuxt-better-auth'
 import type { H3Event } from 'h3'
+import type { AppSession, AuthSession, RequireSessionOptions } from '#nuxt-better-auth'
 import { createError } from 'h3'
 import { matchesUser } from '../../utils/match-user'
 import { serverAuth } from './auth'
 
 const requestSessionLoadKey = Symbol.for('nuxt-better-auth.requestSessionLoad')
 const signingAlgorithm: HmacImportParams = { name: 'HMAC', hash: 'SHA-256' }
+const cookiePairSeparatorRE = /;\s*/
 
 interface CookieOptions {
   domain?: string
@@ -195,7 +196,7 @@ function parseRequestCookies(cookieHeader: string | null): Map<string, string> {
   if (!cookieHeader)
     return cookies
 
-  for (const pair of cookieHeader.split(/;\s*/)) {
+  for (const pair of cookieHeader.split(cookiePairSeparatorRE)) {
     if (!pair)
       continue
 

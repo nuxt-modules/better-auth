@@ -18,6 +18,13 @@ import { registerServerTypeTemplates, registerSharedTypeTemplates } from './modu
 import './types/hooks'
 
 const consola = _consola.withTag('nuxt-better-auth')
+const serverAliasImportRE = /from\s+['"]#server/
+const layersAliasImportRE = /from\s+['"]#layers\//
+const rootAliasImportRE = /from\s+['"]~~/
+const workspaceAliasImportRE = /from\s+['"]@@/
+const dbIdentifierRE = /\bdb\b/
+const sessionHookAfterIdentifierRE = /\bsessionHookAfter\b/
+const nuxtHubDbImportRE = /@nuxthub\/db/
 
 function isServerConfigSharedTypeSafe(serverConfigPath: string): boolean {
   const resolvedPath = [
@@ -36,13 +43,13 @@ function isServerConfigSharedTypeSafe(serverConfigPath: string): boolean {
   const contents = readFileSync(resolvedPath, 'utf8')
 
   return !(
-    /from\s+['"]#server/.test(contents)
-    || /from\s+['"]#layers\//.test(contents)
-    || /from\s+['"]~~/.test(contents)
-    || /from\s+['"]@@/.test(contents)
-    || /\bdb\b/.test(contents)
-    || /\bsessionHookAfter\b/.test(contents)
-    || /@nuxthub\/db/.test(contents)
+    serverAliasImportRE.test(contents)
+    || layersAliasImportRE.test(contents)
+    || rootAliasImportRE.test(contents)
+    || workspaceAliasImportRE.test(contents)
+    || dbIdentifierRE.test(contents)
+    || sessionHookAfterIdentifierRE.test(contents)
+    || nuxtHubDbImportRE.test(contents)
   )
 }
 

@@ -1,5 +1,5 @@
-import type { AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { NitroRouteRules } from 'nitropack/types'
+import type { AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { AuthSocialProviderId } from '../../../src/runtime/types'
 
 declare const serverAuth: typeof import('../../../src/runtime/server/utils/auth').serverAuth
