@@ -248,6 +248,7 @@ declare module 'nuxt/dist/app/composables/fetch' {
     PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
     DefaultT = DataT,
   >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
+  export function useFetch(request: string | import('vue').Ref<string> | (() => string), opts?: any): any
 
   export function useLazyFetch<
     ErrorT = FetchError,
@@ -267,6 +268,7 @@ declare module 'nuxt/dist/app/composables/fetch' {
     PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
     DefaultT = DataT,
   >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: Omit<import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>, 'lazy'>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
+  export function useLazyFetch(request: string | import('vue').Ref<string> | (() => string), opts?: any): any
 }
 
 declare module 'nuxt/app' {
@@ -288,6 +290,7 @@ declare module 'nuxt/app' {
     PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
     DefaultT = DataT,
   >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
+  export function useFetch(request: string | import('vue').Ref<string> | (() => string), opts?: any): any
 
   export function useLazyFetch<
     ErrorT = FetchError,
@@ -307,6 +310,7 @@ declare module 'nuxt/app' {
     PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
     DefaultT = DataT,
   >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: Omit<import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>, 'lazy'>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
+  export function useLazyFetch(request: string | import('vue').Ref<string> | (() => string), opts?: any): any
 }
 
 declare module 'nitropack' {
