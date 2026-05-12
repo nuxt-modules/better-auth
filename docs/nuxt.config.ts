@@ -33,6 +33,7 @@ export default defineNuxtConfig({
 
   mdc: {
     highlight: {
+      noApiRoute: false,
       theme: { default: 'synthwave-84', dark: 'synthwave-84', light: 'one-light' },
       langs: ['bash', 'json', 'js', 'ts', 'vue', 'html', 'css', 'yaml', 'sql'],
     },

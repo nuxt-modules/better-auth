@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { MDCParserResult } from '@nuxtjs/mdc'
 import { useElementSize } from '@vueuse/core'
 import { motion, MotionConfig } from 'motion-v'
 import { ScrollAreaRoot, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport } from 'reka-ui'
+import { parseMarkdown } from '@nuxtjs/mdc/runtime'
 // @ts-expect-error yaml is not typed
 import hero from './hero.yml'
 
@@ -26,6 +28,13 @@ function getLang(filename: string) {
 function getCodeBlock(tab: { name: string, code: string }) {
   return `\`\`\`${getLang(tab.name)}\n${tab.code.trim()}\n\`\`\``
 }
+
+const codeBlocks = await Promise.all(
+  tabs.map(tab => parseMarkdown(getCodeBlock(tab), {
+    contentHeading: false,
+    toc: false,
+  }) as Promise<MDCParserResult>),
+)
 </script>
 
 <template>
@@ -91,17 +100,17 @@ function getCodeBlock(tab: { name: string, code: string }) {
             </div>
 
             <!-- CTA Buttons -->
-            <div class="mt-4 flex w-fit flex-col gap-4 font-sans md:flex-row md:justify-center lg:justify-start items-center">
+            <div class="mt-4 flex w-full max-w-sm items-center gap-3 font-sans min-[390px]:w-fit md:max-w-none md:gap-4 md:justify-center lg:justify-start">
               <NuxtLink
                 to="/getting-started/installation"
-                class="border-2 border-black bg-white px-4 py-1.5 text-sm uppercase text-black shadow-[1px_1px_rgba(0,0,0),2px_2px_rgba(0,0,0),3px_3px_rgba(0,0,0),4px_4px_rgba(0,0,0),5px_5px_0px_0px_rgba(0,0,0)] transition duration-200 md:px-8 hover:shadow-sm dark:border-stone-400 dark:hover:shadow-sm dark:shadow-[1px_1px_rgba(120,113,108),2px_2px_rgba(120,113,108),3px_3px_rgba(120,113,108),4px_4px_rgba(120,113,108),5px_5px_0px_0px_rgba(120,113,108)]"
+                class="shrink-0 border-2 border-black bg-white px-4 py-1.5 text-sm uppercase text-black shadow-[1px_1px_rgba(0,0,0),2px_2px_rgba(0,0,0),3px_3px_rgba(0,0,0),4px_4px_rgba(0,0,0),5px_5px_0px_0px_rgba(0,0,0)] transition duration-200 hover:shadow-sm dark:border-stone-400 dark:hover:shadow-sm dark:shadow-[1px_1px_rgba(120,113,108),2px_2px_rgba(120,113,108),3px_3px_rgba(120,113,108),4px_4px_rgba(120,113,108),5px_5px_0px_0px_rgba(120,113,108)] md:px-8"
               >
                 Get Started
               </NuxtLink>
               <NuxtLink
                 to="https://github.com/onmax/nuxt-better-auth"
                 target="_blank"
-                class="group relative hidden p-px text-xs font-semibold leading-6 text-white no-underline md:inline-block"
+                class="group relative inline-block min-w-0 p-px text-xs font-semibold leading-6 text-white no-underline"
               >
                 <span class="absolute inset-0 overflow-hidden rounded-sm">
                   <span class="absolute inset-0 rounded-sm bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(56,189,248,0.6)_0%,rgba(56,189,248,0)_75%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
@@ -112,15 +121,6 @@ function getCodeBlock(tab: { name: string, code: string }) {
                 </span>
                 <span class="absolute bottom-0 left-[1.125rem] h-px w-[calc(100%-2.25rem)] bg-gradient-to-r from-emerald-400/0 via-stone-800/90 to-emerald-400/0 transition-opacity duration-500 group-hover:opacity-40" />
               </NuxtLink>
-              <!-- Mobile GitHub button -->
-              <NuxtLink
-                to="https://github.com/onmax/nuxt-better-auth"
-                target="_blank"
-                class="flex items-center gap-2 rounded-none bg-zinc-950 px-4 py-2 text-xs font-semibold text-white ring-1 ring-white/10 md:hidden"
-              >
-                <UIcon name="i-simple-icons-github" class="size-4" />
-                <span>GitHub</span>
-              </NuxtLink>
             </div>
           </div>
         </div>
@@ -128,8 +128,8 @@ function getCodeBlock(tab: { name: string, code: string }) {
         <!-- Right: Code preview -->
         <div class="relative md:block lg:static xl:pl-10">
           <div class="relative">
-            <div class="from-sky-300 via-sky-300/70 to-blue-300 absolute inset-0 rounded-none bg-gradient-to-tr opacity-0 dark:opacity-5 blur-lg" />
-            <div class="from-stone-300 via-stone-300/70 to-blue-300 absolute inset-0 rounded-none bg-gradient-to-tr opacity-0 dark:opacity-5" />
+            <div class="pointer-events-none from-sky-300 via-sky-300/70 to-blue-300 absolute inset-0 rounded-none bg-gradient-to-tr opacity-0 dark:opacity-5 blur-lg" />
+            <div class="pointer-events-none from-stone-300 via-stone-300/70 to-blue-300 absolute inset-0 rounded-none bg-gradient-to-tr opacity-0 dark:opacity-5" />
 
             <!-- Code Preview Card -->
             <MotionConfig :transition="{ duration: 0.3, ease: 'easeInOut' }">
@@ -138,8 +138,8 @@ function getCodeBlock(tab: { name: string, code: string }) {
                 class="code-preview relative overflow-hidden rounded-sm backdrop-blur-lg"
               >
                 <div ref="contentRef">
-                  <div class="absolute -top-px left-0 right-0 h-px" />
-                  <div class="absolute -bottom-px left-11 right-20 h-px" />
+                  <div class="pointer-events-none absolute -top-px left-0 right-0 h-px" />
+                  <div class="pointer-events-none absolute -bottom-px left-11 right-20 h-px" />
                   <div class="pl-4 pt-4">
                     <!-- Traffic lights -->
                     <svg aria-hidden="true" viewBox="0 0 42 10" fill="none" class="h-2.5 w-auto stroke-slate-500/30">
@@ -149,10 +149,11 @@ function getCodeBlock(tab: { name: string, code: string }) {
                     </svg>
 
                     <!-- Tabs with layoutId animation -->
-                    <div class="mt-4 flex space-x-2 text-xs">
+                    <div class="relative z-10 mt-4 flex space-x-2 text-xs">
                       <button
                         v-for="(tab, index) in tabs"
                         :key="tab.name"
+                        type="button"
                         class="relative isolate flex h-6 cursor-pointer items-center justify-center rounded-full px-2.5 transition-colors"
                         :class="currentTab === index ? 'text-stone-300' : 'text-slate-500'"
                         @click="currentTab = index"
@@ -161,7 +162,7 @@ function getCodeBlock(tab: { name: string, code: string }) {
                         <motion.div
                           v-if="currentTab === index"
                           layout-id="tab-code-preview"
-                          class="bg-stone-800 absolute inset-0 -z-10 rounded-full"
+                          class="pointer-events-none bg-stone-800 absolute inset-0 -z-10 rounded-full"
                         />
                       </button>
                     </div>
@@ -188,9 +189,8 @@ function getCodeBlock(tab: { name: string, code: string }) {
                                 </div>
                               </div>
 
-                              <!-- Code via MDC - all rendered during SSR -->
                               <div class="hero-code">
-                                <MDC :value="getCodeBlock(tab)" tag="div" />
+                                <MDCRenderer :body="codeBlocks[index].body" />
                               </div>
                             </div>
                           </div>
