@@ -93,7 +93,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "latest",
     "better-auth": "1.5.5",
-    "better-call": "2.0.3",
+    "better-call": "1.3.5",
     "better-sqlite3": "^12.6.2",
     "bumpp": "^11.0.0",
     "changelogen": "^0.6.2",
