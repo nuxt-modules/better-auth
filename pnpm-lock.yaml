@@ -5,9 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@peculiar/x509@1.14.3':
-    hash: 9c8ada908b6cc52383753474a236a662dcc5a57605d5726c9e9859e70adb16ca
-    path: patches/@peculiar__x509@1.14.3.patch
+  '@peculiar/x509@1.14.3': 9c8ada908b6cc52383753474a236a662dcc5a57605d5726c9e9859e70adb16ca
 
 importers:
 
