@@ -30,8 +30,8 @@ if (!page.value?.seo?.ogImage) {
 </script>
 
 <template>
-  <ContentRenderer
-    v-if="page"
-    :value="page"
-  />
+  <template v-if="page">
+    <LandingHero />
+    <LandingFeatures />
+  </template>
 </template>
