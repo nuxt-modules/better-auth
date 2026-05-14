@@ -16,6 +16,12 @@ const files = hero.tabs as { name: string, code: string }[]
 const trimmedCode = computed(() => files.map(file => file.code.trim()))
 const lineCounts = computed(() => trimmedCode.value.map(code => code.split('\n').length))
 const currentFile = computed(() => files[currentFileIndex.value]?.name ?? files[0]?.name ?? '')
+const mobileFileItems = computed(() => files.map((file, index) => ({
+  ...file,
+  index,
+  directory: file.name.includes('/') ? file.name.split('/').slice(0, -1).join('/') : '',
+  filename: file.name.split('/').at(-1) ?? file.name,
+})))
 
 function getFileIcon(filename: string) {
   if (filename.endsWith('.vue'))
@@ -32,11 +38,18 @@ function selectFile(index: number) {
   mobileFilesOpen.value = false
 }
 
-const fileTreeItems: TreeItem[] = [
+function selectedTreeClass(index: number) {
+  return currentFileIndex.value === index
+    ? '!text-stone-50 before:!bg-white/[0.08] hover:before:!bg-white/[0.1]'
+    : ''
+}
+
+const fileTreeItems = computed<TreeItem[]>(() => [
   {
     id: 'nuxt.config.ts',
     label: 'nuxt.config.ts',
     icon: getFileIcon('nuxt.config.ts'),
+    class: selectedTreeClass(0),
     onSelect: () => selectFile(0),
   },
   {
@@ -48,6 +61,7 @@ const fileTreeItems: TreeItem[] = [
         id: 'server/auth.config.ts',
         label: 'auth.config.ts',
         icon: getFileIcon('server/auth.config.ts'),
+        class: selectedTreeClass(1),
         onSelect: () => selectFile(1),
       },
     ],
@@ -61,6 +75,7 @@ const fileTreeItems: TreeItem[] = [
         id: 'app/auth.config.ts',
         label: 'auth.config.ts',
         icon: getFileIcon('app/auth.config.ts'),
+        class: selectedTreeClass(2),
         onSelect: () => selectFile(2),
       },
     ],
@@ -74,18 +89,19 @@ const fileTreeItems: TreeItem[] = [
         id: 'pages/login.vue',
         label: 'login.vue',
         icon: getFileIcon('pages/login.vue'),
+        class: selectedTreeClass(3),
         onSelect: () => selectFile(3),
       },
     ],
   },
-]
+])
 
 const selectedTreeItem = computed(() => {
   if (currentFileIndex.value === 0)
-    return fileTreeItems[0]
+    return fileTreeItems.value[0]
 
-  const folder = fileTreeItems[currentFileIndex.value]
-  return folder?.children?.[0] ?? fileTreeItems[0]
+  const folder = fileTreeItems.value[currentFileIndex.value]
+  return folder?.children?.[0] ?? fileTreeItems.value[0]
 })
 
 function getTreeItemKey(item: TreeItem) {
@@ -177,7 +193,7 @@ function getLang(filename: string) {
             <MotionConfig :transition="{ duration: 0.3, ease: 'easeInOut' }">
               <motion.div
                 :animate="{ height: height > 0 ? height : undefined }"
-                class="code-preview relative min-w-0 overflow-hidden rounded-md"
+                class="code-preview relative min-w-0 overflow-hidden rounded-md text-left"
               >
                 <div ref="contentRef">
                   <div class="min-w-0">
@@ -210,8 +226,8 @@ function getLang(filename: string) {
                           collapsed-icon="i-lucide-folder"
                           :ui="{
                             root: 'space-y-0.5',
-                            link: 'h-7 rounded-[5px] px-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 data-[selected=true]:bg-white/10 data-[selected=true]:text-stone-50 data-[selected=true]:ring-1 data-[selected=true]:ring-white/10',
-                            linkLeadingIcon: 'size-4 shrink-0',
+                            link: 'h-7 rounded-[5px] px-2 !text-stone-400 before:!bg-transparent hover:!text-stone-100 hover:before:!bg-white/[0.05] focus-visible:before:!ring-white/20',
+                            linkLeadingIcon: 'size-4 shrink-0 text-stone-500 group-hover:text-stone-300',
                             linkLabel: 'truncate text-xs font-medium',
                             linkTrailingIcon: 'size-3.5 text-stone-500',
                             listWithChildren: 'ms-4 border-s border-white/10 ps-1.5',
@@ -220,9 +236,10 @@ function getLang(filename: string) {
                       </aside>
 
                       <!-- Code content area -->
-                      <div class="flex min-w-0 flex-col items-start px-3 py-4 text-sm sm:px-5 sm:py-5">
+                      <div class="flex min-w-0 flex-col items-start px-3 py-4 text-left text-sm sm:px-5 sm:py-5">
                         <UCollapsible v-model:open="mobileFilesOpen" class="mb-4 w-full sm:hidden">
                           <UButton
+                            type="button"
                             color="neutral"
                             variant="ghost"
                             class="h-9 w-full justify-between rounded-[5px] bg-white/[0.06] px-2.5 text-left text-stone-100 ring-1 ring-white/10 hover:bg-white/[0.08]"
@@ -237,24 +254,30 @@ function getLang(filename: string) {
 
                           <template #content>
                             <div class="mt-2 rounded-[5px] bg-black/[0.16] p-2 ring-1 ring-white/10">
-                              <UTree
-                                :model-value="selectedTreeItem"
-                                :items="fileTreeItems"
-                                :get-key="getTreeItemKey"
-                                :default-expanded="['server', 'app', 'pages']"
-                                size="sm"
-                                color="neutral"
-                                expanded-icon="i-lucide-folder-open"
-                                collapsed-icon="i-lucide-folder"
-                                :ui="{
-                                  root: 'space-y-0.5',
-                                  link: 'h-8 rounded-[5px] px-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 data-[selected=true]:bg-white/10 data-[selected=true]:text-stone-50 data-[selected=true]:ring-1 data-[selected=true]:ring-white/10',
-                                  linkLeadingIcon: 'size-4 shrink-0',
-                                  linkLabel: 'truncate text-sm font-medium',
-                                  linkTrailingIcon: 'size-4 text-stone-500',
-                                  listWithChildren: 'ms-4 border-s border-white/10 ps-1.5',
-                                }"
-                              />
+                              <div class="space-y-1" role="listbox" aria-label="Example files">
+                                <UButton
+                                  v-for="file in mobileFileItems"
+                                  :key="file.name"
+                                  type="button"
+                                  color="neutral"
+                                  variant="ghost"
+                                  role="option"
+                                  :aria-selected="currentFileIndex === file.index"
+                                  class="h-auto w-full justify-start gap-2 rounded-[5px] px-2 py-2 text-left"
+                                  :class="currentFileIndex === file.index ? 'bg-white/10 text-stone-50 ring-1 ring-white/10 hover:bg-white/10' : 'text-stone-400 hover:bg-white/[0.06] hover:text-stone-100'"
+                                  @click="selectFile(file.index)"
+                                >
+                                  <UIcon :name="getFileIcon(file.name)" class="size-4 shrink-0" />
+                                  <span class="min-w-0 leading-4">
+                                    <span v-if="file.directory" class="block truncate text-[10px] text-stone-500">
+                                      {{ file.directory }}
+                                    </span>
+                                    <span class="block truncate text-sm font-medium">
+                                      {{ file.filename }}
+                                    </span>
+                                  </span>
+                                </UButton>
+                              </div>
                             </div>
                           </template>
                         </UCollapsible>
@@ -266,7 +289,7 @@ function getLang(filename: string) {
                               <div
                                 v-for="(file, index) in files"
                                 :key="file.name"
-                                class="flex items-start px-1 text-sm min-w-max transition-all duration-250 ease-out"
+                                class="flex min-w-max items-start px-1 text-left text-sm transition-all duration-250 ease-out"
                                 :class="index === currentFileIndex ? 'opacity-100 relative' : 'opacity-0 absolute inset-0 pointer-events-none'"
                               >
                                 <!-- Line numbers gutter -->

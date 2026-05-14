@@ -105,6 +105,7 @@ pre, code {
   line-height: 1.5rem !important;
   min-width: max-content;
   padding-right: 1rem !important;
+  text-align: left;
 }
 
 @media (min-width: 640px) {

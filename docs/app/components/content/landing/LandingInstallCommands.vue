@@ -193,8 +193,8 @@ watch(promptOpen, (open) => {
             role="radio"
             :aria-checked="activePackageManager === manager.value"
             :aria-label="manager.label"
-            class="h-8 w-20 justify-center gap-1.5 overflow-hidden rounded-[3px] px-2.5 text-xs font-medium active:bg-transparent"
-            :class="activePackageManager === manager.value ? 'bg-white text-stone-950 shadow-sm ring-1 ring-stone-950/10 hover:bg-white active:bg-white dark:bg-stone-800 dark:text-white dark:ring-white/10 dark:hover:bg-stone-800 dark:active:bg-stone-800' : 'text-stone-500 grayscale hover:bg-white/40 hover:text-stone-700 dark:text-stone-500 dark:hover:bg-white/[0.04] dark:hover:text-stone-300'"
+            class="h-8 min-w-8 justify-center gap-0 overflow-hidden rounded-[3px] text-xs font-medium transition-[width,color,background-color,box-shadow] duration-200 ease-out active:bg-transparent motion-reduce:transition-none"
+            :class="activePackageManager === manager.value ? 'w-20 bg-white px-2.5 text-stone-950 shadow-sm ring-1 ring-stone-950/10 hover:bg-white active:bg-white dark:bg-stone-800 dark:text-white dark:ring-white/10 dark:hover:bg-stone-800 dark:active:bg-stone-800' : 'w-8 px-0 text-stone-500 grayscale hover:bg-white/40 hover:text-stone-700 dark:text-stone-500 dark:hover:bg-white/[0.04] dark:hover:text-stone-300'"
             @pointerdown="activePackageManager = manager.value"
             @mousedown="activePackageManager = manager.value"
             @click="activePackageManager = manager.value"
@@ -202,8 +202,8 @@ watch(promptOpen, (open) => {
           >
             <UIcon :name="manager.icon" class="size-3.5 shrink-0" />
             <span
-              class="whitespace-nowrap transition-[opacity,transform] duration-150 ease-out"
-              :class="activePackageManager === manager.value ? 'translate-x-0 opacity-100' : '-translate-x-1 opacity-45'"
+              class="overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin-left] duration-150 ease-out motion-reduce:transition-none"
+              :class="activePackageManager === manager.value ? 'ml-1.5 max-w-12 opacity-100' : 'ml-0 max-w-0 opacity-0'"
             >
               {{ manager.label }}
             </span>
@@ -223,9 +223,9 @@ watch(promptOpen, (open) => {
         :aria-label="copied === 'command' ? 'Copied command' : 'Copy command'"
         @click="copyValue(activeCommand, 'command')"
       >
-        <span class="font-mono text-sm text-sky-500 select-none">git:</span>
-        <span class="font-mono text-sm text-red-400 select-none">(main)</span>
-        <span class="font-mono text-sm text-amber-600 select-none">x</span>
+        <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-[3px] bg-stone-100 text-stone-500 ring-1 ring-stone-950/10 select-none dark:bg-white/[0.06] dark:text-stone-400 dark:ring-white/10">
+          <UIcon name="i-lucide-terminal" class="size-3.5" />
+        </span>
         <span
           class="relative block min-w-0 overflow-hidden font-mono text-xs text-stone-950 sm:text-sm dark:text-white"
           :style="commandWidth ? { width: `${commandWidth}px` } : undefined"
