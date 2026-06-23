@@ -73,7 +73,7 @@ async function loadAuthOptions(context: SchemaContext) {
       .filter(([, value]) => typeof value === 'string')
       .map(([key, value]) => [key, value as string]),
   )
-  const userConfig = await loadUserAuthConfig(configFile, isProduction, alias)
+  const userConfig = await loadUserAuthConfig(configFile, isProduction, alias, context.nuxt.options.runtimeConfig)
 
   const extendedConfig: { plugins?: BetterAuthPlugin[] } = {}
   await context.nuxt.callHook('better-auth:config:extend', extendedConfig)

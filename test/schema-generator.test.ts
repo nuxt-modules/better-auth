@@ -149,6 +149,17 @@ describe('loadUserAuthConfig', () => {
 
     expect(result).toEqual({ plugins: [] })
   })
+
+  it('passes runtime config to function syntax during schema generation', async () => {
+    const configPath = join(TEST_DIR, 'runtime-config.ts')
+    writeFileSync(configPath, `export default defineServerAuth(({ runtimeConfig }) => ({ appName: runtimeConfig.public.app.routes.signUp }))`)
+
+    const result = await loadUserAuthConfig(configPath, false, undefined, {
+      public: { app: { routes: { signUp: '/auth/sign-up' } } },
+    })
+
+    expect(result).toEqual({ appName: '/auth/sign-up' })
+  })
 })
 
 describe('defineServerAuth', () => {

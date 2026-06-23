@@ -68,6 +68,7 @@ export async function loadUserAuthConfig(
   configPath: string,
   throwOnError = false,
   alias?: Record<string, string>,
+  runtimeConfig: unknown = {},
 ): Promise<Partial<BetterAuthOptions>> {
   const { createJiti } = await import('jiti')
   const { defineServerAuth: runtimeDefineServerAuth } = await import('./runtime/config')
@@ -87,7 +88,7 @@ export async function loadUserAuthConfig(
     const mod = await jiti.import(configPath) as { default?: unknown }
     const configFn = mod.default
     if (typeof configFn === 'function') {
-      return configFn({ runtimeConfig: {}, db: null })
+      return configFn({ runtimeConfig, db: null })
     }
     consola.warn('[@onmax/nuxt-better-auth] auth.config.ts does not export default. Expected: export default defineServerAuth(...)')
     if (throwOnError) {
