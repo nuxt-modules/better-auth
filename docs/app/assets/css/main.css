@@ -1,7 +1,8 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @import "@nuxt/ui";
 
-@source "../../content/**/*";
+@source "../../";
+@source "../../../content";
 
 :root {
   --ui-radius: 0.125rem;

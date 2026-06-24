@@ -18,6 +18,12 @@ allowBuilds:
 packages:
   - docs
   - playground
+overrides:
+  '@tailwindcss/node': 4.3.0
+  '@tailwindcss/oxide': 4.3.0
+  '@tailwindcss/postcss': 4.3.0
+  '@tailwindcss/vite': 4.3.0
+  tailwindcss: 4.3.0
 patchedDependencies:
   '@peculiar/x509@1.14.3': patches/@peculiar__x509@1.14.3.patch
 onlyBuiltDependencies:
