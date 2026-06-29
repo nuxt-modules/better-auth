@@ -61,3 +61,5 @@ Temporary Items
 
 test/fixtures/basic/.data
 playground/.data
+.vercel
+.env*.local

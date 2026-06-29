@@ -55,11 +55,19 @@ pre, code {
 
 /* Code preview styling */
 .code-preview {
-  background: linear-gradient(to top right, var(--color-stone-100), var(--color-stone-200));
+  background: #1b1917;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 36px rgba(28, 25, 23, 0.18);
 }
 
 .dark .code-preview {
-  background: linear-gradient(to top right, rgba(28, 25, 23, 0.9), rgba(0, 0, 0, 0.9));
+  background: #181716;
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.36);
+}
+
+.editor-toolbar {
+  background: rgba(255, 255, 255, 0.035);
 }
 
 /* Traffic lights for code preview */
@@ -91,9 +99,13 @@ pre, code {
   border: none !important;
   padding: 0 !important;
   margin: 0 !important;
+  color: #f7f2ec;
   font-size: 0.75rem;
   border-radius: 0 !important;
   line-height: 1.5rem !important;
+  min-width: max-content;
+  padding-right: 1rem !important;
+  text-align: left;
 }
 
 @media (min-width: 640px) {
@@ -106,7 +118,8 @@ pre, code {
   background: transparent !important;
 }
 
-.hero-code .shiki {
+.hero-code .shiki,
+.hero-code .shiki span {
   background: transparent !important;
 }
 

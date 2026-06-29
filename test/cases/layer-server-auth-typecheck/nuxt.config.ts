@@ -1,5 +1,3 @@
-import { defineNuxtConfig } from 'nuxt/config'
-
-export default defineNuxtConfig({
+export default {
   extends: ['../layer-server-auth-typecheck-base'],
-})
+}

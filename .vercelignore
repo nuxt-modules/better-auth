@@ -1,0 +1,7 @@
+.nuxt
+.output
+.vercel/output
+docs/.nuxt
+docs/.output
+docs/.vercel
+node_modules/.cache/nuxt

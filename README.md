@@ -2,9 +2,6 @@
 
 Nuxt module for [Better Auth](https://better-auth.com) with Nuxt-native route protection, SSR-safe session access, auto-imported helpers, and optional NuxtHub-backed schema generation.
 
-> [!WARNING]
-> This package is still in alpha. Expect API and behavior changes before a stable release.
-
 ## Who this is for
 
 Use this module if you want Better Auth in a Nuxt 4 app and you want the Nuxt-specific pieces handled for you:
@@ -20,7 +17,7 @@ Use this module if you want Better Auth in a Nuxt 4 app and you want the Nuxt-sp
 For the fastest path in a Nuxt 4 app:
 
 ```bash
-npx nuxi module add @onmax/nuxt-better-auth@alpha
+npx nuxi module add @onmax/nuxt-better-auth
 ```
 
 Then create or confirm these files:

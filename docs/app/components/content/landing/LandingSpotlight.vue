@@ -10,11 +10,11 @@ onMounted(() => {
 
 <template>
   <div
-    class="pointer-events-none absolute -top-40 left-0 md:-left-4 md:-top-52 transition-opacity duration-1000"
+    class="pointer-events-none absolute -top-40 left-0 w-screen overflow-hidden md:-left-4 md:-top-52 md:w-auto md:overflow-visible transition-opacity duration-1000"
     :class="appear ? 'opacity-100' : 'opacity-0'"
   >
     <svg
-      class="size-[650px] lg:size-[900px]"
+      class="size-[100vw] md:size-[650px] lg:size-[900px]"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 3787 2842"
       fill="none"
