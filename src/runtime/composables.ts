@@ -1,3 +1,4 @@
+export { runWithSessionRefresh } from './app/composables/runWithSessionRefresh'
 export { useAction } from './app/composables/useAction'
 export { useAuthAsyncData } from './app/composables/useAuthAsyncData'
 export { useAuthClient } from './app/composables/useAuthClient'

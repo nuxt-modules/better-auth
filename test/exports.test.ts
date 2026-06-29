@@ -33,6 +33,7 @@ describe('exports-snapshot', async () => {
         defineServerAuth: typeof moduleExports.defineServerAuth,
       },
       './composables': {
+        runWithSessionRefresh: 'function',
         useAction: 'function',
         useAuthAsyncData: 'function',
         useAuthClient: 'function',
