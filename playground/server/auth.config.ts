@@ -11,7 +11,10 @@ const isEmailEnabled = () => import.meta.dev
 
 export default defineServerAuth(() => ({
   appName: 'Nuxt Better Auth Playground',
-  trustedOrigins: ['https://nuxt-better-auth-demo.maximogarciamtnez.workers.dev'],
+  trustedOrigins: [
+    'https://demo-nuxt-better-auth.onmax.me',
+    'https://nuxt-better-auth-demo.maximogarciamtnez.workers.dev',
+  ],
   socialProviders: {
     github: {
       clientId: process.env.GITHUB_CLIENT_ID || process.env.NUXT_GITHUB_CLIENT_ID || '',

@@ -135,6 +135,31 @@ describe('loadUserAuthConfig', () => {
     const result = await loadUserAuthConfig(configPath, false)
     expect(result).toEqual({ appName: 'Readonly', plugins: [{ id: 'test-plugin', schema: { user: { fields: {} } } }] })
   })
+
+  it('resolves aliased imports when provided', async () => {
+    const helperPath = join(TEST_DIR, 'helper.ts')
+    const configPath = join(TEST_DIR, 'aliased-config.ts')
+
+    writeFileSync(helperPath, `export function getPlugins() { return [] }`)
+    writeFileSync(configPath, `import { getPlugins } from '#server/helper'\nexport default defineServerAuth(() => ({ plugins: getPlugins() }))`)
+
+    const result = await loadUserAuthConfig(configPath, false, {
+      '#server': TEST_DIR,
+    })
+
+    expect(result).toEqual({ plugins: [] })
+  })
+
+  it('passes runtime config to function syntax during schema generation', async () => {
+    const configPath = join(TEST_DIR, 'runtime-config.ts')
+    writeFileSync(configPath, `export default defineServerAuth(({ runtimeConfig }) => ({ appName: runtimeConfig.public.app.routes.signUp }))`)
+
+    const result = await loadUserAuthConfig(configPath, false, undefined, {
+      public: { app: { routes: { signUp: '/auth/sign-up' } } },
+    })
+
+    expect(result).toEqual({ appName: '/auth/sign-up' })
+  })
 })
 
 describe('defineServerAuth', () => {
@@ -156,6 +181,15 @@ describe('defineServerAuth', () => {
     const factory = defineServerAuth(({ db }) => ({ hasDb: db !== undefined }))
     expect(factory({ runtimeConfig: {} as any, db: {} as any })).toEqual({ hasDb: true })
     expect(factory({ runtimeConfig: {} as any, db: undefined })).toEqual({ hasDb: false })
+  })
+
+  it('function syntax receives requestOrigin context', () => {
+    const factory = defineServerAuth(({ requestOrigin }) => ({ requestOrigin }))
+    expect(factory({
+      runtimeConfig: {} as any,
+      db: undefined,
+      requestOrigin: 'https://example.com',
+    })).toEqual({ requestOrigin: 'https://example.com' })
   })
 })
 

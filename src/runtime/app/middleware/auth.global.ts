@@ -1,9 +1,10 @@
 import type { AuthRuntimeConfig } from '../../config'
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
-import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useNuxtApp, useRequestHeaders, useRuntimeConfig, useUserSession } from '#imports'
 import { defu } from 'defu'
 import { createRouter, toRouteMatcher } from 'radix3'
+import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useNuxtApp, useRequestHeaders, useRuntimeConfig } from '#imports'
 import { matchesUser } from '../../utils/match-user'
+import { useUserSession } from '../composables/useUserSession'
 
 declare module '#app' {
   interface PageMeta {
@@ -48,8 +49,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const config = useRuntimeConfig().public.auth as AuthRuntimeConfig | undefined
   const { fetchSession, user, loggedIn } = useUserSession()
 
-  // Always fetch session if not logged in - state may not have synced yet
-  if (!loggedIn.value) {
+  const mode: AuthMode = typeof auth === 'string' ? auth : auth?.only ?? 'user'
+  const redirectTo = typeof auth === 'object' ? auth.redirectTo : undefined
+
+  if (!loggedIn.value || mode === 'guest') {
     const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
     const isHydratedPrerenderPayload
       = (import.meta.client || !import.meta.server)
@@ -57,9 +60,6 @@ export default defineNuxtRouteMiddleware(async (to) => {
         && Boolean(nuxtApp.payload.prerenderedAt || nuxtApp.payload.isCached)
     await fetchSession({ headers, ...(isHydratedPrerenderPayload ? { force: true } : {}) })
   }
-
-  const mode: AuthMode = typeof auth === 'string' ? auth : auth?.only ?? 'user'
-  const redirectTo = typeof auth === 'object' ? auth.redirectTo : undefined
 
   if (mode === 'guest') {
     if (loggedIn.value)

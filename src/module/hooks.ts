@@ -1,7 +1,9 @@
 import type { Nuxt, NuxtPage } from '@nuxt/schema'
 import type { AuthRouteRules } from '../runtime/types'
+import { existsSync, statSync } from 'node:fs'
 import { addComponentsDir, addImportsDir, addPlugin, addServerHandler, addServerImports, addServerImportsDir, addServerScanDir, extendPages, hasNuxtModule, installModule, updateTemplates } from '@nuxt/kit'
 import { defu } from 'defu'
+import { isAbsolute, join } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
 import { setupDevTools } from '../devtools'
 
@@ -16,6 +18,12 @@ interface RegisterServerRuntimeInput extends ResolveInput {
 interface RegisterDevtoolsInput extends ResolveInput {
   nuxt: Nuxt
   clientOnly: boolean
+  hasHubDb: boolean
+}
+
+interface RegisterPrepareTypesHookInput {
+  nuxt: Nuxt
+  serverDir: string
   hasHubDb: boolean
 }
 
@@ -47,6 +55,71 @@ export function registerServerRuntime(input: RegisterServerRuntimeInput): void {
 export function registerAuthMiddlewareHook(nuxt: Nuxt, resolve: (path: string) => string): void {
   nuxt.hook('app:resolve', (app) => {
     app.middleware.push({ name: 'auth', path: resolve('./runtime/app/middleware/auth.global'), global: true })
+  })
+}
+
+export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): void {
+  const { nuxt, serverDir, hasHubDb } = input
+
+  nuxt.hook('prepare:types', ({ nodeTsConfig, nodeReferences, sharedReferences }) => {
+    nodeTsConfig.compilerOptions ||= {}
+    nodeTsConfig.compilerOptions.paths ||= {}
+
+    const projectReferenceTypePaths = [
+      join(nuxt.options.buildDir, 'types/nitro-imports.d.ts'),
+      join(nuxt.options.buildDir, 'types/auth-database.d.ts'),
+      join(nuxt.options.buildDir, 'types/auth-schema.d.ts'),
+      join(nuxt.options.buildDir, 'types/auth-secondary-storage.d.ts'),
+    ]
+
+    if (hasHubDb)
+      projectReferenceTypePaths.push(join(nuxt.options.buildDir, 'hub/db.d.ts'))
+
+    const exactNodeAliases = {
+      '#server': serverDir,
+      '#auth/server': nuxt.options.alias['#auth/server'],
+      '#auth/client': nuxt.options.alias['#auth/client'],
+      '#auth/database': nuxt.options.alias['#auth/database'],
+      '#auth/schema': nuxt.options.alias['#auth/schema'],
+      '#auth/secondary-storage': nuxt.options.alias['#auth/secondary-storage'],
+      '#auth/route-rules': nuxt.options.alias['#auth/route-rules'],
+      '#nuxt-better-auth': nuxt.options.alias['#nuxt-better-auth'],
+    } as const
+
+    for (const [key, value] of Object.entries(exactNodeAliases)) {
+      if (typeof value === 'string')
+        nodeTsConfig.compilerOptions.paths[key] = [value]
+    }
+
+    for (const [key, value] of Object.entries(nuxt.options.alias)) {
+      if (typeof value !== 'string' || !isAbsolute(value))
+        continue
+
+      nodeTsConfig.compilerOptions.paths[key] ||= [value]
+      if (!key.includes('*') && existsSync(value) && statSync(value).isDirectory())
+        nodeTsConfig.compilerOptions.paths[`${key}/*`] ||= [join(value, '*')]
+    }
+
+    nodeTsConfig.compilerOptions.paths['#server/*'] = [join(serverDir, '*')]
+
+    for (const path of projectReferenceTypePaths) {
+      if (!nodeReferences.some(reference => 'path' in reference && reference.path === path))
+        nodeReferences.push({ path })
+      if (!sharedReferences.some(reference => 'path' in reference && reference.path === path))
+        sharedReferences.push({ path })
+    }
+  })
+}
+
+export function registerNuxtHubDatabaseExternalHook(nuxt: Nuxt): void {
+  // Keep @nuxthub/db as a bare specifier during Nitro bundling so the prerender
+  // entry does not rewrite it to a broken relative path when `.nuxt` is nested.
+  // @ts-expect-error Nitro augments NuxtHooks at runtime.
+  nuxt.hook('nitro:config', (nitroConfig: { externals?: { external?: string[] } }) => {
+    nitroConfig.externals ||= {}
+    nitroConfig.externals.external ||= []
+    if (!nitroConfig.externals.external.includes('@nuxthub/db'))
+      nitroConfig.externals.external.push('@nuxthub/db')
   })
 }
 

@@ -1,27 +1,67 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/onmax/nuxt-better-auth/main/.github/og.png" alt="Nuxt Better Auth" width="100%">
-  <br>
-  <sub>Designed by <a href="https://github.com/HugoRCD">HugoRCD</a></sub>
-</p>
+# `@onmax/nuxt-better-auth`
 
-<h1 align="center">@onmax/nuxt-better-auth</h1>
+Nuxt module for [Better Auth](https://better-auth.com) with Nuxt-native route protection, SSR-safe session access, auto-imported helpers, and optional NuxtHub-backed schema generation.
 
-<p align="center">Nuxt module for <a href="https://better-auth.com">Better Auth</a></p>
+## Who this is for
 
-<p align="center">
-  <a href="https://npmjs.com/package/@onmax/nuxt-better-auth"><img src="https://img.shields.io/npm/v/@onmax/nuxt-better-auth/latest.svg?style=flat&colorA=020420&colorB=00DC82" alt="npm version"></a>
-  <a href="https://npm.chart.dev/@onmax/nuxt-better-auth"><img src="https://img.shields.io/npm/dm/@onmax/nuxt-better-auth.svg?style=flat&colorA=020420&colorB=00DC82" alt="npm downloads"></a>
-  <a href="https://npmjs.com/package/@onmax/nuxt-better-auth"><img src="https://img.shields.io/npm/l/@onmax/nuxt-better-auth.svg?style=flat&colorA=020420&colorB=00DC82" alt="License"></a>
-  <a href="https://nuxt.com"><img src="https://img.shields.io/badge/Nuxt-020420?logo=nuxt.js" alt="Nuxt"></a>
-</p>
+Use this module if you want Better Auth in a Nuxt 4 app and you want the Nuxt-specific pieces handled for you:
 
-> [!WARNING]
-> This library is a work in progress and not ready for production use.
+- `useUserSession()` for reactive auth state
+- `requireUserSession(event)` and related server helpers
+- route protection through `routeRules` and `definePageMeta({ auth })`
+- generated `server/auth.config.ts` and `app/auth.config.ts`
+- optional NuxtHub database integration and schema generation
+
+## Install the module
+
+For the fastest path in a Nuxt 4 app:
+
+```bash
+npx nuxi module add @onmax/nuxt-better-auth
+```
+
+Then create or confirm these files:
+
+- `server/auth.config.ts`
+- `app/auth.config.ts`
+- `.env` with `NUXT_BETTER_AUTH_SECRET`
+
+For the full setup flow, follow the [installation guide](https://better-auth.nuxt.dev/getting-started/installation).
+
+## Choose your setup path
+
+- Use [NuxtHub integration](https://better-auth.nuxt.dev/integrations/nuxthub) if you want the shortest path to database-backed auth.
+- Use [custom database setup](https://better-auth.nuxt.dev/guides/custom-database) if you already have your own database stack.
+- Use [external auth backend](https://better-auth.nuxt.dev/guides/external-auth-backend) if Better Auth runs in a separate service.
+- Use [database-less mode](https://better-auth.nuxt.dev/guides/database-less-mode) for stateless or OAuth-first setups with clear tradeoffs.
 
 ## Documentation
 
-**[better-auth.nuxt.dev](https://better-auth.nuxt.dev/)**
+The documentation site is at [better-auth.nuxt.dev](https://better-auth.nuxt.dev).
+
+Recommended reading order:
+
+1. [Quickstart](https://better-auth.nuxt.dev/getting-started)
+2. [Installation](https://better-auth.nuxt.dev/getting-started/installation)
+3. [Configuration](https://better-auth.nuxt.dev/getting-started/configuration)
+4. [Client setup](https://better-auth.nuxt.dev/getting-started/client-setup)
+5. [Route protection](https://better-auth.nuxt.dev/core-concepts/route-protection)
+
+## Development
+
+```bash
+pnpm install
+pnpm dev:docs
+```
+
+Useful commands:
+
+- `pnpm dev` to run the playground
+- `pnpm dev:docs` to run the docs site
+- `pnpm lint` to lint the repo
+- `pnpm test` to run the test suite
+- `pnpm build:docs` to build the docs site
 
 ## License
 
-MIT
+[MIT](https://github.com/nuxt-modules/better-auth/blob/main/LICENSE)

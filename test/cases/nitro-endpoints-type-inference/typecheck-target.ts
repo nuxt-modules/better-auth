@@ -1,5 +1,5 @@
-import type { AuthApiEndpointPath, AuthApiEndpointResponse } from '#nuxt-better-auth'
 import type { Base$Fetch } from 'nitropack/types'
+import type { AuthApiEndpointPath, AuthApiEndpointResponse } from '#nuxt-better-auth'
 
 declare const requestFetch: Base$Fetch
 

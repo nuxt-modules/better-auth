@@ -1,6 +1,8 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
+const DIGITS_ONLY_RE = /^\d+$/
+
 const { client } = useUserSession()
 const toast = useToast()
 
@@ -14,7 +16,7 @@ const code = ref('')
 const loading = ref(false)
 
 async function handleVerify() {
-  if (code.value.length !== 6 || !/^\d+$/.test(code.value)) {
+  if (code.value.length !== 6 || !DIGITS_ONLY_RE.test(code.value)) {
     toast.add({ title: 'Error', description: 'TOTP code must be 6 digits', color: 'error' })
     return
   }

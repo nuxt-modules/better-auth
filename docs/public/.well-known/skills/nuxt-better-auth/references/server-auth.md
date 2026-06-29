@@ -1,123 +1,45 @@
-# Server-Side Authentication
+# Server-side authentication
 
-## serverAuth()
+## Helpers
 
-Get the Better Auth instance for advanced operations:
+- `serverAuth(event?)`
+- `getUserSession(event)`
+- `getRequestSession(event)`
+- `requireUserSession(event, options?)`
+- `createSession(event, userId)`
+- `setSessionCookie(event, token)`
 
-```ts
-// server/api/custom.ts
-export default defineEventHandler(async (event) => {
-  const auth = serverAuth()
-  // Access full Better Auth API
-  const sessions = await auth.api.listSessions({ headers: event.headers })
-  return sessions
-})
-```
+All of them are auto-imported inside `server/`.
 
-Module-level singleton (safe to call multiple times - returns cached instance).
+## Which helper to use
 
-### Available Server Methods
+| Need | Helper |
+| --- | --- |
+| Access raw Better Auth APIs | `serverAuth(event)` |
+| Read session if it exists | `getUserSession(event)` |
+| Reuse the same session lookup in one request | `getRequestSession(event)` |
+| Enforce auth | `requireUserSession(event, options?)` |
+| Create session in a custom flow | `createSession(event, userId)` |
+| Attach session cookie manually | `setSessionCookie(event, token)` |
 
-Via `serverAuth().api`:
-
-```ts
-const auth = serverAuth()
-
-// Session management
-await auth.api.listSessions({ headers: event.headers })
-await auth.api.revokeSession({ sessionId: 'xxx' }, { headers: event.headers })
-await auth.api.revokeOtherSessions({ headers: event.headers })
-await auth.api.revokeSessions({ headers: event.headers })
-
-// User management (with admin plugin)
-await auth.api.setRole({ userId: 'xxx', role: 'admin' }, { headers: event.headers })
-```
-
-## getUserSession()
-
-Get current session without throwing (returns null if not authenticated):
+## Common pattern
 
 ```ts
 export default defineEventHandler(async (event) => {
-  const result = await getUserSession(event)
-  if (!result) {
-    return { guest: true }
-  }
-  return { user: result.user }
-})
-```
+  const { user } = await requireUserSession(event, {
+    user: { role: 'admin' },
+  })
 
-Returns `{ user: AuthUser, session: AuthSession } | null`.
-
-## requireUserSession()
-
-Enforce authentication - throws if not authenticated:
-
-```ts
-export default defineEventHandler(async (event) => {
-  const { user, session } = await requireUserSession(event)
-  // user and session are guaranteed to exist
   return { userId: user.id }
 })
 ```
 
-- Throws `401` if not authenticated
-- Throws `403` if user matching fails
+## Matching rules
 
-## User Matching
-
-Restrict access based on user properties:
-
-```ts
-// Single value - exact match
-await requireUserSession(event, {
-  user: { role: 'admin' }
-})
-
-// Array - OR logic (any value matches)
-await requireUserSession(event, {
-  user: { role: ['admin', 'moderator'] }
-})
-
-// Multiple fields - AND logic (all must match)
-await requireUserSession(event, {
-  user: { role: 'admin', verified: true }
-})
-```
-
-## Custom Rules
-
-For complex validation logic:
-
-```ts
-await requireUserSession(event, {
-  rule: ({ user, session }) => {
-    return user.subscription?.active && user.points > 100
-  }
-})
-
-// Combined with user matching
-await requireUserSession(event, {
-  user: { verified: true },
-  rule: ({ user }) => user.subscription?.plan === 'pro'
-})
-```
-
-## Pattern Examples
-
-```ts
-// Admin-only endpoint
-export default defineEventHandler(async (event) => {
-  const { user } = await requireUserSession(event, {
-    user: { role: 'admin' }
-  })
-  return getAdminData()
-})
-
-// Premium feature
-export default defineEventHandler(async (event) => {
-  await requireUserSession(event, {
-    rule: ({ user }) => ['pro', 'enterprise'].includes(user.plan)
+- scalar value: exact match
+- array value: OR match
+- multiple fields: AND match
+- `rule`: custom callback for logic that field matching cannot express
   })
   return getPremiumContent()
 })

@@ -30,6 +30,7 @@ export interface AuthSession {
 export interface ServerAuthContext {
   runtimeConfig: Record<string, unknown>
   db: unknown
+  requestOrigin?: string
 }
 
 // Extended by generated types from configured socialProviders keys.
@@ -37,13 +38,10 @@ export interface AuthSocialProviderRegistry {}
 
 // Composable return type
 export interface UserSessionComposable {
-  client: unknown
   user: Ref<AuthUser | null>
   session: Ref<AuthSession | null>
   loggedIn: ComputedRef<boolean>
   ready: ComputedRef<boolean>
-  signIn: unknown
-  signUp: unknown
   fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>
   waitForSession: () => Promise<void>
   signOut: (options?: { onSuccess?: () => void | Promise<void> }) => Promise<void>

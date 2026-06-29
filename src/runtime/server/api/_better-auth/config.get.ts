@@ -1,5 +1,5 @@
 import { defineEventHandler } from 'h3'
-import { useRuntimeConfig } from 'nitropack/runtime'
+import { useRuntimeConfig } from '#imports'
 import { serverAuth } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {

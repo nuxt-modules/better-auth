@@ -1,123 +1,37 @@
-# TypeScript Types
+# TypeScript types
 
-## Module Alias
-
-Import types from the module alias:
+## Primary imports
 
 ```ts
-import type { AuthUser, AuthSession, ServerAuthContext, AppAuthClient } from '#nuxt-better-auth'
+import type {
+  AuthUser,
+  AuthSession,
+  AuthMeta,
+  AuthRouteRules,
+  RequireSessionOptions,
+  AuthSocialProviderId,
+} from '#nuxt-better-auth'
 ```
 
-## Core Types
+## Key guarantees
 
-### AuthUser
+- `AuthUser` and `AuthSession` are inferred from your Better Auth config
+- plugin fields flow into `useUserSession()`, `requireUserSession()`, and auth route matching
+- `AuthSocialProviderId` is inferred from configured social providers
 
-User object returned by `useUserSession()` and `requireUserSession()`:
+## When to augment manually
+
+Only add manual module augmentation if inference is not enough or you need to declare project-specific fields in advance.
 
 ```ts
-interface AuthUser {
-  id: string
-  email: string
-  name?: string
-  image?: string
-  emailVerified: boolean
-  createdAt: Date
-  updatedAt: Date
-  // Plus any fields from plugins (role, etc.)
+import '#nuxt-better-auth'
+
+declare module '#nuxt-better-auth' {
+  interface AuthUser {
+    customField?: string
+  }
 }
 ```
-
-### AuthSession
-
-Session object:
-
-```ts
-interface AuthSession {
-  id: string
-  userId: string
-  expiresAt: Date
-  // token is filtered from exposed data
-}
-```
-
-## Type Inference
-
-Types are automatically inferred from your server config. The module uses `InferUser` and `InferSession` from Better Auth:
-
-```ts
-// Inferred from server/auth.config.ts
-type AuthUser = InferUser<typeof authConfig>
-type AuthSession = InferSession<typeof authConfig>
-```
-
-## Plugin Type Augmentation
-
-When using plugins, types extend automatically:
-
-```ts
-// With admin plugin
-interface AuthUser {
-  // ... base fields
-  role: 'user' | 'admin'
-}
-
-// With 2FA plugin
-interface AuthUser {
-  // ... base fields
-  twoFactorEnabled: boolean
-}
-```
-
-## ServerAuthContext
-
-Available in `defineServerAuth()` callback:
-
-```ts
-interface ServerAuthContext {
-  runtimeConfig: RuntimeConfig
-  db?: DrizzleDatabase  // When NuxtHub enabled
-}
-```
-
-## Using Types in Components
-
-```vue
-<script setup lang="ts">
-import type { AuthUser } from '#nuxt-better-auth'
-
-const { user } = useUserSession()
-// user is Ref<AuthUser | null>
-
-function greet(u: AuthUser) {
-  return `Hello, ${u.name}`
-}
-</script>
-```
-
-## Using Types in Server
-
-```ts
-// server/utils/helpers.ts
-import type { AuthUser, AuthSession } from '#nuxt-better-auth'
-
-export function isAdmin(user: AuthUser): boolean {
-  return user.role === 'admin'
-}
-```
-
-## Custom User Fields
-
-Extend user type via Better Auth config:
-
-```ts
-// server/auth.config.ts
-import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
-
-export default defineServerAuth({
-  user: {
-    additionalFields: {
-      plan: { type: 'string' },
-      credits: { type: 'number' }
     }
   }
 })

@@ -1,5 +1,5 @@
-import type { AuthApiEndpointMethod, AuthApiEndpointPath, AuthApiEndpointResponse } from '#nuxt-better-auth'
 import type { NitroFetchOptions } from 'nitropack/types'
+import type { AuthApiEndpointMethod, AuthApiEndpointPath, AuthApiEndpointResponse } from '#nuxt-better-auth'
 import { useRequestFetch } from '#imports'
 
 type AuthRequestFetchExtractedMethod<Options> = Options extends undefined

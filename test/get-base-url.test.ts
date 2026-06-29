@@ -179,9 +179,9 @@ function getRequestOrigin(request?: Request): string | undefined {
 
 function withDevTrustedOrigins(
   trustedOrigins: TrustedOrigins,
-  options: GetNitroOriginOptions & { hasExplicitSiteUrl: boolean },
+  options: GetNitroOriginOptions,
 ): TrustedOrigins {
-  if (!options.isDev || !options.hasExplicitSiteUrl)
+  if (!options.isDev)
     return trustedOrigins
 
   const devOrigins = getDevTrustedOrigins(options)
@@ -307,7 +307,6 @@ describe('withDevTrustedOrigins', () => {
     const trustedOrigins = withDevTrustedOrigins(undefined, {
       isDev: true,
       isPrerender: false,
-      hasExplicitSiteUrl: true,
       env: {
         __NUXT_DEV__: JSON.stringify({ proxy: { url: 'http://127.0.0.1:4123' } }),
       },
@@ -324,7 +323,6 @@ describe('withDevTrustedOrigins', () => {
     const trustedOrigins = withDevTrustedOrigins(['https://foo.workers.dev', 'http://localhost:3001'], {
       isDev: true,
       isPrerender: false,
-      hasExplicitSiteUrl: true,
       env: {
         NITRO_HOST: 'localhost',
         NITRO_PORT: '3001',
@@ -343,7 +341,6 @@ describe('withDevTrustedOrigins', () => {
     const trustedOrigins = withDevTrustedOrigins(trustedOriginsFn, {
       isDev: true,
       isPrerender: false,
-      hasExplicitSiteUrl: true,
       env: {
         NITRO_HOST: '192.168.1.50',
         NITRO_PORT: '3002',
@@ -363,7 +360,6 @@ describe('withDevTrustedOrigins', () => {
     const trustedOrigins = withDevTrustedOrigins(undefined, {
       isDev: true,
       isPrerender: false,
-      hasExplicitSiteUrl: true,
       env: {
         NITRO_HOST: '0.0.0.0',
         NITRO_PORT: '3000',
@@ -384,7 +380,6 @@ describe('withDevTrustedOrigins', () => {
     const trustedOrigins = withDevTrustedOrigins(undefined, {
       isDev: false,
       isPrerender: false,
-      hasExplicitSiteUrl: true,
       env: {
         NITRO_HOST: 'localhost',
         NITRO_PORT: '3000',
@@ -394,18 +389,42 @@ describe('withDevTrustedOrigins', () => {
     expect(trustedOrigins).toBeUndefined()
   })
 
-  it('does not augment when siteUrl is not explicit', () => {
-    const configuredTrustedOrigins = ['https://foo.workers.dev']
-    const trustedOrigins = withDevTrustedOrigins(configuredTrustedOrigins, {
+  it('augments even when siteUrl is inferred', async () => {
+    const trustedOrigins = withDevTrustedOrigins(['https://foo.workers.dev'], {
       isDev: true,
       isPrerender: false,
-      hasExplicitSiteUrl: false,
       env: {
         NITRO_HOST: 'localhost',
         NITRO_PORT: '3000',
       },
     })
 
-    expect(trustedOrigins).toBe(configuredTrustedOrigins)
+    expect(typeof trustedOrigins).toBe('function')
+    if (typeof trustedOrigins !== 'function')
+      throw new Error('trustedOrigins should be a function')
+
+    const resolvedOrigins = await trustedOrigins()
+    expect(resolvedOrigins).toEqual(['https://foo.workers.dev', 'http://localhost:3000'])
+  })
+
+  it('adds loopback request origins regardless of alias order', async () => {
+    const trustedOrigins = withDevTrustedOrigins(undefined, {
+      isDev: true,
+      isPrerender: false,
+      env: {
+        NITRO_HOST: 'localhost',
+        NITRO_PORT: '3000',
+      },
+    })
+
+    expect(typeof trustedOrigins).toBe('function')
+    if (typeof trustedOrigins !== 'function')
+      throw new Error('trustedOrigins should be a function')
+
+    const localhostRequestOrigins = await trustedOrigins(new Request('http://localhost:3000/api/auth/sign-in'))
+    const loopbackRequestOrigins = await trustedOrigins(new Request('http://127.0.0.1:3000/api/auth/sign-in'))
+
+    expect(localhostRequestOrigins).toEqual(['http://localhost:3000'])
+    expect(loopbackRequestOrigins).toEqual(['http://localhost:3000', 'http://127.0.0.1:3000'])
   })
 })

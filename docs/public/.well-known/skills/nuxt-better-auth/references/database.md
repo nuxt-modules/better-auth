@@ -1,115 +1,45 @@
-# Database Integration
+# Database integration
 
-## NuxtHub Setup
+## Fastest database-backed path
+
+Use NuxtHub.
 
 ```ts
-// nuxt.config.ts
 export default defineNuxtConfig({
   modules: ['@nuxthub/core', '@onmax/nuxt-better-auth'],
-  hub: { database: true },
+  hub: {
+    db: 'sqlite',
+  },
+})
+```
+
+## What the module does with NuxtHub
+
+- reads `server/auth.config.ts`
+- generates auth tables from enabled Better Auth features
+- exposes generated schema through `#auth/schema`
+- can optionally use NuxtHub KV for session lookup caching
+
+## Secondary storage
+
+```ts
+export default defineNuxtConfig({
+  hub: {
+    db: 'sqlite',
+    kv: true,
+  },
   auth: {
-    hubSecondaryStorage: true,  // Optional: KV for session caching
-    schema: {
-      usePlural: false,      // user vs users
-      casing: 'camelCase'    // camelCase or snake_case
-    }
-  }
+    hubSecondaryStorage: true,
+  },
 })
 ```
 
-## Schema Generation
+Important:
 
-The module auto-generates Drizzle schema from Better Auth tables. Schema available via:
+- `hubSecondaryStorage: true` requires `hub.kv: true`
+- `hubSecondaryStorage: 'custom'` means you provide your own `secondaryStorage`
+- use DB-only reads if you prefer stricter read-after-write consistency
 
-```ts
-import { user, session, account, verification } from '#auth/database'
-```
+## Non-NuxtHub setups
 
-## Database Dialect
-
-Supports: `sqlite`, `postgresql`, `mysql`
-
-Schema syntax adapts to dialect:
-
-- SQLite: `integer('id').primaryKey()`
-- PostgreSQL/MySQL: `uuid('id').primaryKey()` or `text('id').primaryKey()`
-
-## Schema Options
-
-```ts
-auth: {
-  schema: {
-    usePlural: true,    // tables: users, sessions, accounts
-    casing: 'snake_case' // columns: created_at, updated_at
-  }
-}
-```
-
-| Option      | Default       | Description              |
-| ----------- | ------------- | ------------------------ |
-| `usePlural` | `false`       | Pluralize table names    |
-| `casing`    | `'camelCase'` | Column naming convention |
-
-## Extending Schema
-
-Add custom columns via NuxtHub's schema hooks:
-
-```ts
-// server/plugins/extend-schema.ts
-export default defineNitroPlugin(() => {
-  useNitroApp().hooks.hook('hub:db:schema:extend', (schema) => {
-    // Add custom tables or extend existing
-  })
-})
-```
-
-## Secondary Storage (KV)
-
-Enable session caching with KV:
-
-```ts
-auth: {
-  hubSecondaryStorage: true
-}
-```
-
-Requires `hub.kv: true` in config. Build fails if KV is not enabled. Improves session lookup performance.
-
-## Server Config with DB
-
-Database adapter injected via context:
-
-```ts
-// server/auth.config.ts
-import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
-
-export default defineServerAuth(({ db }) => ({
-  database: db,  // Already configured when hub.database: true
-  emailAndPassword: { enabled: true }
-}))
-```
-
-## Manual Database Setup
-
-Without NuxtHub, configure manually:
-
-```ts
-// server/auth.config.ts
-import { drizzle } from 'drizzle-orm/...'
-import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
-
-const db = drizzle(...)
-
-export default defineServerAuth({
-  database: drizzleAdapter(db, { provider: 'sqlite' })
-})
-```
-
-## Migrations
-
-Better Auth creates tables automatically on first run. For production, generate migrations:
-
-```bash
-# Using Better Auth CLI
-npx better-auth generate
-```
+If you are not using NuxtHub, configure the Better Auth adapter yourself in `server/auth.config.ts` and manage schema generation separately.

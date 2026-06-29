@@ -1,49 +1,47 @@
-import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { ComputedRef, Ref } from 'vue'
-import createAppAuthClient from '#auth/client'
-import { computed, navigateTo, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
+import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
+import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
 import { fetchSessionClient, fetchSessionServer, stripToken } from '../internal/session-fetch'
 import { isRecord } from '../internal/utils'
+import { createVueSafeAuthFacade, isAuthProxyProbeKey } from '../internal/vue-safe-auth-proxy'
 import { wrapAuthMethod } from '../internal/wrap-auth-method'
+import { getAuthRuntimeFlags, useRawAuthClient } from './useAuthClient'
 
 export interface SignOutOptions { onSuccess?: () => void | Promise<void> }
-interface RuntimeFlags { client: boolean, server: boolean }
 
 let _sessionSignalListenerBound = false
 let _signOutPromise: Promise<void> | null = null
 
 export interface UseUserSessionReturn {
-  client: AppAuthClient | null
   session: Ref<AuthSession | null>
   user: Ref<AuthUser | null>
   loggedIn: ComputedRef<boolean>
   ready: ComputedRef<boolean>
-  signIn: NonNullable<AppAuthClient>['signIn']
-  signUp: NonNullable<AppAuthClient>['signUp']
   signOut: (options?: SignOutOptions) => Promise<void>
   waitForSession: () => Promise<void>
   fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>
   updateUser: (updates: Partial<AuthUser>) => Promise<void>
 }
 
-// Singleton client instance to ensure consistent state across all useUserSession calls
-let _client: AppAuthClient | null = null
 interface UpdateUserResponse { error?: unknown }
 
-function getClient(baseURL: string): AppAuthClient {
-  if (!_client)
-    _client = createAppAuthClient(baseURL)
-  return _client
+function createServerOnlyActionNamespace(path: string) {
+  return new Proxy({}, {
+    get(_target, prop) {
+      if (isAuthProxyProbeKey(prop))
+        return undefined
+      const key = prop as string
+      return async () => {
+        throw new Error(`${path}.${key}() can only be called on client-side`)
+      }
+    },
+  })
 }
 
-function getRuntimeFlags(): RuntimeFlags {
-  const globalFlags = (globalThis as { __NUXT_BETTER_AUTH_TEST_FLAGS__?: RuntimeFlags }).__NUXT_BETTER_AUTH_TEST_FLAGS__
-  if (globalFlags)
-    return globalFlags
-  return { client: Boolean(import.meta.client), server: Boolean(import.meta.server) }
-}
+const _signInServerOnly = createServerOnlyActionNamespace('signIn')
+const _signUpServerOnly = createServerOnlyActionNamespace('signUp')
 
 function ensureSessionSignalListener(client: AppAuthClient, onSignal: () => Promise<void>) {
   if (_sessionSignalListenerBound)
@@ -68,14 +66,10 @@ function ensureSessionSignalListener(client: AppAuthClient, onSignal: () => Prom
 }
 
 export function useUserSession(): UseUserSessionReturn {
-  const runtimeFlags = getRuntimeFlags()
+  const runtimeFlags = getAuthRuntimeFlags()
   const runtimeConfig = useRuntimeConfig()
-  const requestURL = useRequestURL()
   const nuxtApp = useNuxtApp()
-
-  const client: AppAuthClient | null = runtimeFlags.client
-    ? getClient(runtimeConfig.public.siteUrl || requestURL.origin)
-    : null
+  const rawClient = useRawAuthClient()
 
   // Shared state via useState for SSR hydration
   const session = useState<AuthSession | null>('auth:session', () => null)
@@ -134,8 +128,8 @@ export function useUserSession(): UseUserSessionReturn {
   async function fetchSession(options: { headers?: HeadersInit, force?: boolean } = {}) {
     if (runtimeFlags.server)
       return fetchSessionServer(session, user, authReady, options)
-    if (client)
-      return fetchSessionClient(client, session, user, authReady, options)
+    if (rawClient)
+      return fetchSessionClient(rawClient, session, user, authReady, options)
   }
 
   async function updateUser(updates: Partial<AuthUser>) {
@@ -145,11 +139,11 @@ export function useUserSession(): UseUserSessionReturn {
     const previousUser = user.value
     user.value = { ...user.value, ...updates }
 
-    if (!client)
+    if (!rawClient)
       return
 
     try {
-      const clientWithUpdateUser = client as AppAuthClient & { updateUser: (updates: Partial<AuthUser>) => Promise<UpdateUserResponse> }
+      const clientWithUpdateUser = rawClient as AppAuthClient & { updateUser: (updates: Partial<AuthUser>) => Promise<UpdateUserResponse> }
       const result = await clientWithUpdateUser.updateUser(updates)
       if (result?.error) {
         if (result.error instanceof Error)
@@ -169,8 +163,8 @@ export function useUserSession(): UseUserSessionReturn {
   }
 
   // On client, subscribe to better-auth's reactive session store
-  if (runtimeFlags.client && client && !shouldSkipInitialClientSessionFetch.value) {
-    const clientSession = client.useSession()
+  if (runtimeFlags.client && rawClient && !shouldSkipInitialClientSessionFetch.value) {
+    const clientSession = rawClient.useSession()
 
     watch(
       () => clientSession.value,
@@ -234,62 +228,12 @@ export function useUserSession(): UseUserSessionReturn {
     })
   }
 
-  // Wrap signIn/signUp methods to sync session before executing onSuccess
-  type SignIn = NonNullable<AppAuthClient>['signIn']
-  type SignUp = NonNullable<AppAuthClient>['signUp']
-
-  const wrapDeps = {
-    fetchSession,
-    loggedIn,
-    waitForSession,
-    resolvePostAuthSuccessRedirect: () => resolvePostAuthSuccessRedirect(requestURL),
-  }
-
-  const signIn: SignIn = client?.signIn
-    ? new Proxy(client.signIn, {
-        get(target, prop) {
-          const targetRecord = target as Record<string | symbol, unknown>
-          const method = targetRecord[prop]
-          if (typeof method !== 'function')
-            return method
-          const shouldSkipSessionSync = prop === 'social'
-            ? (data: unknown) => {
-                const socialData = isRecord(data) ? data : undefined
-                return socialData?.disableRedirect !== true
-              }
-            : undefined
-          const transformData = prop === 'social' ? (data: unknown) => withFallbackSocialCallbackURL(data, requestURL) : undefined
-          return wrapAuthMethod(
-            (...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args),
-            wrapDeps,
-            { shouldSkipSessionSync, transformData },
-          )
-        },
-      })
-    : new Proxy({} as SignIn, {
-        get: (_, prop) => { throw new Error(`signIn.${String(prop)}() can only be called on client-side`) },
-      })
-
-  const signUp: SignUp = client?.signUp
-    ? new Proxy(client.signUp, {
-        get(target, prop) {
-          const targetRecord = target as Record<string | symbol, unknown>
-          const method = targetRecord[prop]
-          if (typeof method !== 'function')
-            return method
-          return wrapAuthMethod((...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args), wrapDeps)
-        },
-      })
-    : new Proxy({} as SignUp, {
-        get: (_, prop) => { throw new Error(`signUp.${String(prop)}() can only be called on client-side`) },
-      })
-
-  if (runtimeFlags.client && client && shouldSkipInitialClientSessionFetch.value) {
-    ensureSessionSignalListener(client, () => fetchSession({ force: true }))
+  if (runtimeFlags.client && rawClient && shouldSkipInitialClientSessionFetch.value) {
+    ensureSessionSignalListener(rawClient, () => fetchSession({ force: true }))
   }
 
   async function signOut(options?: SignOutOptions) {
-    if (!client)
+    if (!rawClient)
       throw new Error('signOut can only be called on client-side')
 
     if (_signOutPromise) {
@@ -298,7 +242,7 @@ export function useUserSession(): UseUserSessionReturn {
     }
 
     _signOutPromise = (async () => {
-      await client.signOut()
+      await rawClient.signOut()
       clearSession()
 
       if (options?.onSuccess) {
@@ -308,8 +252,10 @@ export function useUserSession(): UseUserSessionReturn {
 
       const authConfig = runtimeConfig.public.auth as { redirects?: { logout?: string } } | undefined
       const logoutRedirect = authConfig?.redirects?.logout
-      if (logoutRedirect)
+      if (logoutRedirect) {
+        await nextTick()
         await navigateTo(logoutRedirect)
+      }
     })().finally(() => {
       _signOutPromise = null
     })
@@ -318,16 +264,61 @@ export function useUserSession(): UseUserSessionReturn {
   }
 
   return {
-    client,
     session,
     user,
     loggedIn,
     ready,
-    signIn,
-    signUp,
     signOut,
     waitForSession,
     fetchSession,
     updateUser,
   }
+}
+
+export function useAuthActionNamespaces() {
+  const rawClient = useRawAuthClient()
+  const auth = useUserSession()
+  const requestURL = useRequestURL()
+  type SignIn = NonNullable<AppAuthClient>['signIn']
+  type SignUp = NonNullable<AppAuthClient>['signUp']
+
+  const wrapDeps = {
+    fetchSession: auth.fetchSession,
+    loggedIn: auth.loggedIn,
+    waitForSession: auth.waitForSession,
+    resolvePostAuthSuccessRedirect: () => resolvePostAuthSuccessRedirect(requestURL),
+  }
+
+  const signIn: SignIn = rawClient?.signIn
+    ? createVueSafeAuthFacade((prop) => {
+        const targetRecord = rawClient.signIn as Record<string | symbol, unknown>
+        const method = targetRecord[prop]
+        if (typeof method !== 'function')
+          return method
+        const shouldSkipSessionSync = prop === 'social'
+          ? (data: unknown) => {
+              const socialData = isRecord(data) ? data : undefined
+              return socialData?.disableRedirect !== true
+            }
+          : undefined
+        const transformData = prop === 'social' ? (data: unknown) => withFallbackSocialCallbackURL(data, requestURL) : undefined
+        return wrapAuthMethod(
+          (...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args),
+          wrapDeps,
+          { shouldSkipSessionSync, transformData },
+        )
+      })
+    : _signInServerOnly as SignIn
+
+  const signUp: SignUp = rawClient?.signUp
+    ? createVueSafeAuthFacade((prop) => {
+        const targetRecord = rawClient.signUp as Record<string | symbol, unknown>
+        const method = targetRecord[prop]
+        if (typeof method !== 'function')
+          return method
+        return wrapAuthMethod((...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args), wrapDeps)
+      })
+    : _signUpServerOnly as SignUp
+
+  return { signIn, signUp }
 }

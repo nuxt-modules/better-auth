@@ -1,6 +1,6 @@
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
 import { createError, defineEventHandler, getRequestURL } from 'h3'
-import { getRouteRules } from 'nitropack/runtime'
+import { getRouteRules } from '#imports'
 import { matchesUser } from '../../utils/match-user'
 import { getUserSession, requireUserSession } from '../utils/session'
 

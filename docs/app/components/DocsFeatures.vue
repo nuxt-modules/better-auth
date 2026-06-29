@@ -2,6 +2,7 @@
 interface Feature { title: string, description: string, href?: string }
 
 const props = defineProps<{ features: Feature[] }>()
+const INLINE_CODE_RE = /`([^`]+)`/g
 
 const patternId = useId()
 
@@ -10,7 +11,7 @@ function getGridSize(index: number) {
 }
 
 function renderDescription(desc: string) {
-  return desc.replace(/`([^`]+)`/g, '<code class="font-mono text-xs bg-black/5 dark:bg-white/10 px-1 py-0.5 rounded">$1</code>')
+  return desc.replace(INLINE_CODE_RE, '<code class="font-mono text-xs bg-black/5 dark:bg-white/10 px-1 py-0.5 rounded">$1</code>')
 }
 </script>
 

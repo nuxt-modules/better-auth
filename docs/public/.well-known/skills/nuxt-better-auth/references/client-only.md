@@ -1,10 +1,8 @@
-# Client-Only Mode (External Auth Backend)
+# Client-only mode
 
-When Better Auth runs on a separate backend (microservices, standalone server), use `clientOnly` mode.
+Use `clientOnly` when Better Auth runs on a separate backend.
 
-## Configuration
-
-### 1. Enable in nuxt.config.ts
+## Minimal setup
 
 ```ts
 export default defineNuxtConfig({
@@ -15,73 +13,20 @@ export default defineNuxtConfig({
 })
 ```
 
-### 2. Point client to external server
-
-```ts [app/auth.config.ts]
-import { defineClientAuth } from '@onmax/nuxt-better-auth/config'
-
-export default defineClientAuth({
-  baseURL: 'https://auth.example.com', // External auth server
-})
+```ini
+NUXT_PUBLIC_SITE_URL=https://auth.example.com
 ```
 
-### 3. Set frontend URL
+## What changes
 
-```ini [.env]
-NUXT_PUBLIC_SITE_URL="https://your-frontend.com"
-```
+- no local `/api/auth/**` handlers
+- no local `server/auth.config.ts`
+- no server utilities such as `serverAuth()` or `requireUserSession()`
+- no SSR session hydration from a local auth server
+- `useUserSession()` still works on the client
 
-## What Changes
+## External server requirements
 
-| Feature                                                                       | Full Mode       | Client-Only       |
-| ----------------------------------------------------------------------------- | --------------- | ----------------- |
-| `server/auth.config.ts`                                                       | Required        | Not needed        |
-| `/api/auth/**` handlers                                                       | Auto-registered | Skipped           |
-| `NUXT_BETTER_AUTH_SECRET`                                                     | Required        | Not needed        |
-| Server utilities (`serverAuth()`, `getUserSession()`, `requireUserSession()`) | Available       | **Not available** |
-| SSR session hydration                                                         | Server-side     | Client-side only  |
-| `useUserSession()`, route protection, `<BetterAuthState>`                     | Works           | Works             |
-
-## CORS Requirements
-
-Ensure external auth server:
-
-- Allows requests from frontend (CORS with `credentials: true`)
-- Uses `SameSite=None; Secure` cookies (HTTPS required)
-- Includes frontend URL in `trustedOrigins`
-
-## SSR Considerations
-
-Session fetched client-side only:
-
-- Server-rendered pages render as "unauthenticated" initially
-- Hydrates with session data on client
-- Use `<BetterAuthState>` for loading states
-
-```vue
-<BetterAuthState v-slot="{ isLoading, user }">
-  <div v-if="isLoading">Loading...</div>
-  <div v-else-if="user">Welcome, {{ user.name }}</div>
-  <div v-else>Please log in</div>
-</BetterAuthState>
-```
-
-## Use Cases
-
-- **Microservices**: Auth service is separate deployment
-- **Shared auth**: Multiple frontends share one auth backend
-- **Existing backend**: Already have Better Auth server running elsewhere
-
-## Architecture Example
-
-```
-┌─────────────────┐     ┌─────────────────┐
-│   Nuxt App      │────▶│  Auth Server    │
-│  (clientOnly)   │     │ (Better Auth)   │
-│                 │◀────│                 │
-└─────────────────┘     └────────┬────────┘
-                                 │
-                        ┌────────▼────────┐
-                        │    Database     │
-                        └─────────────────┘
-```
+- allow cross-origin requests with credentials
+- use secure cross-site cookies when needed
+- include the frontend origin in `trustedOrigins`

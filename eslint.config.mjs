@@ -7,7 +7,9 @@ export default antfu(
   },
   {
     rules: {
+      'e18e/prefer-static-regex': 'off',
       'node/prefer-global/process': 'off',
+      'perfectionist/sort-imports': 'off',
     },
   },
   // Enforce no explicit `any` in shipped code, but keep .d.ts/tests/playground flexible.

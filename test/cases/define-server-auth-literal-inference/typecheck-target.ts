@@ -1,4 +1,4 @@
-import { defineServerAuth } from '../../../../src/runtime/config'
+import { defineServerAuth } from '../../../src/runtime/config'
 
 const objectConfig = defineServerAuth({
   advanced: { database: { generateId: 'uuid' } },

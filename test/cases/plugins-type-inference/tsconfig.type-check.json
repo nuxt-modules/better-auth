@@ -5,7 +5,6 @@
       "ESNext",
       "DOM"
     ],
-    "baseUrl": ".",
     "module": "preserve",
     "moduleResolution": "bundler",
     "paths": {
@@ -19,7 +18,9 @@
     "skipLibCheck": true
   },
   "files": [
+    "./virtual-modules.d.ts",
     "./.nuxt/types/nuxt-better-auth-infer.d.ts",
+    "./.nuxt/types/nuxt-better-auth-social-providers.d.ts",
     "./.nuxt/types/nuxt-better-auth-nitro.d.ts",
     "./typecheck-target.ts"
   ]

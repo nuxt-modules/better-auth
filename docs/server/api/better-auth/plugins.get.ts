@@ -1,19 +1,25 @@
+const WORD_SEPARATOR_RE = /[-_]+/g
+const WORD_INITIAL_RE = /\b\w/g
+const OAUTH_RE = /\bOauth\b/g
+const OIDC_RE = /\bOidc\b/g
+const API_RE = /\bApi\b/g
+const DOCS_PLUGIN_RE = /\/docs\/plugins\/([a-z0-9-]+)(?=["\\])/g
+
 export default defineEventHandler(async () => {
   const baseDocsUrl = 'https://www.better-auth.com/docs'
 
   const titleCase = (slug: string) =>
     slug
-      .replace(/[-_]+/g, ' ')
-      .replace(/\b\w/g, c => c.toUpperCase())
-      .replace(/\bOauth\b/g, 'OAuth')
-      .replace(/\bOidc\b/g, 'OIDC')
-      .replace(/\bApi\b/g, 'API')
+      .replace(WORD_SEPARATOR_RE, ' ')
+      .replace(WORD_INITIAL_RE, c => c.toUpperCase())
+      .replace(OAUTH_RE, 'OAuth')
+      .replace(OIDC_RE, 'OIDC')
+      .replace(API_RE, 'API')
 
   const html = await fetch(`${baseDocsUrl}/introduction`).then(r => r.text())
 
   const slugs = new Set<string>()
-  const re = /\/docs\/plugins\/([a-z0-9-]+)(?=["\\])/g
-  for (const match of html.matchAll(re)) {
+  for (const match of html.matchAll(DOCS_PLUGIN_RE)) {
     const slug = match[1]
     if (!slug)
       continue

@@ -38,6 +38,9 @@ vi.mock('#imports', () => ({
   useNuxtApp: () => nuxtApp,
   useRequestHeaders: () => ({ cookie: 'session=test' }),
   useRuntimeConfig: () => runtimeConfig,
+}))
+
+vi.mock('../src/runtime/app/composables/useUserSession', () => ({
   useUserSession: () => ({
     fetchSession,
     user,
@@ -97,6 +100,25 @@ describe('auth.global middleware', () => {
     expect(navigateTo).toHaveBeenCalledWith('/app')
   })
 
+  it('does not redirect from guest routes when session refresh resolves as logged out', async () => {
+    loggedIn.value = true
+    getRouteRules.mockResolvedValueOnce({ auth: { only: 'guest' } })
+    fetchSession.mockImplementationOnce(async () => {
+      loggedIn.value = false
+      user.value = null
+    })
+
+    const middleware = await loadMiddleware()
+    await middleware({
+      path: '/login',
+      fullPath: '/login',
+      meta: {},
+    })
+
+    expect(fetchSession).toHaveBeenCalledTimes(1)
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
   it('checks protected routes and attempts redirect when unauthenticated', async () => {
     getRouteRules.mockResolvedValueOnce({ auth: 'user' })
 
@@ -107,6 +129,7 @@ describe('auth.global middleware', () => {
       meta: {},
     })
 
+    expect(fetchSession).toHaveBeenCalledTimes(1)
     expect(navigateTo).toHaveBeenCalledTimes(1)
   })
 
@@ -122,6 +145,8 @@ describe('auth.global middleware', () => {
       meta: {},
     })
 
+    expect(fetchSession).toHaveBeenCalledTimes(1)
+    expect(fetchSession).toHaveBeenCalledWith({ headers: undefined, force: true })
     expect(navigateTo).toHaveBeenCalledTimes(1)
   })
 

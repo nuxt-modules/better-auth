@@ -5,23 +5,29 @@
   "scripts": {
     "dev": "nuxi dev",
     "build": "nuxi build",
+    "deploy": "wrangler deploy",
     "generate": "nuxi generate",
     "preview": "nuxi preview"
   },
   "dependencies": {
     "@nuxt/content": "^3.12.0",
     "@nuxt/fonts": "^0.14.0",
+    "@nuxt/icon": "^2.2.2",
     "@nuxt/ui": "^4.5.0",
     "@vercel/analytics": "^2.0.0",
     "@vercel/speed-insights": "^1.3.1",
     "@vueuse/core": "^14.2.1",
     "motion-v": "^2.0.0",
-    "nuxt": "^4.3.1"
+    "nuxt": "^4.3.1",
+    "nuxt-shiki": "^0.3.2",
+    "nuxt-site-config": "^4.0.8",
+    "satori": "^0.26.0"
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.5",
     "@rollup/plugin-yaml": "^4.1.2",
     "@vueuse/nuxt": "^14.2.1",
-    "docus": "^5.8.1"
+    "docus": "^5.11.0",
+    "wrangler": "4.72.0"
   }
 }

@@ -17,6 +17,8 @@ interface SchemaContext {
 
 type HubSecondaryStorageMode = BetterAuthModuleOptions['hubSecondaryStorage']
 
+const NODE_MODULES_SEGMENT_RE = /[\\/]/
+
 export function resolveSchemaSecondaryStorageInjection(
   hubSecondaryStorage: HubSecondaryStorageMode,
   userHasSecondaryStorage: boolean,
@@ -39,7 +41,7 @@ export function resolveSchemaSecondaryStorageInjection(
 }
 
 function isInsideNodeModules(path: string): boolean {
-  return path.split(/[\\/]/).includes('node_modules')
+  return path.split(NODE_MODULES_SEGMENT_RE).includes('node_modules')
 }
 
 export function resolveHubSchemaPath(
@@ -66,7 +68,12 @@ export function resolveHubSchemaPath(
 async function loadAuthOptions(context: SchemaContext) {
   const isProduction = !context.nuxt.options.dev
   const configFile = `${context.serverConfigPath}.ts`
-  const userConfig = await loadUserAuthConfig(configFile, isProduction)
+  const alias = Object.fromEntries(
+    Object.entries(context.nuxt.options.alias)
+      .filter(([, value]) => typeof value === 'string')
+      .map(([key, value]) => [key, value as string]),
+  )
+  const userConfig = await loadUserAuthConfig(configFile, isProduction, alias, context.nuxt.options.runtimeConfig)
 
   const extendedConfig: { plugins?: BetterAuthPlugin[] } = {}
   await context.nuxt.callHook('better-auth:config:extend', extendedConfig)

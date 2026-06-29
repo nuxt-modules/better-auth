@@ -1,7 +1,7 @@
 import type { AppAuthClient, AuthSocialProviderRegistry } from '#nuxt-better-auth'
 import type { ActionHandleFor, ActionHandleMap } from '../internal/auth-action-handles'
-import { useUserSession } from '#imports'
 import { createActionHandles } from '../internal/auth-action-handles'
+import { useAuthActionNamespaces } from './useUserSession'
 
 type SignIn = NonNullable<AppAuthClient>['signIn']
 type AuthSocialProviderId = AuthSocialProviderRegistry extends { ids: infer T } ? Extract<T, string> : never
@@ -16,7 +16,7 @@ export function useSignIn<MethodKey extends keyof SignInWithTypedSocial>(method:
   if (method === undefined || method === null)
     throw new TypeError('useSignIn(method) requires a sign-in method key')
 
-  const handles = createActionHandles(() => useUserSession().signIn as SignInWithTypedSocial, 'signIn') as ActionHandleMap<SignInWithTypedSocial>
+  const handles = createActionHandles(() => useAuthActionNamespaces().signIn as SignInWithTypedSocial, 'signIn') as ActionHandleMap<SignInWithTypedSocial>
 
   return handles[method] as ActionHandleFor<SignInWithTypedSocial[MethodKey]>
 }

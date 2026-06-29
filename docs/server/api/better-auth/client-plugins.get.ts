@@ -1,11 +1,16 @@
+const DOCS_PLUGIN_RE = /\/docs\/plugins\/([a-z0-9-]+)(?=["\\])/g
+const CLIENT_EXPORT_RE = /export\s+(?:declare\s+)?(?:const|function)\s+(\w+)/g
+const CLIENT_SUFFIX_RE = /Client$/
+const CAMEL_TO_KEBAB_BOUNDARY_RE = /([a-z0-9])([A-Z])/g
+const CAMEL_TO_KEBAB_ACRONYM_RE = /([A-Z]+)([A-Z][a-z0-9]+)/g
+
 export default defineEventHandler(async () => {
   const baseDocsUrl = 'https://www.better-auth.com/docs'
 
   const html = await fetch(`${baseDocsUrl}/introduction`).then(r => r.text())
 
   const pluginSlugs = new Set<string>()
-  const pluginRe = /\/docs\/plugins\/([a-z0-9-]+)(?=["\\])/g
-  for (const pluginMatch of html.matchAll(pluginRe)) {
+  for (const pluginMatch of html.matchAll(DOCS_PLUGIN_RE)) {
     if (pluginMatch[1])
       pluginSlugs.add(pluginMatch[1])
   }
@@ -14,25 +19,24 @@ export default defineEventHandler(async () => {
   const dts = await fetch(clientDtsUrl).then(r => r.text())
 
   const exportNames = new Set<string>()
-  const exportRe = /export\s+(?:declare\s+)?(?:const|function)\s+(\w+)/g
-  for (const exportMatch of dts.matchAll(exportRe)) {
+  for (const exportMatch of dts.matchAll(CLIENT_EXPORT_RE)) {
     const name = exportMatch[1]
     if (name)
       exportNames.add(name)
   }
 
   const clientPluginNames = Array.from(exportNames)
-    .filter(name => name.endsWith('Client'))
+    .filter(name => CLIENT_SUFFIX_RE.test(name))
     .sort((a, b) => a.localeCompare(b))
 
   const camelToKebab = (input: string) =>
     input
-      .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-      .replace(/([A-Z]+)([A-Z][a-z0-9]+)/g, '$1-$2')
+      .replace(CAMEL_TO_KEBAB_BOUNDARY_RE, '$1-$2')
+      .replace(CAMEL_TO_KEBAB_ACRONYM_RE, '$1-$2')
       .toLowerCase()
 
   const toSlug = (clientExport: string) => {
-    const base = clientExport.replace(/Client$/, '')
+    const base = clientExport.replace(CLIENT_SUFFIX_RE, '')
     const candidate = camelToKebab(base)
     const overrides: Record<string, string> = {
       'two-factor': '2fa',

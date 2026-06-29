@@ -5,7 +5,6 @@
       "ESNext",
       "DOM"
     ],
-    "baseUrl": ".",
     "module": "preserve",
     "moduleResolution": "bundler",
     "paths": {

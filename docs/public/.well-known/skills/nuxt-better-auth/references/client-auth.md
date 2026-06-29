@@ -1,66 +1,49 @@
-# Client-Side Authentication
+# Client-side authentication
 
-## useUserSession()
-
-Main composable for auth state and methods.
+## Primary entry point
 
 ```ts
 const {
-  user,           // Ref<AuthUser | null>
-  session,        // Ref<AuthSession | null>
-  loggedIn,       // ComputedRef<boolean>
-  ready,          // ComputedRef<boolean> - session fetch complete
-  client,         // Better Auth client (client-side only)
-  signIn,         // Proxy to client.signIn
-  signUp,         // Proxy to client.signUp
-  signOut,        // Sign out and clear session
-  fetchSession,   // Manually refresh session
-  updateUser      // Optimistic local user update
+  user,
+  session,
+  loggedIn,
+  ready,
+  client,
+  signIn,
+  signUp,
+  signOut,
+  fetchSession,
+  updateUser,
 } = useUserSession()
 ```
 
-## Sign In
+## What to rely on
+
+- `ready` means the initial auth state has resolved.
+- `client` is browser-only and `null` during SSR.
+- `signIn` and `signUp` proxy Better Auth client methods.
+- `signOut` clears local state after the server sign-out flow completes.
+
+## Common patterns
+
+### Email sign-in
 
 ```ts
-// Email/password
-await signIn.email({
-  email: 'user@example.com',
-  password: 'password123'
-}, {
-  onSuccess: () => navigateTo('/dashboard')
-})
+await signIn.email(
+  { email: 'user@example.com', password: 'password123' },
+  { onSuccess: () => navigateTo('/dashboard') },
+)
+```
 
-// OAuth
+### Social sign-in
+
+```ts
 await signIn.social({ provider: 'github' })
 ```
 
-## Sign Up
-
-```ts
-await signUp.email({
-  email: 'user@example.com',
-  password: 'password123',
-  name: 'John Doe'
-}, {
-  onSuccess: () => navigateTo('/welcome')
-})
-```
-
-## Sign Out
-
-```ts
-await signOut()
-// or with redirect
-await signOut({ redirect: '/login' })
-```
-
-## Check Auth State
+### Loading state
 
 ```vue
-<script setup>
-const { user, loggedIn, ready } = useUserSession()
-</script>
-
 <template>
   <div v-if="!ready">Loading...</div>
   <div v-else-if="loggedIn">Welcome, {{ user?.name }}</div>
@@ -68,56 +51,15 @@ const { user, loggedIn, ready } = useUserSession()
 </template>
 ```
 
-## Safe Redirects
-
-Always validate redirect URLs from query params to prevent open redirects:
+### Force refresh
 
 ```ts
-function getSafeRedirect() {
-  const redirect = route.query.redirect as string
-  // Must start with / and not // (prevents protocol-relative URLs)
-  if (!redirect?.startsWith('/') || redirect.startsWith('//')) {
-    return '/'
-  }
-  return redirect
-}
-
-await signIn.email({
-  email, password
-}, {
-  onSuccess: () => navigateTo(getSafeRedirect())
-})
-```
-
-## Wait for Session
-
-Useful when needing session before rendering:
-
-```ts
-await waitForSession() // 5s timeout
-if (loggedIn.value) {
-  // Session is ready
-}
-```
-
-## Manual Session Refresh
-
-```ts
-// Refetch from server
 await fetchSession({ force: true })
 ```
 
-## Session Management
+## Redirect rule
 
-Additional session management via Better Auth client:
-
-```ts
-const { client } = useUserSession()
-
-// List all active sessions for current user
-const sessions = await client.listSessions()
-
-// Revoke a specific session
+If you read `route.query.redirect`, validate it before navigating. Only allow local paths.
 await client.revokeSession({ sessionId: 'xxx' })
 
 // Revoke all sessions except current
