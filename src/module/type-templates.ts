@@ -320,7 +320,6 @@ declare module 'nitropack' {
   interface NitroRouteConfig {
     auth?: import('${runtimeTypesPath}').AuthMeta
   }
-  interface InternalApi extends _GeneratedAuthInternalApi {}
 }
 declare module 'nitropack/types' {
   interface NitroRouteRules {
@@ -329,7 +328,6 @@ declare module 'nitropack/types' {
   interface NitroRouteConfig {
     auth?: import('${runtimeTypesPath}').AuthMeta
   }
-  interface InternalApi extends _GeneratedAuthInternalApi {}
 }
 declare module 'nitro/types' {
   interface NitroRouteRules {
@@ -338,7 +336,6 @@ declare module 'nitro/types' {
   interface NitroRouteConfig {
     auth?: import('${runtimeTypesPath}').AuthMeta
   }
-  interface InternalApi extends _GeneratedAuthInternalApi {}
 }
 export {}
 `,

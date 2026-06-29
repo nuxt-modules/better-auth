@@ -8,8 +8,8 @@ const env = {
   BETTER_AUTH_SECRET: 'test-secret-for-testing-only-32chars',
 }
 
-describe('typed nitro route inference #194', () => {
-  it('typechecks generated InternalApi endpoint inference for /api/auth routes', () => {
+describe('nitro route inference', () => {
+  it('does not augment global InternalApi with /api/auth routes', () => {
     const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
       cwd: fixtureDir,
       env,
