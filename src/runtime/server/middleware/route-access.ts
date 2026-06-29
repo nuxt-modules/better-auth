@@ -1,6 +1,7 @@
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
 import { createError, defineEventHandler, getRequestURL } from 'h3'
 import { getRouteRules } from '#imports'
+import { shouldSkipAuthRouteRules } from '../../internal/auth-route-rules'
 import { matchesUser } from '../../utils/match-user'
 import { getUserSession, requireUserSession } from '../utils/session'
 
@@ -10,7 +11,7 @@ export default defineEventHandler(async (event) => {
   if (!path.startsWith('/api/'))
     return
 
-  if (path.startsWith('/api/auth/'))
+  if (shouldSkipAuthRouteRules(path))
     return
 
   const rules = getRouteRules(event) as AuthRouteRules
