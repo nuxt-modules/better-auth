@@ -17,9 +17,6 @@ importers:
       '@nuxt/kit':
         specifier: ^4.3.1
         version: 4.3.1(magicast@0.5.2)
-      '@nuxt/ui':
-        specifier: ^4.5.0
-        version: 4.7.1(ef1ed52edb360027a1352934f41087da)
       defu:
         specifier: ^6.1.4
         version: 6.1.7

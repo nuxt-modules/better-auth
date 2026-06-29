@@ -1,7 +1,7 @@
 import type { Nuxt, NuxtPage } from '@nuxt/schema'
 import type { AuthRouteRules } from '../runtime/types'
 import { existsSync, statSync } from 'node:fs'
-import { addComponentsDir, addImportsDir, addPlugin, addServerHandler, addServerImports, addServerImportsDir, addServerScanDir, extendPages, hasNuxtModule, installModule, updateTemplates } from '@nuxt/kit'
+import { addComponentsDir, addImportsDir, addPlugin, addServerHandler, addServerImports, addServerImportsDir, addServerScanDir, extendPages, updateTemplates } from '@nuxt/kit'
 import { defu } from 'defu'
 import { isAbsolute, join } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
@@ -129,9 +129,6 @@ export async function registerDevtools(input: RegisterDevtoolsInput): Promise<vo
   if (isProduction || clientOnly)
     return
 
-  if (!hasNuxtModule('@nuxt/ui'))
-    await installModule('@nuxt/ui')
-
   setupDevTools(nuxt)
   addServerHandler({ route: '/api/_better-auth/config', method: 'get', handler: resolve('./runtime/server/api/_better-auth/config.get') })
 
@@ -147,7 +144,7 @@ export async function registerDevtools(input: RegisterDevtoolsInput): Promise<vo
   }
 
   extendPages((pages) => {
-    pages.push({ name: 'better-auth-devtools', path: '/__better-auth-devtools', file: resolve('./runtime/app/pages/__better-auth-devtools.vue') })
+    pages.push({ name: 'better-auth-devtools', path: '/__better-auth-devtools', file: resolve('./runtime/app/pages/__better-auth-devtools.vue'), meta: { layout: false } })
   })
 }
 
