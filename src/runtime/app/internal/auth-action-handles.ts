@@ -25,7 +25,7 @@ export type ActionHandleMap<T> = {
   [K in keyof T]: ActionHandleFor<T[K]>
 }
 
-function isErrorResult(value: unknown): value is { error: unknown } {
+export function isAuthActionErrorResult(value: unknown): value is { error: unknown } {
   if (!isRecord(value))
     return false
   if (!('error' in value))
@@ -73,7 +73,7 @@ export function createActionHandle<TArgs extends unknown[], TResult>(
 
     try {
       const result = await getMethod()(...args)
-      if (isErrorResult(result as unknown)) {
+      if (isAuthActionErrorResult(result as unknown)) {
         const normalizedError = normalizeAuthActionError((result as unknown as { error: unknown }).error)
         if (callId === latestCallId) {
           status.value = 'error'
