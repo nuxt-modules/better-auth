@@ -75,6 +75,7 @@ export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
   }
 
   export function createError(input: { statusCode: number, statusMessage: string }): Error
+  export function splitCookiesString(header: string): string[]
 }
 `)
 
@@ -117,7 +118,7 @@ export async function check(event: H3Event) {
 }
 `)
 
-      const typecheck = spawnSync('pnpm', ['exec', 'tsc', '--noEmit', '--pretty', 'false', '-p', tsconfigPath], {
+      const typecheck = spawnSync('corepack', ['pnpm', 'exec', 'tsc', '--noEmit', '--pretty', 'false', '-p', tsconfigPath], {
         cwd: import.meta.dirname,
         encoding: 'utf8',
       })

@@ -236,6 +236,52 @@ describe('getUserSession', () => {
   })
 })
 
+describe('refreshSessionCookieCache', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    getSessionMock.mockReset()
+    createSessionMock.mockReset()
+  })
+
+  it('refreshes Better Auth cookie cache headers and request session memo', async () => {
+    const staleSession = {
+      user: { id: 'u1', name: 'Before' },
+      session: { id: 's1' },
+    }
+    const freshSession = {
+      user: { id: 'u1', name: 'After' },
+      session: { id: 's1' },
+    }
+    const sessionDataCookie = `${authContextMock.authCookies.sessionData.name}=fresh; Path=/; Expires=Wed, 21 Oct 2030 07:28:00 GMT; HttpOnly`
+    const sessionTokenCookie = `${authContextMock.authCookies.sessionToken.name}=token; Path=/; HttpOnly`
+    const headers = new Headers()
+    headers.set('set-cookie', `${sessionDataCookie}, ${sessionTokenCookie}`)
+
+    getSessionMock
+      .mockResolvedValueOnce(staleSession)
+      .mockResolvedValueOnce({ headers, response: freshSession })
+
+    const { getRequestSession, refreshSessionCookieCache } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    await expect(getRequestSession(event)).resolves.toEqual(staleSession)
+    await expect(refreshSessionCookieCache(event)).resolves.toEqual(freshSession)
+    await expect(getRequestSession(event)).resolves.toEqual(freshSession)
+
+    expect(getSessionMock).toHaveBeenCalledTimes(2)
+    expect(getSessionMock.mock.calls[1]?.[0]).toMatchObject({
+      query: { disableCookieCache: true },
+      returnHeaders: true,
+    })
+    expect(getSessionMock.mock.calls[1]?.[0].headers).toBe(event.headers)
+    expect(event.context.requestSession).toEqual(freshSession)
+    expect(event.node.res.getHeader('set-cookie')).toEqual([
+      sessionDataCookie,
+      sessionTokenCookie,
+    ])
+  })
+})
+
 describe('requireUserSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
