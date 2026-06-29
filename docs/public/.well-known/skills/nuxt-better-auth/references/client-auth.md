@@ -1,95 +1,84 @@
 # Client-side authentication
 
-## Primary entry point
+## Primary entry points
 
 ```ts
-const {
-  user,
-  session,
-  loggedIn,
-  ready,
-  client,
-  signIn,
-  signUp,
-  signOut,
-  fetchSession,
-  updateUser,
-} = useUserSession()
+const { user, session, loggedIn, ready, fetchSession, signOut, updateUser } = useUserSession()
+const client = useAuthClient()
 ```
 
-## What to rely on
+`useUserSession()` is the store-safe session API. It returns auth state plus session lifecycle actions. It does not expose raw Better Auth client namespaces.
 
-- `ready` means the initial auth state has resolved.
-- `client` is browser-only and `null` during SSR.
-- `signIn` and `signUp` proxy Better Auth client methods.
-- `signOut` clears local state after the server sign-out flow completes.
+Use `useAuthClient()` when you need direct Better Auth client/plugin methods. It returns the client in the browser and `null` during SSR.
 
-## Common patterns
+## Sign-in and sign-up forms
 
-### Email sign-in
+Use action composables for form flows that need loading, error, and success state.
 
 ```ts
-await signIn.email(
-  { email: 'user@example.com', password: 'password123' },
-  { onSuccess: () => navigateTo('/dashboard') },
+const signInEmail = useSignIn('email')
+
+await signInEmail.execute({
+  email: 'user@example.com',
+  password: 'password123',
+})
+```
+
+```ts
+const signUpEmail = useSignUp('email')
+await signUpEmail.execute({ email, password, name })
+```
+
+If no `onSuccess` callback is passed, sign-in and sign-up can redirect to a safe local `?redirect=...` target or the configured authenticated redirect.
+
+## Plugin client actions
+
+Use `useAuthClientAction()` for Better Auth client/plugin methods that should expose action state.
+
+```ts
+const openPortal = useAuthClientAction(client => client.customer.portal)
+await openPortal.execute()
+```
+
+## Custom auth endpoints
+
+Use `runWithSessionRefresh()` around custom endpoints that create or change the current session.
+
+```ts
+await runWithSessionRefresh(() =>
+  $fetch('/api/custom-login', {
+    method: 'POST',
+    body: { email, password },
+  }),
 )
 ```
 
-### Social sign-in
+The helper awaits your request, then refreshes local session state unless the result is a Better Auth action error result.
 
-```ts
-await signIn.social({ provider: 'github' })
-```
-
-### Loading state
-
-```vue
-<template>
-  <div v-if="!ready">Loading...</div>
-  <div v-else-if="loggedIn">Welcome, {{ user?.name }}</div>
-  <div v-else>Please log in</div>
-</template>
-```
-
-### Force refresh
+## Force refresh
 
 ```ts
 await fetchSession({ force: true })
 ```
 
+Use `force: true` when the server-side session payload changed and Better Auth's cookie cache should be bypassed for this fetch.
+
 ## Redirect rule
 
 If you read `route.query.redirect`, validate it before navigating. Only allow local paths.
-await client.revokeSession({ sessionId: 'xxx' })
 
-// Revoke all sessions except current
-await client.revokeOtherSessions()
+## BetterAuthState
 
-// Revoke all sessions (logs out everywhere)
-await client.revokeSessions()
-```
-
-These methods require the user to be authenticated.
-
-## BetterAuthState Component
-
-Renders once session hydration completes (`ready === true`), with loading placeholder support.
+`<BetterAuthState>` renders once session hydration completes (`ready === true`) and supports a loading placeholder.
 
 ```vue
 <BetterAuthState>
-  <template #default="{ loggedIn, user, session, signOut }">
+  <template #default="{ loggedIn, user, signOut }">
     <p v-if="loggedIn">Hi {{ user?.name }}</p>
     <button v-else @click="navigateTo('/login')">Sign in</button>
   </template>
   <template #placeholder>
-    <p>Loading…</p>
+    <p>Loading...</p>
   </template>
 </BetterAuthState>
 ```
-
-**Slots:**
-
-- `default` - Renders when `ready === true`, provides `{ loggedIn, user, session, signOut }`
-- `placeholder` - Renders while session hydrates
-
-Useful in clientOnly mode or for graceful SSR loading states.
