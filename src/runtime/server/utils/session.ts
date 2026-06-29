@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import type { AppSession, AuthSession, RequireSessionOptions } from '#nuxt-better-auth'
-import { createError } from 'h3'
+import { createError, splitCookiesString } from 'h3'
 import { matchesUser } from '../../utils/match-user'
 import { serverAuth } from './auth'
 
@@ -46,6 +46,11 @@ interface RequestSessionContext {
   [requestSessionLoadKey]?: Promise<AppSession | null>
 }
 
+interface SessionWithHeaders {
+  headers: Headers
+  response: AppSession | null
+}
+
 const fallbackRequestSessionContext = new WeakMap<object, RequestSessionContext>()
 
 function getRequestSessionContext(event: H3Event): RequestSessionContext {
@@ -68,6 +73,15 @@ function getRequestHeaders(event: H3Event): Headers {
 function loadSession(event: H3Event): Promise<AppSession | null> {
   const auth = serverAuth(event)
   return auth.api.getSession({ headers: getRequestHeaders(event) }) as Promise<AppSession | null>
+}
+
+function loadFreshSession(event: H3Event): Promise<SessionWithHeaders> {
+  const auth = serverAuth(event)
+  return auth.api.getSession({
+    headers: getRequestHeaders(event),
+    query: { disableCookieCache: true },
+    returnHeaders: true,
+  }) as unknown as Promise<SessionWithHeaders>
 }
 
 function getServerAuthContext(event: H3Event): Promise<ServerAuthContextLike> {
@@ -191,6 +205,21 @@ function appendCookieHeader(event: H3Event, header: string): void {
   responseHeaders?.append('set-cookie', header)
 }
 
+function getSetCookieHeaders(headers: Headers): string[] {
+  const getSetCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie
+  const cookies = getSetCookie?.call(headers)
+  if (cookies?.length)
+    return cookies.flatMap(cookie => splitCookiesString(cookie))
+
+  const header = headers.get('set-cookie')
+  return header ? splitCookiesString(header) : []
+}
+
+function appendSetCookieHeaders(event: H3Event, headers: Headers): void {
+  for (const header of getSetCookieHeaders(headers))
+    appendCookieHeader(event, header)
+}
+
 function parseRequestCookies(cookieHeader: string | null): Map<string, string> {
   const cookies = new Map<string, string>()
   if (!cookieHeader)
@@ -297,6 +326,29 @@ export async function getUserSession(event: H3Event): Promise<AppSession | null>
     return inFlight
 
   return loadSession(event)
+}
+
+export async function refreshSessionCookieCache(event: H3Event): Promise<AppSession | null> {
+  const context = getRequestSessionContext(event)
+  const inFlight = context[requestSessionLoadKey]
+  if (inFlight)
+    await inFlight.catch(() => undefined)
+
+  delete context.requestSession
+  const load = loadFreshSession(event).then(({ headers, response }) => {
+    appendSetCookieHeaders(event, headers)
+    context.requestSession = response
+    return response
+  })
+
+  context[requestSessionLoadKey] = load
+  try {
+    return await load
+  }
+  finally {
+    if (context[requestSessionLoadKey] === load)
+      delete context[requestSessionLoadKey]
+  }
 }
 
 export async function setSessionCookie(event: H3Event, token: string): Promise<void> {

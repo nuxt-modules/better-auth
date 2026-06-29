@@ -46,6 +46,7 @@ This changelog is incomplete for alpha releases. Use the GitHub Releases page fo
 - Added strict provider typing for `useSignIn('social').execute()` from configured `socialProviders` keys.
 - Added social `callbackURL` auto-fill when omitted: safe `?redirect=` first, then `auth.redirects.authenticated`.
 - Added `AuthSocialProviderId` to `#nuxt-better-auth` exports for direct provider-id typing in Nuxt apps.
+- Added `refreshSessionCookieCache(event)` to refresh Better Auth's cached session cookie after server-side session data changes.
 
 ### Fixed
 
