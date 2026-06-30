@@ -146,12 +146,24 @@ export const db = undefined`
 }
 
 export function buildSchemaExportCode(hasHubDb: boolean, hubDialect: DbDialect): string {
-  if (!hasHubDb)
-    return 'export const schema = undefined\n'
+  if (!hasHubDb) {
+    return `export const user = undefined
+export const session = undefined
+export const account = undefined
+export const verification = undefined
+export const schema = undefined
+`
+  }
 
   return `export * from './schema.${hubDialect}.mjs'
-import * as schema from './schema.${hubDialect}.mjs'
-export { schema }
+import * as generatedSchema from './schema.${hubDialect}.mjs'
+
+const getGeneratedTable = name => generatedSchema[name] ?? generatedSchema[\`\${name}s\`]
+export const user = getGeneratedTable('user')
+export const session = getGeneratedTable('session')
+export const account = getGeneratedTable('account')
+export const verification = getGeneratedTable('verification')
+export const schema = { ...generatedSchema, user, session, account, verification }
 `
 }
 

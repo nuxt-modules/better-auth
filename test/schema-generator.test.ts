@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getAuthTables } from 'better-auth/db'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { buildSchemaExportCode } from '../src/module/templates'
 import { defineClientAuth, defineServerAuth } from '../src/runtime/config'
 import { generateDrizzleSchema, loadUserAuthConfig } from '../src/schema-generator'
 
@@ -73,6 +74,17 @@ describe('generateDrizzleSchema', () => {
   it('generates relations', async () => {
     const schema = await generateDrizzleSchema({}, 'postgresql')
     expect(schema).toContain('relations')
+  })
+})
+
+describe('buildSchemaExportCode', () => {
+  it('exports stable undefined auth table aliases without hub db', () => {
+    const code = buildSchemaExportCode(false, 'sqlite')
+    expect(code).toContain('export const user = undefined')
+    expect(code).toContain('export const session = undefined')
+    expect(code).toContain('export const account = undefined')
+    expect(code).toContain('export const verification = undefined')
+    expect(code).toContain('export const schema = undefined')
   })
 })
 
