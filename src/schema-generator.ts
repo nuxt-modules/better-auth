@@ -1,7 +1,9 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { Casing } from 'drizzle-orm/utils'
+import { existsSync } from 'node:fs'
 import { generateDrizzleSchema as _generateDrizzleSchema } from '@better-auth/cli/api'
 import { consola } from 'consola'
+import { join } from 'pathe'
 
 export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: Casing }
 
@@ -59,6 +61,17 @@ interface SchemaGeneratorGlobals {
   defineServerAuth?: RuntimeDefineServerAuthFn
 }
 
+function loadLocalEnv(rootDir?: string): void {
+  if (!rootDir)
+    return
+
+  const envPath = join(rootDir, '.env.local')
+  if (!existsSync(envPath))
+    return
+
+  process.loadEnvFile(envPath)
+}
+
 declare global {
   // eslint-disable-next-line vars-on-top
   var __nuxtBetterAuthDefineServerAuth: RuntimeDefineServerAuthFn | undefined
@@ -69,6 +82,7 @@ export async function loadUserAuthConfig(
   throwOnError = false,
   alias?: Record<string, string>,
   runtimeConfig: unknown = {},
+  rootDir?: string,
 ): Promise<Partial<BetterAuthOptions>> {
   const { createJiti } = await import('jiti')
   const { defineServerAuth: runtimeDefineServerAuth } = await import('./runtime/config')
@@ -85,6 +99,7 @@ export async function loadUserAuthConfig(
   schemaGlobals.__nuxtBetterAuthDefineServerAuth!._count++
 
   try {
+    loadLocalEnv(rootDir)
     const mod = await jiti.import(configPath) as { default?: unknown }
     const configFn = mod.default
     if (typeof configFn === 'function') {

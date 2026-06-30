@@ -160,6 +160,30 @@ describe('loadUserAuthConfig', () => {
 
     expect(result).toEqual({ appName: '/auth/sign-up' })
   })
+
+  it('loads .env.local before importing auth config dependencies', async () => {
+    const envPath = join(TEST_DIR, '.env.local')
+    const helperPath = join(TEST_DIR, 'env-helper.ts')
+    const configPath = join(TEST_DIR, 'env-config.ts')
+    const originalApiKey = process.env.RESEND_API_KEY
+    delete process.env.RESEND_API_KEY
+
+    try {
+      writeFileSync(envPath, 'RESEND_API_KEY=re_test_fixture\n')
+      writeFileSync(helperPath, `if (!process.env.RESEND_API_KEY)\n  throw new Error('Missing API key. Pass it to the constructor new Resend("re_123")')\n\nexport function getPlugins() { return [] }\n`)
+      writeFileSync(configPath, `import { getPlugins } from './env-helper'\nexport default defineServerAuth({ plugins: getPlugins() })`)
+
+      const result = await loadUserAuthConfig(configPath, true, undefined, {}, TEST_DIR)
+
+      expect(result).toEqual({ plugins: [] })
+    }
+    finally {
+      if (originalApiKey === undefined)
+        delete process.env.RESEND_API_KEY
+      else
+        process.env.RESEND_API_KEY = originalApiKey
+    }
+  })
 })
 
 describe('defineServerAuth', () => {
