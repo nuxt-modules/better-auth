@@ -275,6 +275,12 @@ function withDevTrustedOrigins(
 /** Returns Better Auth instance. Caches per resolved host (or single instance when siteUrl is explicit). */
 export function serverAuth(event?: H3Event): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
+  const betterAuthSecret = runtimeConfig.betterAuthSecret || ''
+  if (!import.meta.dev && !betterAuthSecret)
+    throw new Error('[nuxt-better-auth] NUXT_BETTER_AUTH_SECRET is required in production. Set NUXT_BETTER_AUTH_SECRET or BETTER_AUTH_SECRET environment variable.')
+  if (betterAuthSecret && betterAuthSecret.length < 32)
+    throw new Error('[nuxt-better-auth] NUXT_BETTER_AUTH_SECRET must be at least 32 characters for security')
+
   const siteUrl = getBaseURL(event)
   const requestOrigin = resolveEventOrigin(event)
   const hasExplicitSiteUrl = runtimeConfig.public.siteUrl && typeof runtimeConfig.public.siteUrl === 'string'
@@ -310,7 +316,7 @@ export function serverAuth(event?: H3Event): AuthInstance {
     ...userConfig,
     ...(database ? { database } : {}),
     ...(hubSecondaryStorage === true ? { secondaryStorage: createSecondaryStorage() } : {}),
-    secret: runtimeConfig.betterAuthSecret,
+    secret: betterAuthSecret,
     baseURL: siteUrl,
     trustedOrigins,
   }

@@ -41,7 +41,7 @@ function createEvent(): MockEvent {
   } as unknown as MockEvent
 }
 
-describe('serverAuth database cache behavior', () => {
+describe('serverAuth database cache and secret validation', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
@@ -51,7 +51,7 @@ describe('serverAuth database cache behavior', () => {
         siteUrl: 'https://example.com',
       },
       auth: {},
-      betterAuthSecret: 'test-secret',
+      betterAuthSecret: 'test-secret-for-testing-only-32chars',
     })
 
     createServerAuthMock.mockReturnValue({
@@ -62,6 +62,32 @@ describe('serverAuth database cache behavior', () => {
       options,
       marker: Symbol('auth-instance'),
     }))
+  })
+
+  it('rejects a missing runtime secret before creating auth', async () => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: {},
+      betterAuthSecret: '',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('NUXT_BETTER_AUTH_SECRET is required in production')
+    expect(betterAuthMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a short runtime secret before creating auth', async () => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: {},
+      betterAuthSecret: 'too-short',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('NUXT_BETTER_AUTH_SECRET must be at least 32 characters')
+    expect(betterAuthMock).not.toHaveBeenCalled()
   })
 
   it('reuses the same auth instance within a request when a database adapter is active', async () => {
