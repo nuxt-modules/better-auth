@@ -4,17 +4,17 @@ const getRouteRules = vi.fn(() => ({}))
 const getUserSession = vi.fn()
 const requireUserSession = vi.fn()
 
-vi.mock('h3', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('h3')>()
-  return {
-    ...actual,
-    createError: (error: unknown) => error,
-    defineEventHandler: (handler: unknown) => handler,
-    getRequestURL: (event: { path: string }) => new URL(event.path, 'https://example.test'),
-  }
-})
+vi.mock('h3', async importOriginal => ({
+  ...await importOriginal<typeof import('h3')>(),
+  createError: (error: unknown) => error,
+  defineEventHandler: (handler: unknown) => handler,
+  getRequestURL: (event: { path: string }) => new URL(event.path, 'https://example.test'),
+}))
 
-vi.mock('#imports', () => ({ getRouteRules }))
+vi.mock('nitropack/runtime', () => ({
+  getRouteRules,
+  useRuntimeConfig: vi.fn(),
+}))
 
 vi.mock('../src/runtime/server/utils/session', () => ({
   getUserSession,
@@ -24,7 +24,7 @@ vi.mock('../src/runtime/server/utils/session', () => ({
 async function loadMiddleware() {
   vi.resetModules()
   const mod = await import('../src/runtime/server/middleware/route-access')
-  return mod.default as (event: { path: string }) => Promise<void>
+  return mod.default as (event: any) => Promise<void>
 }
 
 describe('route-access middleware', () => {
@@ -53,9 +53,11 @@ describe('route-access middleware', () => {
     requireUserSession.mockResolvedValue({ user: { id: 'user-1' } })
 
     const middleware = await loadMiddleware()
-    await middleware({ path: '/api/test/me' })
+    const event = { path: '/api/test/me' }
+    await middleware(event)
 
     expect(getRouteRules).toHaveBeenCalledTimes(1)
+    expect(getRouteRules).toHaveBeenCalledWith(event)
     expect(requireUserSession).toHaveBeenCalledTimes(1)
   })
 })

@@ -1,5 +1,4 @@
-import { defineEventHandler } from 'h3'
-import { useRuntimeConfig } from '#imports'
+import { defineEventHandler, useRuntimeConfig } from '../../internal/nitro-compat'
 import { serverAuth } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {

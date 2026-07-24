@@ -5,6 +5,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const getSessionMock = vi.fn()
 const createSessionMock = vi.fn()
 
+vi.mock('#better-auth/nitro-compat', async () => {
+  const { splitCookiesString } = await import('h3')
+  return {
+    createAuthError: (status: number, statusText: string) => Object.assign(new Error(statusText), {
+      status,
+      statusCode: status,
+      statusText,
+      statusMessage: statusText,
+    }),
+    splitCookiesString,
+  }
+})
+
 const authContextMock = {
   authCookies: {
     sessionToken: {
@@ -83,6 +96,15 @@ function createEventWithoutContext() {
   } as any
 }
 
+function createNitroV3Event() {
+  return {
+    context: {},
+    req: new Request('https://example.test/api/test'),
+    res: { headers: new Headers() },
+    url: new URL('https://example.test/api/test'),
+  } as any
+}
+
 describe('getRequestSession', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -143,6 +165,19 @@ describe('getRequestSession', () => {
     expect(first).toBe(second)
     expect(third).toBe(first)
     expect('context' in event).toBe(false)
+  })
+
+  it('reads request headers from Nitro 3 events', async () => {
+    getSessionMock.mockResolvedValue({
+      user: { id: 'u1' },
+      session: { id: 's1' },
+    })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createNitroV3Event()
+
+    await getRequestSession(event)
+
+    expect(getSessionMock).toHaveBeenCalledWith({ headers: event.req.headers })
   })
 })
 
@@ -345,6 +380,15 @@ describe('setSessionCookie', () => {
     expect(header[1]).toContain('Max-Age=0')
     expect(header[2]).toContain(`${authContextMock.authCookies.dontRememberToken.name}=`)
     expect(header[2]).toContain('Max-Age=0')
+  })
+
+  it('writes cookies to Nitro 3 response headers', async () => {
+    const { setSessionCookie } = await import('../src/runtime/server/utils/session')
+    const event = createNitroV3Event()
+
+    await setSessionCookie(event, 'session-token')
+
+    expect(event.res.headers.get('set-cookie')).toContain(authContextMock.authCookies.sessionToken.name)
   })
 
   it('expires chunked session cache cookies left on the request', async () => {

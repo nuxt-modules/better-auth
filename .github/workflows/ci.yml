@@ -26,3 +26,26 @@ jobs:
           BETTER_AUTH_SECRET: ci-test-secret-12345678901234567890
       - run: pnpm build:docs
       - run: pnpm test
+
+  compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        nuxt:
+          - 4.5.0
+          - npm:nuxt-nightly@5x
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install
+      - run: pnpm pack --pack-destination /tmp
+      - run: cp -R test/compatibility/fixture /tmp/nuxt-better-auth-compatibility
+      - run: pnpm --dir /tmp/nuxt-better-auth-compatibility add --save-exact "nuxt@${{ matrix.nuxt }}" better-auth@1.5.5 vue@3.5.40 /tmp/onmax-nuxt-better-auth-*.tgz
+      - run: pnpm --dir /tmp/nuxt-better-auth-compatibility build
+      - run: node test/compatibility/check.mjs /tmp/nuxt-better-auth-compatibility

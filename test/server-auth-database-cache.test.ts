@@ -23,7 +23,9 @@ vi.mock('better-auth', () => ({
   betterAuth: betterAuthMock,
 }))
 
-vi.mock('nitropack/runtime', () => ({
+vi.mock('../src/runtime/server/internal/nitro-compat', () => ({
+  getRequestHost: () => 'example.com',
+  getRequestProtocol: () => 'https',
   useRuntimeConfig: useRuntimeConfigMock,
 }))
 

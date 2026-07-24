@@ -10,13 +10,28 @@ describe('requireUserSession typing regression #130', () => {
     const testDir = mkdtempSync(join(tmpdir(), 'nuxt-better-auth-session-types-'))
     try {
       const runtimeDir = join(testDir, 'runtime')
+      const serverInternalDir = join(runtimeDir, 'server', 'internal')
       const serverUtilsDir = join(runtimeDir, 'server', 'utils')
       const runtimeUtilsDir = join(runtimeDir, 'utils')
 
+      mkdirSync(serverInternalDir, { recursive: true })
       mkdirSync(serverUtilsDir, { recursive: true })
       mkdirSync(runtimeUtilsDir, { recursive: true })
 
       copyFileSync(join(import.meta.dirname, '../src/runtime/server/utils/session.ts'), join(serverUtilsDir, 'session.ts'))
+
+      writeFileSync(join(serverInternalDir, 'nitro-compat.ts'), `export interface ServerEvent {
+  headers: Headers
+}
+
+export function createAuthError(status: number, statusText: string): Error {
+  return Object.assign(new Error(statusText), { status, statusCode: status, statusText, statusMessage: statusText })
+}
+
+export function splitCookiesString(header: string): string[] {
+  return [header]
+}
+`)
 
       writeFileSync(join(serverUtilsDir, 'auth.ts'), `export function serverAuth(_event?: unknown) {
   return {
@@ -73,9 +88,6 @@ export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
   export interface H3Event {
     headers: Headers
   }
-
-  export function createError(input: { statusCode: number, statusMessage: string }): Error
-  export function splitCookiesString(header: string): string[]
 }
 `)
 
@@ -109,6 +121,7 @@ export async function check(event: H3Event) {
   },
   "files": [
     "./runtime/server/utils/session.ts",
+    "./runtime/server/internal/nitro-compat.ts",
     "./runtime/server/utils/auth.ts",
     "./runtime/utils/match-user.ts",
     "./runtime/types.ts",

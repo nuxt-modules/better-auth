@@ -5,10 +5,24 @@ interface RegisterServerTypeTemplatesInput {
   hasHubDb: boolean
   runtimeTypesPath: string
   sharedServerConfigSafe: boolean
+  h3TypesPath: 'h3' | 'nitro/h3'
+  nitroTypesPath: 'nitropack/types' | 'nitro/types'
 }
 
 export function registerServerTypeTemplates(input: RegisterServerTypeTemplatesInput): void {
-  const { serverConfigPath, hasHubDb, runtimeTypesPath, sharedServerConfigSafe } = input
+  const { serverConfigPath, hasHubDb, runtimeTypesPath, sharedServerConfigSafe, h3TypesPath, nitroTypesPath } = input
+  const routeRuleAugmentations = (nitroTypesPath === 'nitro/types'
+    ? [nitroTypesPath]
+    : ['nitropack', nitroTypesPath])
+    .map(moduleName => `declare module '${moduleName}' {
+  interface NitroRouteRules {
+    auth?: import('${runtimeTypesPath}').AuthMeta
+  }
+  interface NitroRouteConfig {
+    auth?: import('${runtimeTypesPath}').AuthMeta
+  }
+}`)
+    .join('\n')
   const serverConfigTypeTemplateOptions = sharedServerConfigSafe
     ? { nuxt: true, nitro: true, node: true, shared: true }
     : { nuxt: true, nitro: true, node: true }
@@ -32,7 +46,7 @@ declare module '#auth/secondary-storage' {
     getContents: () => `
 declare module '#auth/database' {
   import type { BetterAuthOptions } from 'better-auth'
-  export function createDatabase(event?: import('h3').H3Event): BetterAuthOptions['database']
+  export function createDatabase(event?: import('${h3TypesPath}').H3Event): BetterAuthOptions['database']
   export const db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
 }
 `,
@@ -148,7 +162,7 @@ declare module '#nuxt-better-auth' {
 import type createServerAuth from '${serverConfigPath}'
 import type { BetterAuthOptions } from 'better-auth'
 import type { getEndpoints } from 'better-auth/api'
-import type { Serialize, Simplify } from 'nitropack/types'
+import type { Serialize, Simplify } from '${nitroTypesPath}'
 import type { FetchError } from 'ofetch'
 
 type _RawConfig = ReturnType<typeof createServerAuth>
@@ -211,7 +225,7 @@ type _AuthPatternFromRequestPath<Path extends string> = {
 }[_AuthApiPatternPath]
 type _AuthEndpointMethod<Path extends _AuthApiRequestPath> = Extract<keyof _GeneratedAuthInternalApi[_AuthPatternFromRequestPath<Path>], string>
 
-type _AuthFetchMethod<Path extends _AuthApiRequestPath> = Extract<Exclude<import('nitropack/types').NitroFetchOptions<Path>['method'], undefined>, string>
+type _AuthFetchMethod<Path extends _AuthApiRequestPath> = Extract<Exclude<import('${nitroTypesPath}').NitroFetchOptions<Path>['method'], undefined>, string>
 type _AuthFetchDefaultMethod<Path extends _AuthApiRequestPath> = 'get'
 type _AuthFetchResolvedMethod<Path extends _AuthApiRequestPath, Method extends string> = Lowercase<Method> extends _AuthEndpointMethod<Path>
   ? Lowercase<Method>
@@ -313,30 +327,7 @@ declare module 'nuxt/app' {
   export function useLazyFetch(request: string | import('vue').Ref<string> | (() => string), opts?: any): any
 }
 
-declare module 'nitropack' {
-  interface NitroRouteRules {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-  interface NitroRouteConfig {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-}
-declare module 'nitropack/types' {
-  interface NitroRouteRules {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-  interface NitroRouteConfig {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-}
-declare module 'nitro/types' {
-  interface NitroRouteRules {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-  interface NitroRouteConfig {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-}
+${routeRuleAugmentations}
 export {}
 `,
   }, { nitro: true, node: true })
@@ -346,6 +337,7 @@ interface RegisterSharedTypeTemplatesInput {
   runtimeTypesAugmentPath: string
   runtimeTypesPath: string
   clientConfigPath: string
+  h3TypesPath: 'h3' | 'nitro/h3'
 }
 
 export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesInput): void {
@@ -355,7 +347,7 @@ export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesIn
 import type { AppSession } from '${input.runtimeTypesAugmentPath}'
 export * from '${input.runtimeTypesAugmentPath}'
 export type { AuthMeta, AuthMode, AuthRouteRules, AuthSocialProviderId, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
-declare module 'h3' {
+declare module '${input.h3TypesPath}' {
   interface H3EventContext {
     requestSession?: AppSession | null
   }

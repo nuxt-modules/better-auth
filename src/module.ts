@@ -8,6 +8,7 @@ import { consola as _consola } from 'consola'
 import { dirname, relative } from 'pathe'
 import { version } from '../package.json'
 import { resolveAuthConfigDescriptors } from './module/config-paths'
+import { resolveNitroCompatibilityImports } from './module/compatibility'
 import { registerAuthMiddlewareHook, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
@@ -106,6 +107,8 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
   },
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
+    const nitroImports = resolveNitroCompatibilityImports(nuxt._version)
+    nuxt.options.alias['#better-auth/nitro-compat'] = resolver.resolve(`./runtime/server/internal/${nitroImports.runtime}`)
 
     const setup = await resolveAuthModuleSetup({
       nuxt,
@@ -172,6 +175,8 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
         hasHubDb: setup.serverTypes.hasHubDb,
         runtimeTypesPath: resolver.resolve('./runtime/types'),
         sharedServerConfigSafe: isServerConfigSharedTypeSafe(setup.serverTypes.serverConfigPath),
+        h3TypesPath: nitroImports.h3,
+        nitroTypesPath: nitroImports.types,
       })
     }
 
@@ -192,6 +197,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       runtimeTypesAugmentPath: setup.aliases['#nuxt-better-auth'],
       runtimeTypesPath: resolver.resolve('./runtime/types'),
       clientConfigPath: setup.sharedTypes.clientConfigPath,
+      h3TypesPath: nitroImports.h3,
     })
 
     registerTemplateHmrHook(nuxt)

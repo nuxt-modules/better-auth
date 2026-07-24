@@ -1,0 +1,8 @@
+{
+  "name": "nuxt-better-auth-compatibility",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build"
+  }
+}

@@ -1,12 +1,11 @@
 import type { BetterAuthOptions } from 'better-auth'
-import type { H3Event } from 'h3'
+import type { ServerEvent } from '../internal/nitro-compat'
 import { betterAuth } from 'better-auth'
-import { getRequestHost, getRequestProtocol } from 'h3'
-import { useRuntimeConfig } from 'nitropack/runtime'
 import { withoutProtocol } from 'ufo'
 import { createDatabase, db } from '#auth/database'
 import { createSecondaryStorage } from '#auth/secondary-storage'
 import createServerAuth from '#auth/server'
+import { getRequestHost, getRequestProtocol, useRuntimeConfig } from '../internal/nitro-compat'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
 
 type AuthOptions = ReturnType<typeof createServerAuth>
@@ -33,8 +32,8 @@ interface RequestAuthContext {
 
 const fallbackRequestAuthContext = new WeakMap<object, RequestAuthContext>()
 
-function getRequestAuthContext(event: H3Event): RequestAuthContext {
-  const eventWithContext = event as H3Event & { context?: unknown }
+function getRequestAuthContext(event: ServerEvent): RequestAuthContext {
+  const eventWithContext = event as ServerEvent & { context?: unknown }
   if (eventWithContext.context && typeof eventWithContext.context === 'object')
     return eventWithContext.context as RequestAuthContext
 
@@ -88,7 +87,7 @@ function resolveConfiguredSiteUrl(config: ReturnType<typeof useRuntimeConfig>): 
   return validateURL(config.public.siteUrl)
 }
 
-function resolveEventOrigin(event?: H3Event): string | undefined {
+function resolveEventOrigin(event?: ServerEvent): string | undefined {
   if (!event)
     return undefined
 
@@ -179,7 +178,7 @@ function resolveDevFallback(): { origin: string, source: string } | undefined {
   return { origin: 'http://localhost:3000', source: 'development fallback' }
 }
 
-function getBaseURL(event?: H3Event): string {
+function getBaseURL(event?: ServerEvent): string {
   const config = useRuntimeConfig()
   const configuredSiteUrl = resolveConfiguredSiteUrl(config)
   if (configuredSiteUrl)
@@ -273,7 +272,7 @@ function withDevTrustedOrigins(
 }
 
 /** Returns Better Auth instance. Caches per resolved host (or single instance when siteUrl is explicit). */
-export function serverAuth(event?: H3Event): AuthInstance {
+export function serverAuth(event?: ServerEvent): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
   const betterAuthSecret = runtimeConfig.betterAuthSecret || ''
   if (!import.meta.dev && !betterAuthSecret)

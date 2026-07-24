@@ -1,4 +1,5 @@
 import { configDefaults, defineConfig } from 'vitest/config'
+import { fileURLToPath } from 'node:url'
 
 const integrationTests = [
   'test/module.test.ts',
@@ -8,10 +9,17 @@ const integrationTests = [
   'test/server-auth-base-url-cache.test.ts',
 ]
 
+const nitroCompatibilityAlias = {
+  '#better-auth/nitro-compat': fileURLToPath(new URL('./src/runtime/server/internal/nitro2.ts', import.meta.url)),
+}
+
 export default defineConfig({
   test: {
     projects: [
       {
+        resolve: {
+          alias: nitroCompatibilityAlias,
+        },
         test: {
           name: 'unit',
           include: ['test/**/*.test.ts'],
@@ -19,6 +27,9 @@ export default defineConfig({
         },
       },
       {
+        resolve: {
+          alias: nitroCompatibilityAlias,
+        },
         test: {
           name: 'integration',
           include: integrationTests,
