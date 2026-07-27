@@ -18,6 +18,9 @@ const user: AuthUser = {
   emailVerified: false,
   name: 'n',
   role: 'admin',
+  banned: false,
+  banReason: null,
+  banExpires: null,
   internalCode: 'x',
   foo: 'bar',
 }
@@ -29,7 +32,6 @@ const session: AuthSession = {
   userId: '1',
   expiresAt: new Date(),
   token: 'token',
-  workspaceId: 'workspace-1',
 }
 
 const provider: AuthSocialProviderId = 'github'

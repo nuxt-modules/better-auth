@@ -129,7 +129,6 @@ describe('resolveAuthModuleSetup', () => {
           aliasesDuringProviderSelection = {
             server: nuxt.options.alias['#auth/server'],
             client: nuxt.options.alias['#auth/client'],
-            augment: nuxt.options.alias['#nuxt-better-auth'],
           }
           return true
         },
@@ -149,7 +148,6 @@ describe('resolveAuthModuleSetup', () => {
     expect(aliasesDuringProviderSelection).toEqual({
       server: setup.configs.server.path,
       client: setup.configs.client.path,
-      augment: '/virtual/runtime-types/augment',
     })
   })
 

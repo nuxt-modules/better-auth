@@ -114,7 +114,6 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       consola,
     })
 
-    nuxt.options.alias['#nuxt-better-auth'] = setup.aliases['#nuxt-better-auth']
     if (setup.aliases['#auth/server'])
       nuxt.options.alias['#auth/server'] = setup.aliases['#auth/server']
     nuxt.options.alias['#auth/client'] = setup.aliases['#auth/client']
@@ -188,12 +187,11 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       )
     }
 
-    const authTypesTemplate = registerSharedTypeTemplates({
-      runtimeTypesAugmentPath: setup.aliases['#nuxt-better-auth'],
+    registerSharedTypeTemplates({
+      runtimeTypesAugmentPath: setup.sharedTypes.runtimeTypesAugmentPath,
       runtimeTypesPath: resolver.resolve('./runtime/types'),
       clientConfigPath: setup.sharedTypes.clientConfigPath,
     })
-    nuxt.options.alias['#nuxt-better-auth'] = authTypesTemplate.dst
 
     registerTemplateHmrHook(nuxt)
     registerServerRuntime({ clientOnly: setup.clientOnly, resolve: resolver.resolve })

@@ -22,7 +22,6 @@ export interface ResolvedAuthModuleSetup {
     client: AuthConfigDescriptor
   }
   aliases: {
-    '#nuxt-better-auth': string
     '#auth/server'?: string
     '#auth/client': string
   }
@@ -50,6 +49,7 @@ export interface ResolvedAuthModuleSetup {
     hasHubDb: boolean
   }
   sharedTypes: {
+    runtimeTypesAugmentPath: string
     clientConfigPath: string
   }
   schemaGeneration?: {
@@ -136,12 +136,10 @@ export async function resolveAuthModuleSetup(
   assertConfigPresence(configs, clientOnly)
 
   const aliases: ResolvedAuthModuleSetup['aliases'] = {
-    '#nuxt-better-auth': runtimeTypesAugmentPath,
     '#auth/server': clientOnly ? undefined : configs.server.path,
     '#auth/client': configs.client.path,
   }
 
-  nuxt.options.alias['#nuxt-better-auth'] = aliases['#nuxt-better-auth']
   if (aliases['#auth/server'])
     nuxt.options.alias['#auth/server'] = aliases['#auth/server']
   nuxt.options.alias['#auth/client'] = aliases['#auth/client']
@@ -225,6 +223,7 @@ export async function resolveAuthModuleSetup(
           hasHubDb,
         },
     sharedTypes: {
+      runtimeTypesAugmentPath,
       clientConfigPath: configs.client.path,
     },
     schemaGeneration: hasHubDb
