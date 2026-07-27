@@ -348,8 +348,8 @@ interface RegisterSharedTypeTemplatesInput {
   clientConfigPath: string
 }
 
-export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesInput): void {
-  addTypeTemplate({
+export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesInput) {
+  const authTypesTemplate = addTypeTemplate({
     filename: 'types/nuxt-better-auth.d.ts',
     getContents: () => `
 import type { AppSession } from '${input.runtimeTypesAugmentPath}'
@@ -372,4 +372,6 @@ declare module '#nuxt-better-auth' {
 }
 `,
   })
+
+  return authTypesTemplate
 }

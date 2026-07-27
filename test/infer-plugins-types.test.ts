@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
@@ -16,6 +17,11 @@ describe('type inference regressions #107 and #192', () => {
       encoding: 'utf8',
     })
     expect(prepare.status, `nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`).toBe(0)
+
+    const serverTsconfig = JSON.parse(readFileSync(`${fixtureDir}/.nuxt/tsconfig.server.json`, 'utf8'))
+    expect(serverTsconfig.compilerOptions.paths['#nuxt-better-auth']).toEqual([
+      './types/nuxt-better-auth.d',
+    ])
 
     const typecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', 'tsconfig.type-check.json'], {
       cwd: fixtureDir,
