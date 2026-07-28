@@ -1,11 +1,12 @@
 import type { Nuxt } from '@nuxt/schema'
+import type { DbDialect } from './module/hub'
 import type { BetterAuthModuleOptions } from './runtime/config'
 import type { BetterAuthDatabaseProviderSetupContext } from './types/hooks'
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { consola as _consola } from 'consola'
-import { dirname, relative } from 'pathe'
+import { dirname, join, relative } from 'pathe'
 import { version } from '../package.json'
 import { resolveAuthConfigDescriptors } from './module/config-paths'
 import { registerAuthMiddlewareHook, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
@@ -83,6 +84,15 @@ export default defineClientAuth({})
   }
 }
 
+async function ensureSchemaBootstrap(schemaPath: string, dialect: DbDialect): Promise<void> {
+  const dialectSchemaPath = join(dirname(schemaPath), `schema.${dialect}.mjs`)
+  if (existsSync(schemaPath) && existsSync(dialectSchemaPath))
+    return
+
+  await mkdir(dirname(schemaPath), { recursive: true })
+  await writeFile(schemaPath, buildSchemaExportCode(false, dialect))
+}
+
 export type { BetterAuthModuleOptions } from './runtime/config'
 
 export default defineNuxtModule<BetterAuthModuleOptions>({
@@ -139,6 +149,9 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
         write: true,
       })
       nuxt.options.alias['#auth/schema'] = schemaTemplate.dst
+
+      if (setup.schemaGeneration)
+        await ensureSchemaBootstrap(schemaTemplate.dst, setup.database.buildContext?.hubDialect ?? 'sqlite')
     }
 
     if (setup.prepareTypes) {

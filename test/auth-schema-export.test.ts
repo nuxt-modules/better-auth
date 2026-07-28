@@ -1,10 +1,23 @@
+import { spawnSync } from 'node:child_process'
+import { rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { join } from 'pathe'
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
 import { describe, expect, it } from 'vitest'
 
 describe('#auth/schema export', async () => {
+  const rootDir = fileURLToPath(new URL('./cases/auth-schema-export', import.meta.url))
+  rmSync(join(rootDir, '.nuxt'), { force: true, recursive: true })
+
+  const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
+    cwd: rootDir,
+    encoding: 'utf8',
+  })
+  if (prepare.status !== 0)
+    throw new Error(`clean nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`)
+
   await setup({
-    rootDir: fileURLToPath(new URL('./cases/auth-schema-export', import.meta.url)),
+    rootDir,
   })
 
   it('exports stable auth tables with plural generation enabled', async () => {
