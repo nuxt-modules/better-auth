@@ -25,7 +25,8 @@ export {
 export type ServerEvent = H3Event
 
 export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
-  return (getRouteRules(event.req.method, getRequestURL(event).pathname).routeRules ?? {}) as AuthRouteRules
+  const auth = getRouteRules(event.req.method, getRequestURL(event).pathname).routeRules.auth?.options
+  return { auth: auth as AuthRouteRules['auth'] }
 }
 
 export function createAuthError(status: number, statusText: string): Error {

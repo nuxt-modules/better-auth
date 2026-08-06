@@ -83,7 +83,6 @@ export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): 
       '#auth/schema': nuxt.options.alias['#auth/schema'],
       '#auth/secondary-storage': nuxt.options.alias['#auth/secondary-storage'],
       '#auth/route-rules': nuxt.options.alias['#auth/route-rules'],
-      '#nuxt-better-auth': nuxt.options.alias['#nuxt-better-auth'],
     } as const
 
     for (const [key, value] of Object.entries(exactNodeAliases)) {

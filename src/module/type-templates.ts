@@ -157,7 +157,7 @@ declare module '#nuxt-better-auth' {
   }, serverConfigTypeTemplateOptions)
 
   addTypeTemplate({
-    filename: 'types/nuxt-better-auth-nitro.d.ts',
+    filename: 'types/nuxt-better-auth-endpoints.d.ts',
     getContents: () => `
 import type createServerAuth from '${serverConfigPath}'
 import type { BetterAuthOptions } from 'better-auth'
@@ -326,7 +326,13 @@ declare module 'nuxt/app' {
   >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: Omit<import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>, 'lazy'>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
   export function useLazyFetch(request: string | import('vue').Ref<string> | (() => string), opts?: any): any
 }
+export {}
+`,
+  }, serverConfigTypeTemplateOptions)
 
+  addTypeTemplate({
+    filename: 'types/nuxt-better-auth-nitro.d.ts',
+    getContents: () => `
 ${routeRuleAugmentations}
 export {}
 `,
@@ -340,20 +346,83 @@ interface RegisterSharedTypeTemplatesInput {
   h3TypesPath: 'h3' | 'nitro/h3'
 }
 
-export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesInput): void {
+export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesInput) {
+  const nitroV3 = input.h3TypesPath === 'nitro/h3'
   addTypeTemplate({
     filename: 'types/nuxt-better-auth.d.ts',
     getContents: () => `
-import type { AppSession } from '${input.runtimeTypesAugmentPath}'
-export * from '${input.runtimeTypesAugmentPath}'
-export type { AuthMeta, AuthMode, AuthRouteRules, AuthSocialProviderId, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
-declare module '${input.h3TypesPath}' {
-  interface H3EventContext {
-    requestSession?: AppSession | null
+declare module '#nuxt-better-auth' {
+  import type { ComputedRef, Ref } from 'vue'
+
+  export interface AuthUser {
+    id: string
+    createdAt: Date
+    updatedAt: Date
+    email: string
+    emailVerified: boolean
+    name: string
+    image?: string | null
   }
+
+  export interface AuthSession {
+    id: string
+    createdAt: Date
+    updatedAt: Date
+    userId: string
+    expiresAt: Date
+    token: string
+    ipAddress?: string | null
+    userAgent?: string | null
+  }
+
+  export interface ServerAuthContext {
+    runtimeConfig: Record<string, unknown>
+    db: unknown
+    requestOrigin?: string
+  }
+
+  export interface AuthSocialProviderRegistry {}
+  export type AuthSocialProviderId = AuthSocialProviderRegistry extends { ids: infer T } ? Extract<T, string> : never
+
+  export interface UserSessionComposable {
+    user: Ref<AuthUser | null>
+    session: Ref<AuthSession | null>
+    loggedIn: ComputedRef<boolean>
+    ready: ComputedRef<boolean>
+    fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>
+    waitForSession: () => Promise<void>
+    signOut: (options?: { onSuccess?: () => void | Promise<void> }) => Promise<void>
+    updateUser: (updates: Partial<AuthUser>) => Promise<void>
+  }
+
+  export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
+
+  export interface AppSession {
+    user: AuthUser
+    session: AuthSession
+  }
+
+  export interface RequireSessionOptions {
+    user?: UserMatch<AuthUser>
+    rule?: (ctx: { user: AuthUser, session: AuthSession }) => boolean | Promise<boolean>
+  }
+
+  export type { AuthMeta, AuthMode, AuthRouteRules, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
 }
 `,
-  })
+  }, { nuxt: true, nitro: true, node: true, shared: true })
+
+  addTypeTemplate({
+    filename: 'types/nuxt-better-auth-h3.d.ts',
+    getContents: () => `
+declare module '${nitroV3 ? 'srvx' : 'h3'}' {
+  interface ${nitroV3 ? 'ServerRequestContext' : 'H3EventContext'} {
+    requestSession?: import('${input.runtimeTypesAugmentPath}').AppSession | null
+  }
+}
+export {}
+`,
+  }, { nuxt: true, nitro: true, node: true, shared: true })
 
   addTypeTemplate({
     filename: 'types/nuxt-better-auth-client.d.ts',

@@ -43,6 +43,14 @@ async function main() {
     const body = await response.json()
     if (body?.ok !== true)
       throw new Error(`Unexpected auth response: ${JSON.stringify(body)}`)
+
+    const guestResponse = await fetch(`http://127.0.0.1:${port}/api/guest`)
+    if (!guestResponse.ok)
+      throw new Error(`Guest route returned ${guestResponse.status}.\n${output}`)
+
+    const guestBody = await guestResponse.json()
+    if (guestBody?.guest !== true)
+      throw new Error(`Unexpected guest response: ${JSON.stringify(guestBody)}`)
   }
   finally {
     server.kill('SIGTERM')

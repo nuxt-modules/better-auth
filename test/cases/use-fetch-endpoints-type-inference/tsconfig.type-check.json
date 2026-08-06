@@ -10,7 +10,6 @@
     "paths": {
       "#auth/client": ["../_base-module/app/auth.config"],
       "#auth/server": ["./server/auth.config"],
-      "#nuxt-better-auth": ["../../../src/runtime/types/augment"],
       "#imports": ["./imports-shim"]
     },
     "types": [],
@@ -20,8 +19,9 @@
   },
   "files": [
     "./imports-shim.d.ts",
+    "./.nuxt/types/nuxt-better-auth.d.ts",
     "./.nuxt/types/nuxt-better-auth-infer.d.ts",
-    "./.nuxt/types/nuxt-better-auth-nitro.d.ts",
+    "./.nuxt/types/nuxt-better-auth-endpoints.d.ts",
     "./typecheck-target.ts"
   ]
 }
