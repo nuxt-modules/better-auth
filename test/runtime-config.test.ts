@@ -29,6 +29,23 @@ afterEach(() => {
 })
 
 describe('setupRuntimeConfig siteUrl hydration', () => {
+  it('declares public.siteUrl when no value is configured', () => {
+    delete process.env.NUXT_PUBLIC_SITE_URL
+    const nuxt = createNuxtWithRuntimeConfig()
+    const consola = createConsolaMock()
+
+    setupRuntimeConfig({
+      nuxt,
+      options: {},
+      clientOnly: true,
+      databaseProvider: 'none',
+      hasNuxtHub: false,
+      consola,
+    })
+
+    expect(nuxt.options.runtimeConfig.public.siteUrl).toBe('')
+  })
+
   it('hydrates public.siteUrl from NUXT_PUBLIC_SITE_URL when missing', () => {
     process.env.NUXT_PUBLIC_SITE_URL = 'http://localhost:3000'
     const nuxt = createNuxtWithRuntimeConfig()

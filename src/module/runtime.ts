@@ -37,8 +37,7 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { useHubKV: 
 
   nuxt.options.runtimeConfig.public = nuxt.options.runtimeConfig.public || {}
   const configuredSiteUrl = nuxt.options.runtimeConfig.public.siteUrl as string | undefined
-  if (!configuredSiteUrl && process.env.NUXT_PUBLIC_SITE_URL)
-    nuxt.options.runtimeConfig.public.siteUrl = process.env.NUXT_PUBLIC_SITE_URL
+  nuxt.options.runtimeConfig.public.siteUrl = configuredSiteUrl || process.env.NUXT_PUBLIC_SITE_URL || ''
 
   nuxt.options.runtimeConfig.public.auth = defu(nuxt.options.runtimeConfig.public.auth as Record<string, unknown>, {
     redirects: {
