@@ -34,7 +34,8 @@ jobs:
       matrix:
         nuxt:
           - 4.5.0
-          - npm:nuxt-nightly@5x
+          # Keep merge proof on a reviewed snapshot; float nightlies only in non-gating surveillance.
+          - npm:nuxt-nightly@5.0.0-29765760.f83eac74
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6
@@ -46,7 +47,12 @@ jobs:
       - run: pnpm install
       - run: pnpm pack --pack-destination /tmp
       - run: cp -R test/compatibility/fixture /tmp/nuxt-better-auth-compatibility
-      - run: pnpm --dir /tmp/nuxt-better-auth-compatibility add --save-exact "nuxt@${{ matrix.nuxt }}" better-auth@1.5.5 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/onmax-nuxt-better-auth-*.tgz
-      - run: pnpm --dir /tmp/nuxt-better-auth-compatibility typecheck
-      - run: pnpm --dir /tmp/nuxt-better-auth-compatibility build
+      - name: Install compatibility dependencies
+        timeout-minutes: 5
+        working-directory: /tmp/nuxt-better-auth-compatibility
+        run: corepack pnpm@11.20.0 add --save-exact "nuxt@${{ matrix.nuxt }}" better-auth@1.5.5 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/onmax-nuxt-better-auth-*.tgz
+      - run: corepack pnpm@11.20.0 typecheck
+        working-directory: /tmp/nuxt-better-auth-compatibility
+      - run: corepack pnpm@11.20.0 build
+        working-directory: /tmp/nuxt-better-auth-compatibility
       - run: node test/compatibility/check.mjs /tmp/nuxt-better-auth-compatibility
