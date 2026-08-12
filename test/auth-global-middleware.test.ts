@@ -84,22 +84,6 @@ describe('auth.global middleware', () => {
     expect(navigateTo).not.toHaveBeenCalled()
   })
 
-  it('leaves unmatched routes to the nuxt 404 handler', async () => {
-    getRouteRules.mockResolvedValueOnce({ auth: 'user' })
-
-    const middleware = await loadMiddleware()
-    await middleware({
-      path: '/missing',
-      fullPath: '/missing',
-      matched: [],
-      meta: {},
-    })
-
-    expect(getRouteRules).not.toHaveBeenCalled()
-    expect(fetchSession).not.toHaveBeenCalled()
-    expect(navigateTo).not.toHaveBeenCalled()
-  })
-
   it('redirects authenticated users from guest routes resolved via route rules', async () => {
     payload.prerenderedAt = Date.now()
     nuxtApp.isHydrating = true

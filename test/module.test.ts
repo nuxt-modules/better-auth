@@ -67,6 +67,11 @@ describe('nuxt-better-auth module', async () => {
       expect(response.headers.get('location')).toContain('/custom-login?redirect=/')
       expect(response.headers.get('location')).not.toContain('%2Fcustom-protected-has-redirect%3Ffoo%3D1')
     })
+
+    it('returns 404 for protected routes that match no page', async () => {
+      const response = await fetch(url('/unmatched/page'), { redirect: 'manual' })
+      expect(response.status).toBe(404)
+    })
   })
 
   describe('aPI protection', () => {
