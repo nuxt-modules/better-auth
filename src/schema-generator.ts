@@ -1,11 +1,11 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { Casing } from 'drizzle-orm/utils'
 import { existsSync } from 'node:fs'
-import { generateDrizzleSchema as _generateDrizzleSchema } from '@better-auth/cli/api'
+import { generateDrizzleSchema as _generateDrizzleSchema } from 'auth/api'
 import { consola } from 'consola'
 import { join } from 'pathe'
 
-export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: Casing }
+export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: Casing, schemaName?: string }
 
 type Dialect = 'sqlite' | 'postgresql' | 'mysql'
 type Provider = 'sqlite' | 'pg' | 'mysql'
@@ -14,7 +14,7 @@ type DrizzleSchemaInput = Parameters<typeof _generateDrizzleSchema>[0]
 // Minimal interface matching what _generateDrizzleSchema actually uses from adapter
 interface SchemaGeneratorAdapter {
   id: 'drizzle'
-  options: { provider: Provider, camelCase: boolean, adapterConfig: { usePlural: boolean } }
+  options: { provider: Provider, camelCase: boolean, schemaName?: string, adapterConfig: { usePlural: boolean } }
 }
 
 function dialectToProvider(dialect: Dialect): Provider {
@@ -40,6 +40,7 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
     options: {
       provider,
       camelCase: schemaOptions?.casing !== 'snake_case',
+      schemaName: schemaOptions?.schemaName,
       adapterConfig: { usePlural: schemaOptions?.usePlural ?? false },
     },
   }

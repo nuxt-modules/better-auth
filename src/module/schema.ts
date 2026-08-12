@@ -111,7 +111,13 @@ export async function setupBetterAuthSchema(
       ...userConfig,
       plugins,
       secondaryStorage: secondaryStorageResolution.inject
-        ? { get: async (_key: string) => null, set: async (_key: string, _value: string, _ttl?: number) => {}, delete: async (_key: string) => {} }
+        ? {
+            delete: async (_key: string) => {},
+            get: async (_key: string) => null,
+            getAndDelete: async (_key: string) => null,
+            increment: async (_key: string, _ttl: number) => 1,
+            set: async (_key: string, _value: string, _ttl?: number) => {},
+          }
         : undefined,
     }
 

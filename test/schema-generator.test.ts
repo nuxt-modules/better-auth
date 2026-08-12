@@ -44,6 +44,12 @@ describe('generateDrizzleSchema', () => {
     expect(schema).toContain('uuid("id")')
   })
 
+  it('postgresql uses a custom schema namespace', async () => {
+    const schema = await generateDrizzleSchema({}, 'postgresql', { schemaName: 'auth' })
+    expect(schema).toContain('const authSchema = pgSchema("auth")')
+    expect(schema).toContain('export const user = authSchema.table("user"')
+  })
+
   it('postgresql FK columns use uuid with useUuid', async () => {
     const schema = await generateDrizzleSchema({}, 'postgresql', { useUuid: true })
     expect(schema).toContain('uuid("userId")')

@@ -75,6 +75,8 @@ export interface BetterAuthModuleOptions {
     usePlural?: boolean
     /** Column/table name casing. Explicit value takes precedence over hub.db.casing. */
     casing?: Casing
+    /** PostgreSQL schema namespace. */
+    schemaName?: string
   }
 }
 
