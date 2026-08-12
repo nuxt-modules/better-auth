@@ -16,5 +16,6 @@ export default defineNuxtConfig({
     '/custom-protected-has-redirect': { auth: { only: 'user', redirectTo: '/custom-login?redirect=/' } },
     '/dynamic/protected': { auth: 'user' },
     '/dynamic/guest': { auth: 'guest' },
+    '/unmatched/**': { auth: 'user' },
   },
 })
