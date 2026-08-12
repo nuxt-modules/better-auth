@@ -26,6 +26,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (shouldSkipAuthRouteRules(to.path))
     return
 
+  // Let Nuxt render its own 404 for URLs that match no page. Without this, a broad
+  // rule such as `'/**': { auth: 'user' }` redirects unauthenticated visitors to the
+  // login page instead, so a missing route never surfaces as a 404.
+  if (to.matched?.length === 0)
+    return
+
   const nuxtApp = useNuxtApp()
 
   // Runtime fallback: resolve auth from module-known route rules if not set at build-time.
