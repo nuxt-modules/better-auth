@@ -1,6 +1,10 @@
 export default defineNuxtConfig({
   modules: ['@nuxthub/core', '../../../src/module'],
 
+  auth: {
+    schema: { schemaName: 'auth' },
+  },
+
   hub: {
     db: {
       dialect: 'postgresql',
