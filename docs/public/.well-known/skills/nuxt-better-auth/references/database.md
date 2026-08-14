@@ -6,7 +6,7 @@ Use NuxtHub.
 
 ```ts
 export default defineNuxtConfig({
-  modules: ['@nuxthub/core', '@onmax/nuxt-better-auth'],
+  modules: ['@nuxthub/core', '@nuxtjs/better-auth'],
   hub: {
     db: 'sqlite',
   },

@@ -19,25 +19,25 @@ const packageManagers = [
     label: 'pnpm',
     value: 'pnpm',
     icon: 'i-simple-icons-pnpm',
-    command: 'pnpm dlx nuxi module add @onmax/nuxt-better-auth',
+    command: 'pnpm dlx nuxi module add @nuxtjs/better-auth',
   },
   {
     label: 'npm',
     value: 'npm',
     icon: 'i-simple-icons-npm',
-    command: 'npx nuxi module add @onmax/nuxt-better-auth',
+    command: 'npx nuxi module add @nuxtjs/better-auth',
   },
   {
     label: 'bun',
     value: 'bun',
     icon: 'i-simple-icons-bun',
-    command: 'bunx nuxi module add @onmax/nuxt-better-auth',
+    command: 'bunx nuxi module add @nuxtjs/better-auth',
   },
   {
     label: 'yarn',
     value: 'yarn',
     icon: 'i-simple-icons-yarn',
-    command: 'yarn dlx nuxi module add @onmax/nuxt-better-auth',
+    command: 'yarn dlx nuxi module add @nuxtjs/better-auth',
   },
 ] as const
 

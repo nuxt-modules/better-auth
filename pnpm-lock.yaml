@@ -84,12 +84,6 @@ importers:
       better-sqlite3:
         specifier: ^12.6.2
         version: 12.6.2
-      bumpp:
-        specifier: ^11.0.0
-        version: 11.0.1
-      changelogen:
-        specifier: ^0.6.2
-        version: 0.6.2(magicast@0.5.2)
       consola:
         specifier: ^3.4.2
         version: 3.4.2

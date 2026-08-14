@@ -6,7 +6,7 @@ Use `clientOnly` when Better Auth runs on a separate backend.
 
 ```ts
 export default defineNuxtConfig({
-  modules: ['@onmax/nuxt-better-auth'],
+  modules: ['@nuxtjs/better-auth'],
   auth: {
     clientOnly: true,
   },

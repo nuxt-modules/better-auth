@@ -171,7 +171,7 @@ function getLang(filename: string) {
                 Get Started
               </NuxtLink>
               <NuxtLink
-                to="https://github.com/onmax/nuxt-better-auth"
+                to="https://github.com/nuxt-modules/better-auth"
                 target="_blank"
                 class="group relative inline-block min-w-0 text-xs font-semibold leading-6 text-stone-950 no-underline dark:text-white"
               >

@@ -89,7 +89,7 @@ export {}
     getContents: () => `
 import type { RuntimeConfig } from 'nuxt/schema'
 
-declare module '@onmax/nuxt-better-auth/config' {
+declare module '@nuxtjs/better-auth/config' {
   interface ServerAuthContextExtension {
     runtimeConfig: RuntimeConfig
     db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
