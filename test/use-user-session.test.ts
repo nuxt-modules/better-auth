@@ -60,7 +60,7 @@ const mockClient: Record<string, any> = {
     listen: vi.fn(),
   },
   signOut: vi.fn(async () => {}),
-  signIn: { social: vi.fn(async () => ({})), email: vi.fn(async () => ({})) },
+  signIn: { social: vi.fn(async () => ({})), oauth2: vi.fn(async () => ({})), email: vi.fn(async () => ({})) },
   signUp: { email: vi.fn(async () => ({})) },
 }
 let activeClient: Record<string, any> = mockClient
@@ -175,6 +175,8 @@ describe('useUserSession hydration bootstrap', () => {
     mockClient.updateUser = undefined
     mockClient.signIn.social.mockReset()
     mockClient.signIn.social.mockResolvedValue({})
+    mockClient.signIn.oauth2.mockReset()
+    mockClient.signIn.oauth2.mockResolvedValue({})
     mockClient.signIn.email.mockReset()
     mockClient.signIn.email.mockResolvedValue({})
     mockClient.signUp.email.mockReset()
@@ -623,16 +625,33 @@ describe('useUserSession hydration bootstrap', () => {
     expect(navigateTo).not.toHaveBeenCalled()
   })
 
-  it('signIn.social injects callbackURL from auth.redirects.authenticated when missing', async () => {
+  it.each([
+    { method: 'social', data: { provider: 'github' }, providerURL: 'https://github.com/login/oauth/authorize' },
+    { method: 'oauth2', data: { providerId: 'seznam' }, providerURL: 'https://login.szn.cz/oauth/authorize' },
+  ])('signIn.$method injects callbackURL and skips session sync', async ({ method, data, providerURL }) => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
-    mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
+    mockClient.getSession.mockResolvedValueOnce({
+      data: {
+        session: { id: 'session-1', ipAddress: '127.0.0.1' },
+        user: { id: 'user-1', email: 'user@example.com' },
+      },
+    })
+    mockClient.signIn[method].mockImplementationOnce(async (_data, opts) => {
+      await opts?.onSuccess?.('ctx')
+      return { url: providerURL, redirect: true }
+    })
 
     const { useAuthActionNamespaces } = await loadAuthComposables()
     const auth = useAuthActionNamespaces()
 
-    await auth.signIn.social({ provider: 'github' } as never)
+    if (method === 'social') {
+      await auth.signIn.social(data)
+    }
+    else {
+      await auth.signIn.oauth2(data)
+    }
 
-    expect(mockClient.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app' }, undefined)
+    expect(mockClient.signIn[method]).toHaveBeenCalledWith({ ...data, callbackURL: '/app' }, undefined)
     expect(mockClient.getSession).not.toHaveBeenCalled()
     expect(navigateTo).not.toHaveBeenCalled()
   })
@@ -691,7 +710,10 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.getSession).not.toHaveBeenCalled()
   })
 
-  it('signIn.social with disableRedirect wraps explicit onSuccess with session sync', async () => {
+  it.each([
+    { method: 'social', data: { provider: 'github', disableRedirect: true } },
+    { method: 'oauth2', data: { providerId: 'seznam', disableRedirect: true } },
+  ])('signIn.$method with disableRedirect syncs session before onSuccess', async ({ method, data }) => {
     let sessionAuth!: ReturnType<Awaited<ReturnType<typeof loadUseUserSession>>>
     let sessionAtCallback: unknown
     const onSuccess = vi.fn(() => {
@@ -703,7 +725,7 @@ describe('useUserSession hydration bootstrap', () => {
         user: { id: 'user-1', email: 'user@example.com' },
       },
     })
-    mockClient.signIn.social.mockImplementation(async (_data, opts) => {
+    mockClient.signIn[method].mockImplementation(async (_data, opts) => {
       await opts?.onSuccess?.('ctx')
     })
 
@@ -711,7 +733,12 @@ describe('useUserSession hydration bootstrap', () => {
     sessionAuth = useUserSession()
     const auth = useAuthActionNamespaces()
 
-    await auth.signIn.social({ provider: 'github', disableRedirect: true } as never, { onSuccess } as never)
+    if (method === 'social') {
+      await auth.signIn.social(data, { onSuccess })
+    }
+    else {
+      await auth.signIn.oauth2(data, { onSuccess })
+    }
 
     expect(onSuccess).toHaveBeenCalledOnce()
     expect(sessionAtCallback).toEqual({ id: 'session-1', ipAddress: '127.0.0.1' })
