@@ -3,7 +3,7 @@
 ## Happy path
 
 ```bash
-npx nuxi module add @nuxtjs/better-auth@alpha
+npx nuxi module add @nuxtjs/better-auth
 ```
 
 Required files:
