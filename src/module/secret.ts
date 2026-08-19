@@ -6,6 +6,7 @@ import { isCI, isTest } from 'std-env'
 
 const DEFAULT_SECRET_ENV = 'NUXT_BETTER_AUTH_SECRET'
 const FALLBACK_SECRET_ENV = 'BETTER_AUTH_SECRET'
+const VERSIONED_SECRET_ENV = 'BETTER_AUTH_SECRETS'
 
 const generateSecret = () => randomBytes(32).toString('hex')
 
@@ -16,7 +17,7 @@ function readEnvFile(rootDir: string): string {
 
 function hasEnvSecret(rootDir: string): boolean {
   const envFile = readEnvFile(rootDir)
-  return [DEFAULT_SECRET_ENV, FALLBACK_SECRET_ENV].some((name) => {
+  return [DEFAULT_SECRET_ENV, FALLBACK_SECRET_ENV, VERSIONED_SECRET_ENV].some((name) => {
     const match = envFile.match(new RegExp(`^${name}=(.+)$`, 'm'))
     return !!match && !!match[1] && match[1].trim().length > 0
   })
@@ -41,12 +42,12 @@ export async function promptForSecret(rootDir: string, consola: ConsolaInstance,
   if (configuredSecret)
     return undefined
 
-  if (process.env.NUXT_BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET || hasEnvSecret(rootDir))
+  if (process.env.NUXT_BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRETS || hasEnvSecret(rootDir))
     return undefined
 
   const hasTty = Boolean(process.stdin.isTTY && process.stdout.isTTY)
   if (options.prepare || !hasTty) {
-    consola.warn('[nuxt-better-auth] Skipping NUXT_BETTER_AUTH_SECRET prompt (non-interactive). Set NUXT_BETTER_AUTH_SECRET or BETTER_AUTH_SECRET.')
+    consola.warn('[nuxt-better-auth] Skipping auth secret prompt (non-interactive). Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, or BETTER_AUTH_SECRETS.')
     return undefined
   }
 
@@ -57,7 +58,7 @@ export async function promptForSecret(rootDir: string, consola: ConsolaInstance,
     return secret
   }
 
-  consola.box('NUXT_BETTER_AUTH_SECRET is required for authentication.\nThis will be appended to your .env file.\nBETTER_AUTH_SECRET is still supported as a fallback.')
+  consola.box('An auth secret is required for authentication.\nThis will add NUXT_BETTER_AUTH_SECRET to your .env file.\nBETTER_AUTH_SECRET and BETTER_AUTH_SECRETS are also supported.')
   const choice = await consola.prompt('How do you want to set it?', {
     type: 'select',
     options: [
@@ -69,7 +70,7 @@ export async function promptForSecret(rootDir: string, consola: ConsolaInstance,
   }) as 'generate' | 'paste' | 'skip' | symbol
 
   if (typeof choice === 'symbol' || choice === 'skip') {
-    consola.warn('Skipping NUXT_BETTER_AUTH_SECRET. Auth will fail without it in production.')
+    consola.warn('Skipping auth secret setup. Auth will fail without a configured secret in production.')
     return undefined
   }
 

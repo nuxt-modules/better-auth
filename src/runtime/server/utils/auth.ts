@@ -1,6 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { ServerEvent } from '../internal/nitro-compat'
-import { betterAuth } from 'better-auth'
+import { betterAuth, env } from 'better-auth'
 import { withoutProtocol } from 'ufo'
 import { createDatabase, db } from '#auth/database'
 import { createSecondaryStorage } from '#auth/secondary-storage'
@@ -10,6 +10,7 @@ import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-sto
 
 type AuthOptions = ReturnType<typeof createServerAuth>
 type UserAuthConfig = AuthOptions & {
+  secrets?: BetterAuthOptions['secrets']
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   secondaryStorage?: BetterAuthOptions['secondaryStorage']
 }
@@ -274,14 +275,19 @@ function withDevTrustedOrigins(
 /** Returns Better Auth instance. Caches per resolved host (or single instance when siteUrl is explicit). */
 export function serverAuth(event?: ServerEvent): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
-  const betterAuthSecret = runtimeConfig.betterAuthSecret || ''
-  if (!import.meta.dev && !betterAuthSecret)
-    throw new Error('[nuxt-better-auth] NUXT_BETTER_AUTH_SECRET is required in production. Set NUXT_BETTER_AUTH_SECRET or BETTER_AUTH_SECRET environment variable.')
+  const betterAuthSecret = runtimeConfig.betterAuthSecret || env.BETTER_AUTH_SECRET || ''
   if (betterAuthSecret && betterAuthSecret.length < 32)
-    throw new Error('[nuxt-better-auth] NUXT_BETTER_AUTH_SECRET must be at least 32 characters for security')
+    throw new Error('[nuxt-better-auth] Singular auth secret must be at least 32 characters for security')
+
+  const requestOrigin = resolveEventOrigin(event)
+  let userConfig: UserAuthConfig | undefined
+  if (!import.meta.dev && !betterAuthSecret && !env.BETTER_AUTH_SECRETS) {
+    userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+    if (userConfig.secrets === undefined)
+      throw new Error('[nuxt-better-auth] An auth secret is required in production. Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_SECRETS, or defineServerAuth({ secrets }).')
+  }
 
   const siteUrl = getBaseURL(event)
-  const requestOrigin = resolveEventOrigin(event)
   const hasExplicitSiteUrl = runtimeConfig.public.siteUrl && typeof runtimeConfig.public.siteUrl === 'string'
   const cacheKey = hasExplicitSiteUrl ? '__explicit__' : siteUrl
   const requestContext = event ? getRequestAuthContext(event) : undefined
@@ -289,8 +295,9 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
   if (requestContext?.[requestAuthKey])
     return requestContext[requestAuthKey]
 
+  userConfig ??= createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+
   const database = createDatabase(event)
-  const userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins)
 
   const hubSecondaryStorage = (runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' })?.hubSecondaryStorage

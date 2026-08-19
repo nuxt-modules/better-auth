@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const betterAuthMock = vi.fn()
 const createDatabaseMock = vi.fn()
@@ -21,6 +21,7 @@ vi.mock('#auth/server', () => ({
 
 vi.mock('better-auth', () => ({
   betterAuth: betterAuthMock,
+  env: process.env,
 }))
 
 vi.mock('../src/runtime/server/internal/nitro-compat', () => ({
@@ -47,6 +48,8 @@ describe('serverAuth database cache and secret validation', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
+    vi.stubEnv('BETTER_AUTH_SECRET', '')
+    vi.stubEnv('BETTER_AUTH_SECRETS', '')
 
     useRuntimeConfigMock.mockReturnValue({
       public: {
@@ -66,7 +69,11 @@ describe('serverAuth database cache and secret validation', () => {
     }))
   })
 
-  it('rejects a missing runtime secret before creating auth', async () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('rejects missing singular and versioned secrets before creating auth', async () => {
     useRuntimeConfigMock.mockReturnValue({
       public: { siteUrl: 'https://example.com' },
       auth: {},
@@ -75,7 +82,92 @@ describe('serverAuth database cache and secret validation', () => {
 
     const { serverAuth } = await import('../src/runtime/server/utils/auth')
 
-    expect(() => serverAuth()).toThrow('NUXT_BETTER_AUTH_SECRET is required in production')
+    expect(() => serverAuth()).toThrow('An auth secret is required in production')
+    expect(createDatabaseMock).not.toHaveBeenCalled()
+    expect(betterAuthMock).not.toHaveBeenCalled()
+  })
+
+  it('forwards versioned secrets without requiring a singular secret', async () => {
+    const secrets = [
+      { version: 2, value: 'current-secret-for-testing-only-32chars' },
+      { version: 1, value: 'previous-secret-for-testing-only-32chars' },
+    ]
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: {},
+      betterAuthSecret: '',
+    })
+    createServerAuthMock.mockReturnValue({
+      trustedOrigins: undefined,
+      secrets,
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).not.toThrow()
+    expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({ secret: '', secrets }))
+  })
+
+  it('allows BETTER_AUTH_SECRETS without requiring a singular secret', async () => {
+    vi.stubEnv('BETTER_AUTH_SECRETS', '2:current-secret-for-testing-only-32chars,1:previous-secret-for-testing-only-32chars')
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: {},
+      betterAuthSecret: '',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).not.toThrow()
+    expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({ secret: '' }))
+  })
+
+  it('allows a runtime-only BETTER_AUTH_SECRET', async () => {
+    vi.stubEnv('BETTER_AUTH_SECRET', 'runtime-secret-for-testing-only-32chars')
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: {},
+      betterAuthSecret: '',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).not.toThrow()
+    expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({
+      secret: 'runtime-secret-for-testing-only-32chars',
+    }))
+  })
+
+  it('rejects a short runtime-only BETTER_AUTH_SECRET', async () => {
+    vi.stubEnv('BETTER_AUTH_SECRET', 'too-short')
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: {},
+      betterAuthSecret: '',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('Singular auth secret must be at least 32 characters')
+    expect(betterAuthMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects missing secrets before resolving siteUrl', async () => {
+    vi.stubEnv('NITRO_HOST', '')
+    vi.stubEnv('HOST', '')
+    vi.stubEnv('VERCEL_URL', '')
+    vi.stubEnv('CF_PAGES_URL', '')
+    vi.stubEnv('URL', '')
+    useRuntimeConfigMock.mockReturnValue({
+      public: {},
+      auth: {},
+      betterAuthSecret: '',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('An auth secret is required in production')
+    expect(createDatabaseMock).not.toHaveBeenCalled()
     expect(betterAuthMock).not.toHaveBeenCalled()
   })
 
@@ -88,7 +180,7 @@ describe('serverAuth database cache and secret validation', () => {
 
     const { serverAuth } = await import('../src/runtime/server/utils/auth')
 
-    expect(() => serverAuth()).toThrow('NUXT_BETTER_AUTH_SECRET must be at least 32 characters')
+    expect(() => serverAuth()).toThrow('Singular auth secret must be at least 32 characters')
     expect(betterAuthMock).not.toHaveBeenCalled()
   })
 

@@ -25,6 +25,8 @@ const consola = {
 }
 
 const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nuxt-better-auth-secret-'))
+if (process.env.TEST_ENV_FILE_CONTENT)
+  fs.writeFileSync(path.join(rootDir, '.env'), process.env.TEST_ENV_FILE_CONTENT)
 await promptForSecret(rootDir, consola, { prepare: true })
 console.log('PROMPT_CALLS=' + promptCalls)
 `
@@ -45,7 +47,9 @@ function createNonTestEnv(): NodeJS.ProcessEnv {
 
   // Ensure no secret is configured via env.
   delete env.BETTER_AUTH_SECRET
+  delete env.BETTER_AUTH_SECRETS
   delete env.NUXT_BETTER_AUTH_SECRET
+  delete env.TEST_ENV_FILE_CONTENT
 
   env.FORCE_COLOR = '0'
 
@@ -68,7 +72,7 @@ describe('promptForSecret', () => {
 
     expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
     const output = `${run.stdout}\n${run.stderr}`
-    expect(output).toContain('Skipping NUXT_BETTER_AUTH_SECRET prompt')
+    expect(output).toContain('Skipping auth secret prompt')
     expect(output).toContain('PROMPT_CALLS=0')
   })
 
@@ -79,7 +83,7 @@ describe('promptForSecret', () => {
 
     expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
     const output = `${run.stdout}\n${run.stderr}`
-    expect(output).not.toContain('Skipping NUXT_BETTER_AUTH_SECRET prompt')
+    expect(output).not.toContain('Skipping auth secret prompt')
     expect(output).toContain('PROMPT_CALLS=0')
   })
 
@@ -90,7 +94,29 @@ describe('promptForSecret', () => {
 
     expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
     const output = `${run.stdout}\n${run.stderr}`
-    expect(output).not.toContain('Skipping NUXT_BETTER_AUTH_SECRET prompt')
+    expect(output).not.toContain('Skipping auth secret prompt')
+    expect(output).toContain('PROMPT_CALLS=0')
+  })
+
+  it('skips prompting when BETTER_AUTH_SECRETS is already set', () => {
+    const env = createNonTestEnv()
+    env.BETTER_AUTH_SECRETS = '2:current-secret-for-testing-only-32chars,1:previous-secret-for-testing-only-32chars'
+    const run = runPromptScript(env)
+
+    expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
+    const output = `${run.stdout}\n${run.stderr}`
+    expect(output).not.toContain('Skipping auth secret prompt')
+    expect(output).toContain('PROMPT_CALLS=0')
+  })
+
+  it('skips prompting when BETTER_AUTH_SECRETS exists in .env', () => {
+    const env = createNonTestEnv()
+    env.TEST_ENV_FILE_CONTENT = 'BETTER_AUTH_SECRETS=2:current-secret-for-testing-only-32chars,1:previous-secret-for-testing-only-32chars\n'
+    const run = runPromptScript(env)
+
+    expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
+    const output = `${run.stdout}\n${run.stderr}`
+    expect(output).not.toContain('Skipping auth secret prompt')
     expect(output).toContain('PROMPT_CALLS=0')
   })
 })
