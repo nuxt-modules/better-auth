@@ -148,7 +148,7 @@ describe('serverAuth database cache and secret validation', () => {
 
     const { serverAuth } = await import('../src/runtime/server/utils/auth')
 
-    expect(() => serverAuth()).toThrow('must be at least 32 characters')
+    expect(() => serverAuth()).toThrow('Singular auth secret must be at least 32 characters')
     expect(betterAuthMock).not.toHaveBeenCalled()
   })
 
@@ -180,7 +180,7 @@ describe('serverAuth database cache and secret validation', () => {
 
     const { serverAuth } = await import('../src/runtime/server/utils/auth')
 
-    expect(() => serverAuth()).toThrow('NUXT_BETTER_AUTH_SECRET must be at least 32 characters')
+    expect(() => serverAuth()).toThrow('Singular auth secret must be at least 32 characters')
     expect(betterAuthMock).not.toHaveBeenCalled()
   })
 

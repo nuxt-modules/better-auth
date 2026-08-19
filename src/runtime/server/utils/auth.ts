@@ -277,7 +277,7 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
   const betterAuthSecret = runtimeConfig.betterAuthSecret || env.BETTER_AUTH_SECRET || ''
   if (betterAuthSecret && betterAuthSecret.length < 32)
-    throw new Error('[nuxt-better-auth] NUXT_BETTER_AUTH_SECRET must be at least 32 characters for security')
+    throw new Error('[nuxt-better-auth] Singular auth secret must be at least 32 characters for security')
 
   const requestOrigin = resolveEventOrigin(event)
   let userConfig: UserAuthConfig | undefined
