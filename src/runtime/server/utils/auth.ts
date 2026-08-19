@@ -1,6 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { ServerEvent } from '../internal/nitro-compat'
-import { betterAuth } from 'better-auth'
+import { betterAuth, env } from 'better-auth'
 import { withoutProtocol } from 'ufo'
 import { createDatabase, db } from '#auth/database'
 import { createSecondaryStorage } from '#auth/secondary-storage'
@@ -10,6 +10,7 @@ import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-sto
 
 type AuthOptions = ReturnType<typeof createServerAuth>
 type UserAuthConfig = AuthOptions & {
+  secrets?: BetterAuthOptions['secrets']
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   secondaryStorage?: BetterAuthOptions['secondaryStorage']
 }
@@ -287,8 +288,11 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
   if (requestContext?.[requestAuthKey])
     return requestContext[requestAuthKey]
 
-  const database = createDatabase(event)
   const userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+  if (!import.meta.dev && !betterAuthSecret && userConfig.secrets === undefined && !env.BETTER_AUTH_SECRETS)
+    throw new Error('[nuxt-better-auth] An auth secret is required in production. Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_SECRETS, or defineServerAuth({ secrets }).')
+
+  const database = createDatabase(event)
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins)
 
   const hubSecondaryStorage = (runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' })?.hubSecondaryStorage

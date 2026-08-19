@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const betterAuthMock = vi.fn()
 const createDatabaseMock = vi.fn()
@@ -21,6 +21,7 @@ vi.mock('#auth/server', () => ({
 
 vi.mock('better-auth', () => ({
   betterAuth: betterAuthMock,
+  env: process.env,
 }))
 
 vi.mock('../src/runtime/server/internal/nitro-compat', () => ({
@@ -47,6 +48,7 @@ describe('serverAuth database cache and secret validation', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
+    vi.stubEnv('BETTER_AUTH_SECRETS', '')
 
     useRuntimeConfigMock.mockReturnValue({
       public: {
@@ -64,6 +66,24 @@ describe('serverAuth database cache and secret validation', () => {
       options,
       marker: Symbol('auth-instance'),
     }))
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('rejects missing singular and versioned secrets before creating auth', async () => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: {},
+      betterAuthSecret: '',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('An auth secret is required in production')
+    expect(createDatabaseMock).not.toHaveBeenCalled()
+    expect(betterAuthMock).not.toHaveBeenCalled()
   })
 
   it('forwards versioned secrets without requiring a singular secret', async () => {
@@ -85,6 +105,20 @@ describe('serverAuth database cache and secret validation', () => {
 
     expect(() => serverAuth()).not.toThrow()
     expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({ secret: '', secrets }))
+  })
+
+  it('allows BETTER_AUTH_SECRETS without requiring a singular secret', async () => {
+    vi.stubEnv('BETTER_AUTH_SECRETS', '2:current-secret-for-testing-only-32chars,1:previous-secret-for-testing-only-32chars')
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: {},
+      betterAuthSecret: '',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).not.toThrow()
+    expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({ secret: '' }))
   })
 
   it('rejects a short runtime secret before creating auth', async () => {
