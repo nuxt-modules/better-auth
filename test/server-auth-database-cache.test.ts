@@ -48,6 +48,7 @@ describe('serverAuth database cache and secret validation', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
+    vi.stubEnv('BETTER_AUTH_SECRET', '')
     vi.stubEnv('BETTER_AUTH_SECRETS', '')
 
     useRuntimeConfigMock.mockReturnValue({
@@ -119,6 +120,55 @@ describe('serverAuth database cache and secret validation', () => {
 
     expect(() => serverAuth()).not.toThrow()
     expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({ secret: '' }))
+  })
+
+  it('allows a runtime-only BETTER_AUTH_SECRET', async () => {
+    vi.stubEnv('BETTER_AUTH_SECRET', 'runtime-secret-for-testing-only-32chars')
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: {},
+      betterAuthSecret: '',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).not.toThrow()
+    expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({
+      secret: 'runtime-secret-for-testing-only-32chars',
+    }))
+  })
+
+  it('rejects a short runtime-only BETTER_AUTH_SECRET', async () => {
+    vi.stubEnv('BETTER_AUTH_SECRET', 'too-short')
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: {},
+      betterAuthSecret: '',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('must be at least 32 characters')
+    expect(betterAuthMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects missing secrets before resolving siteUrl', async () => {
+    vi.stubEnv('NITRO_HOST', '')
+    vi.stubEnv('HOST', '')
+    vi.stubEnv('VERCEL_URL', '')
+    vi.stubEnv('CF_PAGES_URL', '')
+    vi.stubEnv('URL', '')
+    useRuntimeConfigMock.mockReturnValue({
+      public: {},
+      auth: {},
+      betterAuthSecret: '',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('An auth secret is required in production')
+    expect(createDatabaseMock).not.toHaveBeenCalled()
+    expect(betterAuthMock).not.toHaveBeenCalled()
   })
 
   it('rejects a short runtime secret before creating auth', async () => {

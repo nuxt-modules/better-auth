@@ -275,12 +275,19 @@ function withDevTrustedOrigins(
 /** Returns Better Auth instance. Caches per resolved host (or single instance when siteUrl is explicit). */
 export function serverAuth(event?: ServerEvent): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
-  const betterAuthSecret = runtimeConfig.betterAuthSecret || ''
+  const betterAuthSecret = runtimeConfig.betterAuthSecret || env.BETTER_AUTH_SECRET || ''
   if (betterAuthSecret && betterAuthSecret.length < 32)
     throw new Error('[nuxt-better-auth] NUXT_BETTER_AUTH_SECRET must be at least 32 characters for security')
 
-  const siteUrl = getBaseURL(event)
   const requestOrigin = resolveEventOrigin(event)
+  let userConfig: UserAuthConfig | undefined
+  if (!import.meta.dev && !betterAuthSecret && !env.BETTER_AUTH_SECRETS) {
+    userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+    if (userConfig.secrets === undefined)
+      throw new Error('[nuxt-better-auth] An auth secret is required in production. Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_SECRETS, or defineServerAuth({ secrets }).')
+  }
+
+  const siteUrl = getBaseURL(event)
   const hasExplicitSiteUrl = runtimeConfig.public.siteUrl && typeof runtimeConfig.public.siteUrl === 'string'
   const cacheKey = hasExplicitSiteUrl ? '__explicit__' : siteUrl
   const requestContext = event ? getRequestAuthContext(event) : undefined
@@ -288,9 +295,7 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
   if (requestContext?.[requestAuthKey])
     return requestContext[requestAuthKey]
 
-  const userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
-  if (!import.meta.dev && !betterAuthSecret && userConfig.secrets === undefined && !env.BETTER_AUTH_SECRETS)
-    throw new Error('[nuxt-better-auth] An auth secret is required in production. Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_SECRETS, or defineServerAuth({ secrets }).')
+  userConfig ??= createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
 
   const database = createDatabase(event)
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins)
