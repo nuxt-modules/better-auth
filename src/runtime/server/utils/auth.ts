@@ -275,8 +275,6 @@ function withDevTrustedOrigins(
 export function serverAuth(event?: ServerEvent): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
   const betterAuthSecret = runtimeConfig.betterAuthSecret || ''
-  if (!import.meta.dev && !betterAuthSecret)
-    throw new Error('[nuxt-better-auth] NUXT_BETTER_AUTH_SECRET is required in production. Set NUXT_BETTER_AUTH_SECRET or BETTER_AUTH_SECRET environment variable.')
   if (betterAuthSecret && betterAuthSecret.length < 32)
     throw new Error('[nuxt-better-auth] NUXT_BETTER_AUTH_SECRET must be at least 32 characters for security')
 

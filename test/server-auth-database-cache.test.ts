@@ -66,17 +66,25 @@ describe('serverAuth database cache and secret validation', () => {
     }))
   })
 
-  it('rejects a missing runtime secret before creating auth', async () => {
+  it('forwards versioned secrets without requiring a singular secret', async () => {
+    const secrets = [
+      { version: 2, value: 'current-secret-for-testing-only-32chars' },
+      { version: 1, value: 'previous-secret-for-testing-only-32chars' },
+    ]
     useRuntimeConfigMock.mockReturnValue({
       public: { siteUrl: 'https://example.com' },
       auth: {},
       betterAuthSecret: '',
     })
+    createServerAuthMock.mockReturnValue({
+      trustedOrigins: undefined,
+      secrets,
+    })
 
     const { serverAuth } = await import('../src/runtime/server/utils/auth')
 
-    expect(() => serverAuth()).toThrow('NUXT_BETTER_AUTH_SECRET is required in production')
-    expect(betterAuthMock).not.toHaveBeenCalled()
+    expect(() => serverAuth()).not.toThrow()
+    expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({ secret: '', secrets }))
   })
 
   it('rejects a short runtime secret before creating auth', async () => {
