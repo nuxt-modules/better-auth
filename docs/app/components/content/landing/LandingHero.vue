@@ -123,7 +123,7 @@ function getLang(filename: string) {
 
 <template>
   <AnnouncementBanner />
-  <section class="relative w-full flex overflow-x-hidden md:items-end md:justify-center bg-white/96 dark:bg-black/[0.96] antialiased min-h-[40rem] md:min-h-[50rem] lg:min-h-[40rem]">
+  <section class="relative w-full flex overflow-x-clip md:items-end md:justify-center bg-white/96 dark:bg-black/[0.96] antialiased min-h-[40rem] md:min-h-[50rem] lg:min-h-[40rem]">
     <!-- Spotlight Effect -->
     <LandingSpotlight />
 
@@ -283,7 +283,7 @@ function getLang(filename: string) {
                         </UCollapsible>
 
                         <ScrollAreaRoot class="w-full min-w-0 overflow-hidden">
-                          <ScrollAreaViewport class="w-full min-w-0 overflow-x-auto overscroll-x-contain">
+                          <ScrollAreaViewport class="w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain">
                             <!-- All files rendered for SSR, animated with CSS -->
                             <div class="relative">
                               <div
