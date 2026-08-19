@@ -3,7 +3,7 @@
 ## Happy path
 
 ```bash
-npx nuxi module add @onmax/nuxt-better-auth@alpha
+npx nuxi module add @nuxtjs/better-auth
 ```
 
 Required files:
@@ -30,14 +30,14 @@ NUXT_PUBLIC_SITE_URL=https://your-domain.com
 
 ```ts
 export default defineNuxtConfig({
-  modules: ['@onmax/nuxt-better-auth'],
+  modules: ['@nuxtjs/better-auth'],
 })
 ```
 
 ## Minimal server config
 
 ```ts
-import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
+import { defineServerAuth } from '@nuxtjs/better-auth/config'
 
 export default defineServerAuth({
   emailAndPassword: {
@@ -49,7 +49,7 @@ export default defineServerAuth({
 ## Minimal client config
 
 ```ts
-import { defineClientAuth } from '@onmax/nuxt-better-auth/config'
+import { defineClientAuth } from '@nuxtjs/better-auth/config'
 
 export default defineClientAuth({})
 ```
@@ -65,7 +65,7 @@ export default defineClientAuth({})
 
 ```ts
 export default defineNuxtConfig({
-  modules: ['@nuxthub/core', '@onmax/nuxt-better-auth'],
+  modules: ['@nuxthub/core', '@nuxtjs/better-auth'],
   hub: {
     db: 'sqlite',
     kv: true,
@@ -84,7 +84,7 @@ For external auth backends:
 
 ```ts
 export default defineNuxtConfig({
-  modules: ['@onmax/nuxt-better-auth'],
+  modules: ['@nuxtjs/better-auth'],
   auth: {
     clientOnly: true,
   },

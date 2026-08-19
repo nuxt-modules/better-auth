@@ -1,5 +1,5 @@
 export default defineNuxtConfig({
-  modules: ['@onmax/nuxt-better-auth'],
+  modules: ['@nuxtjs/better-auth'],
   routeRules: {
     '/api/guest': { auth: 'guest' },
   },

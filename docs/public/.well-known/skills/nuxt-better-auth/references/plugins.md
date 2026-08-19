@@ -11,7 +11,7 @@ If a Better Auth plugin has a client companion, register both:
 
 ```ts
 import { admin, twoFactor } from 'better-auth/plugins'
-import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
+import { defineServerAuth } from '@nuxtjs/better-auth/config'
 
 export default defineServerAuth({
   plugins: [admin(), twoFactor()],
@@ -20,7 +20,7 @@ export default defineServerAuth({
 
 ```ts
 import { adminClient, twoFactorClient } from 'better-auth/client/plugins'
-import { defineClientAuth } from '@onmax/nuxt-better-auth/config'
+import { defineClientAuth } from '@nuxtjs/better-auth/config'
 
 export default defineClientAuth({
   plugins: [adminClient(), twoFactorClient()],

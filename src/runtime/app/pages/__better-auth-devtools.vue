@@ -171,7 +171,7 @@ async function deleteConfirmedSession() {
       </div>
       <nav class="links">
         <a href="https://www.better-auth.com/docs" target="_blank" rel="noreferrer">Docs</a>
-        <a href="https://github.com/onmax/nuxt-better-auth" target="_blank" rel="noreferrer">GitHub</a>
+        <a href="https://github.com/nuxt-modules/better-auth" target="_blank" rel="noreferrer">GitHub</a>
       </nav>
     </header>
 

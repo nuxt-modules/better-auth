@@ -1,6 +1,6 @@
 ---
 name: nuxt-better-auth
-description: Use when implementing auth in Nuxt apps with @onmax/nuxt-better-auth - provides client composables, server helpers, route protection, session refresh helpers, and Better Auth plugin integration.
+description: Use when implementing auth in Nuxt apps with @nuxtjs/better-auth - provides client composables, server helpers, route protection, session refresh helpers, and Better Auth plugin integration.
 license: MIT
 ---
 
@@ -12,7 +12,7 @@ Authentication module for Nuxt 4+ built on [Better Auth](https://www.better-auth
 
 ## When to Use
 
-- Installing/configuring `@onmax/nuxt-better-auth`
+- Installing/configuring `@nuxtjs/better-auth`
 - Implementing sign-in, sign-up, sign-out, or custom auth flows
 - Protecting routes (client and server)
 - Accessing user session in API routes

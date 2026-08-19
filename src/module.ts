@@ -58,14 +58,14 @@ function isServerConfigSharedTypeSafe(serverConfigPath: string): boolean {
 async function createDefaultAuthConfigFiles(nuxt: Nuxt): Promise<void> {
   const configs = resolveAuthConfigDescriptors(nuxt)
 
-  const serverTemplate = `import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
+  const serverTemplate = `import { defineServerAuth } from '@nuxtjs/better-auth/config'
 
 export default defineServerAuth({
   emailAndPassword: { enabled: true },
 })
 `
 
-  const clientTemplate = `import { defineClientAuth } from '@onmax/nuxt-better-auth/config'
+  const clientTemplate = `import { defineClientAuth } from '@nuxtjs/better-auth/config'
 
 export default defineClientAuth({})
 `
@@ -97,7 +97,7 @@ async function ensureSchemaBootstrap(schemaPath: string, dialect: DbDialect): Pr
 export type { BetterAuthModuleOptions } from './runtime/config'
 
 export default defineNuxtModule<BetterAuthModuleOptions>({
-  meta: { name: '@onmax/nuxt-better-auth', version, configKey: 'auth', compatibility: { nuxt: '>=4.0.0' } },
+  meta: { name: '@nuxtjs/better-auth', version, configKey: 'auth', compatibility: { nuxt: '>=4.0.0' } },
   defaults: {
     clientOnly: false,
     serverConfig: 'server/auth.config',

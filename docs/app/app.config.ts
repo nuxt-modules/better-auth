@@ -1,6 +1,6 @@
 export default defineAppConfig({
   github: {
-    url: 'https://github.com/onmax/nuxt-better-auth',
+    url: 'https://github.com/nuxt-modules/better-auth',
     branch: 'main',
     rootDir: 'docs',
   },

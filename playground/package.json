@@ -2,14 +2,6 @@
   "name": "better-auth-playground",
   "type": "module",
   "private": true,
-  "agentskills": {
-    "skills": [
-      {
-        "name": "nuxt-better-auth",
-        "path": "../skills/nuxt-better-auth"
-      }
-    ]
-  },
   "scripts": {
     "dev": "nuxi dev",
     "build": "nuxi build",

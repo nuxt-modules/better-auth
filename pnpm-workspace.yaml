@@ -7,11 +7,8 @@ trustPolicyExclude:
 
 allowBuilds:
   '@parcel/watcher': true
-  '@prisma/client': true
-  '@prisma/engines': true
   better-sqlite3: true
   esbuild: true
-  prisma: true
   sharp: true
   vue-demi: true
   workerd: true
@@ -20,13 +17,3 @@ packages:
   - playground
 patchedDependencies:
   '@peculiar/x509@1.14.3': patches/@peculiar__x509@1.14.3.patch
-onlyBuiltDependencies:
-  - '@parcel/watcher'
-  - '@prisma/client'
-  - '@prisma/engines'
-  - better-sqlite3
-  - esbuild
-  - prisma
-  - sharp
-  - vue-demi
-  - workerd
