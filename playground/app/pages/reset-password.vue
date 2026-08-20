@@ -2,7 +2,7 @@
 definePageMeta({ layout: 'auth' })
 
 const route = useRoute()
-const { client } = useUserSession()
+const client = useAuthClient()
 const toast = useToast()
 
 const token = computed(() => route.query.token as string | undefined)
