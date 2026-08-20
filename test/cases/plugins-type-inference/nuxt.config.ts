@@ -10,6 +10,13 @@ export default defineNuxtConfig({
   auth: {
     serverConfig,
   },
+  nitro: {
+    typescript: {
+      tsConfig: {
+        exclude: [fileURLToPath(new URL('../../../src/runtime/server/internal/nitro3.ts', import.meta.url))],
+      },
+    },
+  },
   routeRules: {
     '/admin/**': { auth: { user: { role: 'admin', internalCode: 'x' } } },
   },

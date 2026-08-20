@@ -79,7 +79,8 @@
     "pathe": "^2.0.3",
     "radix3": "^1.1.2",
     "std-env": "^4.0.0",
-    "ufo": "^1.6.4"
+    "ufo": "^1.6.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.0.0",
