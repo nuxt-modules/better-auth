@@ -6,7 +6,7 @@ license: MIT
 
 # Nuxt Better Auth
 
-Authentication module for Nuxt 4+ built on [Better Auth](https://www.better-auth.com/). It adds Nuxt-specific setup, route protection, server helpers, and typed auth state.
+Authentication module for Nuxt 4 stable with Nitro 2 and Nuxt 5 nightly with Nitro 3, built on [Better Auth](https://www.better-auth.com/). It adds Nuxt-specific setup, route protection, server helpers, and typed auth state.
 
 > Alpha status: the package is still pre-stable. Verify behavior against the current docs and source before relying on edge cases.
 
