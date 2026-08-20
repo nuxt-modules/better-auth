@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { ContentNavigationItem, PageCollections } from '@nuxt/content'
-import { SpeedInsights } from '@vercel/speed-insights/nuxt'
 
 const route = useRoute()
 const { locale, isEnabled } = useDocusI18n()
@@ -33,7 +32,6 @@ provide('navigation', navigation)
     </ClientOnly>
 
     <UToaster />
-    <SpeedInsights />
   </div>
 </template>
 
