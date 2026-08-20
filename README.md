@@ -4,7 +4,7 @@ Nuxt module for [Better Auth](https://better-auth.com) with Nuxt-native route pr
 
 ## Who this is for
 
-The same module release supports Nuxt 4 stable with Nitro 2 and [Nuxt 5 nightly with Nitro 3](https://github.com/nuxt-modules/better-auth/pull/87). Use it when you want the Nuxt-specific pieces handled for you:
+Use this module if you want Better Auth in a Nuxt app and you want the Nuxt-specific pieces handled for you:
 
 - `useUserSession()` for reactive auth state
 - `requireUserSession(event)` and related server helpers
@@ -14,7 +14,7 @@ The same module release supports Nuxt 4 stable with Nitro 2 and [Nuxt 5 nightly 
 
 ## Install the module
 
-For the fastest path in a supported Nuxt app:
+For the fastest path in a Nuxt app:
 
 ```bash
 npx nuxi module add @nuxtjs/better-auth
