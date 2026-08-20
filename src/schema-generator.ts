@@ -1,11 +1,11 @@
 import type { BetterAuthOptions } from 'better-auth'
-import type { Casing } from 'drizzle-orm/utils'
 import { existsSync } from 'node:fs'
 import { generateDrizzleSchema as _generateDrizzleSchema } from 'auth/api'
 import { consola } from 'consola'
 import { join } from 'pathe'
+import type { SchemaCasing } from './runtime/config'
 
-export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: Casing, schemaName?: string }
+export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: SchemaCasing, schemaName?: string }
 
 type Dialect = 'sqlite' | 'postgresql' | 'mysql'
 type Provider = 'sqlite' | 'pg' | 'mysql'

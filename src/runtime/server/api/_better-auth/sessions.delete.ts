@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   }
   catch (error: unknown) {
     if (error instanceof z.ZodError) {
-      throw createAuthError(400, error.errors[0]?.message || 'Invalid request')
+      throw createAuthError(400, error.issues[0]?.message || 'Invalid request')
     }
     console.error('[DevTools] Delete session failed:', error)
     throw createAuthError(500, 'Failed to delete session')
