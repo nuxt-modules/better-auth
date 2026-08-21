@@ -7,6 +7,7 @@ These helpers are auto-imported inside `server/` in full mode:
 - `serverAuth(event?)`
 - `getUserSession(event)`
 - `getRequestSession(event)`
+- `setRequestSession(event, session)`
 - `refreshSessionCookieCache(event)`
 - `requireUserSession(event, options?)`
 - `createSession(event, userId)`
@@ -19,6 +20,7 @@ These helpers are auto-imported inside `server/` in full mode:
 | Access raw Better Auth APIs | `serverAuth(event)` |
 | Read session if it exists | `getUserSession(event)` |
 | Reuse the same session lookup in one request | `getRequestSession(event)` |
+| Supply a session resolved by trusted server authentication | `setRequestSession(event, session)` |
 | Refresh Better Auth's cached session cookie after server-side updates | `refreshSessionCookieCache(event)` |
 | Enforce auth | `requireUserSession(event, options?)` |
 | Create a session in a custom flow | `createSession(event, userId)` |
@@ -37,6 +39,20 @@ export default defineEventHandler(async (event) => {
 ```
 
 `requireUserSession(event)` throws `401` when unauthenticated and `403` when the user match or custom rule fails.
+
+## Supply a verified request session
+
+Use `setRequestSession(event, session)` when another server authentication layer verifies the request and resolves a complete `AppSession` for existing session helpers to reuse.
+
+```ts
+const claims = await verifyBearerToken(event)
+const session = await resolveCurrentAppSession(claims)
+
+setRequestSession(event, session)
+await requireUserSession(event)
+```
+
+The supplied value applies only to the current request and does not set a session cookie. Authenticate the value and enforce bearer-token audience and scope restrictions before calling the helper.
 
 ## Refresh cached session data
 
