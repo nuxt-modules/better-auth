@@ -48,7 +48,7 @@ Use `setRequestSession(event, session)` when another server authentication layer
 const claims = await verifyBearerToken(event)
 const session = await resolveCurrentAppSession(claims)
 
-await setRequestSession(event, session)
+setRequestSession(event, session)
 await requireUserSession(event)
 ```
 

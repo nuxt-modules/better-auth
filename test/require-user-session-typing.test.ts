@@ -100,8 +100,8 @@ export async function check(event: H3Event) {
     rule: ({ user }) => Boolean(user.address),
   })
 
-  await setRequestSession(event, session)
-  await setRequestSession(event, null)
+  setRequestSession(event, session)
+  setRequestSession(event, null)
 
   return session.user.address
 }

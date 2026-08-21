@@ -286,7 +286,7 @@ describe('setRequestSession', () => {
     const { getRequestSession, getUserSession, requireUserSession, setRequestSession } = await import('../src/runtime/server/utils/session')
     const event = createEvent()
 
-    await setRequestSession(event, suppliedSession as any)
+    setRequestSession(event, suppliedSession as any)
 
     await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
     await expect(getUserSession(event)).resolves.toBe(suppliedSession)
@@ -300,7 +300,7 @@ describe('setRequestSession', () => {
     const { getRequestSession, getUserSession, requireUserSession, setRequestSession } = await import('../src/runtime/server/utils/session')
     const event = createEvent()
 
-    await setRequestSession(event, null)
+    setRequestSession(event, null)
 
     await expect(getRequestSession(event)).resolves.toBeNull()
     await expect(getUserSession(event)).resolves.toBeNull()
@@ -329,7 +329,9 @@ describe('setRequestSession', () => {
     const event = createEvent()
 
     const earlierLookup = getRequestSession(event)
-    const setting = setRequestSession(event, suppliedSession as any)
+    setRequestSession(event, suppliedSession as any)
+    expect(event.context.requestSession).toBe(suppliedSession)
+
     const laterRequestLookup = getRequestSession(event)
     const laterUserLookup = getUserSession(event)
     const laterRequiredLookup = requireUserSession(event)
@@ -337,7 +339,6 @@ describe('setRequestSession', () => {
     resolveSession?.(staleSession)
 
     await expect(earlierLookup).resolves.toEqual(staleSession)
-    await expect(setting).resolves.toBeUndefined()
     await expect(laterRequestLookup).resolves.toBe(suppliedSession)
     await expect(laterUserLookup).resolves.toBe(suppliedSession)
     await expect(laterRequiredLookup).resolves.toBe(suppliedSession)
@@ -359,13 +360,12 @@ describe('setRequestSession', () => {
     const event = createEvent()
 
     const earlierLookup = getRequestSession(event)
-    const setting = setRequestSession(event, suppliedSession as any)
+    setRequestSession(event, suppliedSession as any)
     const laterLookup = getRequestSession(event)
 
     rejectSession?.(new Error('session lookup failed'))
 
     await expect(earlierLookup).rejects.toThrow('session lookup failed')
-    await expect(setting).resolves.toBeUndefined()
     await expect(laterLookup).resolves.toBe(suppliedSession)
     await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
   })
@@ -394,13 +394,12 @@ describe('setRequestSession', () => {
     const event = createEvent()
 
     const earlierLookup = getRequestSession(event)
-    const setting = setRequestSession(event, suppliedSession as any)
+    setRequestSession(event, suppliedSession as any)
     await setSessionCookie(event, 'session-token')
 
     resolveSession?.(staleSession)
 
     await expect(earlierLookup).resolves.toEqual(staleSession)
-    await expect(setting).resolves.toBeUndefined()
     await expect(getRequestSession(event)).resolves.toBe(cookieSession)
     expect(event.context.requestSession).toBe(cookieSession)
     expect(getSessionMock).toHaveBeenCalledTimes(2)
@@ -414,7 +413,7 @@ describe('setRequestSession', () => {
     const { getRequestSession, setRequestSession } = await import('../src/runtime/server/utils/session')
     const event = createEventWithoutContext()
 
-    await setRequestSession(event, suppliedSession as any)
+    setRequestSession(event, suppliedSession as any)
 
     await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
     expect(getSessionMock).not.toHaveBeenCalled()
@@ -468,11 +467,7 @@ describe('refreshSessionCookieCache', () => {
   })
 
   it('cannot overwrite a request session supplied after the refresh starts', async () => {
-    let resolveSession: ((value: unknown) => void) | undefined
-    const staleSession = {
-      user: { id: 'stale-cookie-user' },
-      session: { id: 'stale-cookie-session' },
-    }
+    let resolveRefresh: ((value: unknown) => void) | undefined
     const freshSession = {
       user: { id: 'fresh-cookie-user' },
       session: { id: 'fresh-cookie-session' },
@@ -481,27 +476,59 @@ describe('refreshSessionCookieCache', () => {
       user: { id: 'bearer-user' },
       session: { id: 'bearer-session' },
     }
-    getSessionMock
-      .mockImplementationOnce(() => new Promise((resolve) => {
-        resolveSession = resolve
-      }))
-      .mockResolvedValueOnce({ headers: new Headers(), response: freshSession })
+    const staleCacheCookie = 'better-auth.session_data=stale; Path=/; HttpOnly'
+    const staleHeaders = new Headers({ 'set-cookie': staleCacheCookie })
+    getSessionMock.mockImplementation(() => new Promise((resolve) => {
+      resolveRefresh = resolve
+    }))
 
     const { getRequestSession, refreshSessionCookieCache, setRequestSession } = await import('../src/runtime/server/utils/session')
     const event = createEvent()
 
-    const earlierLookup = getRequestSession(event)
     const refreshing = refreshSessionCookieCache(event)
-    const setting = setRequestSession(event, suppliedSession as any)
+    await vi.waitFor(() => expect(getSessionMock).toHaveBeenCalledOnce())
 
-    resolveSession?.(staleSession)
+    setRequestSession(event, suppliedSession as any)
+    resolveRefresh?.({ headers: staleHeaders, response: freshSession })
 
-    await expect(earlierLookup).resolves.toEqual(staleSession)
-    await expect(refreshing).resolves.toEqual(freshSession)
-    await expect(setting).resolves.toBeUndefined()
+    await expect(refreshing).resolves.toBe(suppliedSession)
     await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
     expect(event.context.requestSession).toBe(suppliedSession)
+    expect(getSessionMock).toHaveBeenCalledTimes(1)
+    expect(event.node.res.getHeader('set-cookie')).toBeUndefined()
+  })
+
+  it('does not let an older refresh overwrite a newer session cookie', async () => {
+    let resolveRefresh: ((value: unknown) => void) | undefined
+    const staleSession = {
+      user: { id: 'stale-cookie-user' },
+      session: { id: 'stale-cookie-session' },
+    }
+    const newCookieSession = {
+      user: { id: 'new-cookie-user' },
+      session: { id: 'new-cookie-session' },
+    }
+    const staleCacheCookie = 'better-auth.session_data=stale; Path=/; HttpOnly'
+    const staleHeaders = new Headers({ 'set-cookie': staleCacheCookie })
+    getSessionMock
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveRefresh = resolve
+      }))
+      .mockResolvedValueOnce(newCookieSession)
+
+    const { getRequestSession, refreshSessionCookieCache, setSessionCookie } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    const refreshing = refreshSessionCookieCache(event)
+    await setSessionCookie(event, 'new-session-token')
+
+    resolveRefresh?.({ headers: staleHeaders, response: staleSession })
+
+    await expect(refreshing).resolves.toBeNull()
+    await expect(getRequestSession(event)).resolves.toBe(newCookieSession)
+    expect(event.context.requestSession).toBe(newCookieSession)
     expect(getSessionMock).toHaveBeenCalledTimes(2)
+    expect(event.node.res.getHeader('set-cookie')).not.toContain(staleCacheCookie)
   })
 })
 
