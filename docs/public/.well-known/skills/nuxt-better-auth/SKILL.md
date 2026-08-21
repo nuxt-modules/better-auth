@@ -27,7 +27,7 @@ Use the smallest reference that matches the task.
 - Enforce protected API reads and mutations server-side with `requireUserSession(event)`. Route rules and page meta also control navigation.
 - Navigate only to validated local redirect paths.
 - In `clientOnly` mode, do not use local server helpers or expect SSR session hydration.
-- After server-side changes to session payload fields, call `refreshSessionCookieCache(event)`. Wrap custom client auth endpoints with `runWithSessionRefresh()`.
+- After server-side changes to session payload fields, call `refreshSessionCookieCache(event)`. Wrap custom client auth endpoints that create or change the current session with `runWithSessionRefresh()`.
 
 Before finishing an implementation, run the consumer's typecheck and the narrowest relevant auth test.
 
