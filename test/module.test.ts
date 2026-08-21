@@ -24,6 +24,30 @@ describe('nuxt-better-auth module', async () => {
       expect(response.useDatabase).toBe(true)
       expect(response.databaseProvider).toBe('nuxthub')
     })
+
+    it('adds the same-origin header to a cookie-bearing Better Auth mutation during SSR', async () => {
+      const response = await fetch(url('/ssr-auth-request'), {
+        headers: { cookie: 'ssr-origin-probe=1' },
+      })
+      expect(response.status).toBe(200)
+
+      const html = await response.text()
+      const requestOrigin = new URL(url('/')).origin
+      expect(html).toContain(`origin=${requestOrigin};header=headers`)
+    })
+
+    it('does not replace cross-site browser provenance during SSR', async () => {
+      const response = await fetch(url('/ssr-auth-request'), {
+        headers: {
+          'cookie': 'ssr-origin-probe=1',
+          'origin': 'https://outside.example',
+          'referer': 'https://outside.example/page',
+          'sec-fetch-site': 'cross-site',
+        },
+      })
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain('origin=https://outside.example;header=headers')
+    })
   })
 
   describe('route protection', () => {
