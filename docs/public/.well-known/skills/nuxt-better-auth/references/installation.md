@@ -18,13 +18,19 @@ Required files:
 NUXT_BETTER_AUTH_SECRET=replace-with-a-random-32-character-secret
 ```
 
-Optional but commonly required in production:
+Set the public site URL when the deployment platform cannot detect it:
 
 ```ini
 NUXT_PUBLIC_SITE_URL=https://your-domain.com
 ```
 
 `BETTER_AUTH_SECRET` is still accepted as a fallback. Prefer `NUXT_BETTER_AUTH_SECRET`.
+
+For non-destructive secret rotation, keep the current and previous secrets in Better Auth's versioned variable:
+
+```ini
+BETTER_AUTH_SECRETS=2:current-secret-must-be-at-least-32-characters,1:previous-secret-must-be-at-least-32-characters
+```
 
 ## Minimal module setup
 
@@ -54,7 +60,7 @@ import { defineClientAuth } from '@nuxtjs/better-auth/config'
 export default defineClientAuth({})
 ```
 
-## Important rules
+## Module-owned values
 
 - Do not set `secret` manually in `defineServerAuth()`. The module injects it.
 - Do not set `baseURL` manually in full mode. The module resolves it.
