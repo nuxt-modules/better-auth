@@ -1,16 +1,7 @@
 <script setup lang="ts">
 const appConfig = useAppConfig()
 const site = useSiteConfig()
-const route = useRoute()
-const { sidebarOpen, toggle: toggleSidebar } = useDocusSidebar()
 const { open: searchOpen } = useContentSearch()
-
-const isDocsPage = computed(() => route.path.startsWith('/getting-started')
-  || route.path.startsWith('/core-concepts')
-  || route.path.startsWith('/guides')
-  || route.path.startsWith('/integrations')
-  || route.path.startsWith('/api')
-  || route.path.startsWith('/better-auth'))
 
 const navLinks = [
   { name: 'docs', path: '/getting-started' },
@@ -20,7 +11,7 @@ const navLinks = [
 </script>
 
 <template>
-  <UHeader :ui="{ container: 'max-w-full !gap-0 !px-0 h-14 overflow-hidden', root: 'border-b border-[var(--ui-border)] h-14', left: 'gap-0 h-full', right: 'gap-0 h-full pr-4', title: 'h-full items-center' }" to="/" :title="appConfig.header?.title || site.name">
+  <UHeader :ui="{ container: 'max-w-full !gap-0 !px-0 h-14 overflow-hidden', root: 'border-b border-[var(--ui-border)] h-14', left: 'gap-0 h-full', right: 'gap-0 h-full lg:pr-4', title: 'h-full items-center' }" to="/" :title="appConfig.header?.title || site.name">
     <template #title>
       <div class="header-logo">
         <!-- Nuxt -->
@@ -76,9 +67,6 @@ const navLinks = [
         </li>
       </nav>
 
-      <!-- Docs sidebar toggle (mobile) -->
-      <UButton v-if="isDocsPage" color="neutral" variant="ghost" :icon="sidebarOpen ? 'i-lucide-x' : 'i-lucide-panel-left'" class="mobile-header-action lg:hidden" :ui="{ leadingIcon: 'mobile-header-icon' }" @click="toggleSidebar" />
-
       <UButton
         color="neutral"
         variant="ghost"
@@ -102,15 +90,14 @@ const navLinks = [
         color="neutral"
         variant="ghost"
         :icon="open ? 'i-lucide-x' : 'i-lucide-menu'"
-        class="mobile-header-action lg:hidden"
+        class="mobile-header-action mr-4 lg:hidden"
         :ui="{ leadingIcon: 'mobile-header-icon' }"
         @click="toggle"
       />
     </template>
 
     <template #body>
-      <UNavigationMenu :items="[]" orientation="vertical" class="w-full" />
-      <nav class="flex flex-col border-t border-[var(--ui-border)] mt-4 pt-4">
+      <nav class="flex flex-col mt-4 pt-4">
         <NuxtLink
           v-for="link in navLinks"
           :key="link.name"
