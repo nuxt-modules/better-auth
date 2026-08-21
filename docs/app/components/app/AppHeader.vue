@@ -11,7 +11,7 @@ const navLinks = [
 </script>
 
 <template>
-  <UHeader :ui="{ container: 'max-w-full !gap-0 !px-0 h-14 overflow-hidden', root: 'border-b border-[var(--ui-border)] h-14', left: 'gap-0 h-full', right: 'gap-0 h-full lg:pr-4', title: 'h-full items-center' }" to="/" :title="appConfig.header?.title || site.name">
+  <UHeader :ui="{ container: 'max-w-full !gap-0 !px-0 h-14 overflow-hidden', root: 'border-b border-[var(--ui-border)] h-14', header: '!px-0 h-14', left: 'gap-0 h-full', right: 'gap-0 h-full lg:pr-4', title: 'h-full items-center' }" to="/" :title="appConfig.header?.title || site.name">
     <template #title>
       <div class="header-logo">
         <!-- Nuxt -->
@@ -97,7 +97,7 @@ const navLinks = [
     </template>
 
     <template #body>
-      <nav class="flex flex-col mt-4 pt-4">
+      <nav class="flex flex-col">
         <NuxtLink
           v-for="link in navLinks"
           :key="link.name"
