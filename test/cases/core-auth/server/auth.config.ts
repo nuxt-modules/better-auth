@@ -16,6 +16,7 @@ function ssrOriginProbe() {
 }
 
 export default defineServerAuth({
+  advanced: { disableOriginCheck: false },
   appName: 'Test App',
   emailAndPassword: { enabled: true },
   plugins: [ssrOriginProbe()] as const,

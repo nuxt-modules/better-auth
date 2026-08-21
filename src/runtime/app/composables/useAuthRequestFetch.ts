@@ -1,5 +1,5 @@
 import type { AuthApiEndpointMethod, AuthApiEndpointPath, AuthApiEndpointResponse } from '#nuxt-better-auth'
-import { useRequestEvent, useRequestFetch, useRequestHeaders, useRequestURL, useRuntimeConfig } from '#imports'
+import { useRequestEvent, useRequestFetch, useRequestURL, useRuntimeConfig } from '#imports'
 
 type RequestFetch = ReturnType<typeof useRequestFetch>
 type RequestFetchRequest = Parameters<RequestFetch>[0]
@@ -20,15 +20,6 @@ function isLocalAuthMutation(request: RequestFetchRequest, options?: RequestFetc
 
   const method = String(options?.method ?? 'GET').toUpperCase()
   return !SAFE_METHODS.has(method)
-}
-
-function hasOriginProvenance(headers: Headers): boolean {
-  return headers.has('origin') || headers.has('referer')
-}
-
-function hasKnownNonSameOriginProvenance(headers: Headers): boolean {
-  const fetchSite = headers.get('sec-fetch-site')?.toLowerCase()
-  return fetchSite === 'cross-site' || fetchSite === 'same-site'
 }
 
 function headersToRecord(headers: Headers): Record<string, string> {
@@ -73,18 +64,13 @@ export function useAuthRequestFetch() {
     return requestFetch as AuthRequestFetch & RequestFetch
 
   const requestOrigin = useRequestURL().origin
-  const inboundHeaders = new Headers(useRequestHeaders(['origin', 'referer', 'sec-fetch-site']) as HeadersInit)
 
   return ((request: RequestFetchRequest, options?: RequestFetchOptions) => {
     if (!isLocalAuthMutation(request, options))
       return requestFetch(request, options)
 
     const headers = new Headers(options?.headers)
-    if (
-      !hasOriginProvenance(headers)
-      && !hasOriginProvenance(inboundHeaders)
-      && !hasKnownNonSameOriginProvenance(inboundHeaders)
-    ) {
+    if (!headers.has('origin')) {
       headers.set('origin', requestOrigin)
     }
 

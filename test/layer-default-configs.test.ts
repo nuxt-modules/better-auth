@@ -16,7 +16,10 @@ describe('layer-aware default auth config discovery', async () => {
   it('uses auth routes backed by the extended layer default configs', async () => {
     const response = await fetch(url('/api/auth/sign-up/email'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': new URL(url('/')).origin,
+      },
       body: JSON.stringify({
         email: `layer-${Date.now()}@example.com`,
         password: 'testpass123',

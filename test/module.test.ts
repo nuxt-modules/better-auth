@@ -36,7 +36,15 @@ describe('nuxt-better-auth module', async () => {
       expect(html).toContain(`origin=${requestOrigin};header=headers`)
     })
 
-    it('does not replace cross-site browser provenance during SSR', async () => {
+    it('rejects a cookie-bearing SSR mutation without the origin adapter', async () => {
+      const response = await fetch(url('/ssr-auth-request?raw'), {
+        headers: { cookie: 'ssr-origin-probe=1' },
+      })
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain('rejected:Missing or null Origin')
+    })
+
+    it('uses the current origin for an SSR mutation entered from another site', async () => {
       const response = await fetch(url('/ssr-auth-request'), {
         headers: {
           'cookie': 'ssr-origin-probe=1',
@@ -46,7 +54,8 @@ describe('nuxt-better-auth module', async () => {
         },
       })
       expect(response.status).toBe(200)
-      expect(await response.text()).toContain('origin=https://outside.example;header=headers')
+      const requestOrigin = new URL(url('/')).origin
+      expect(await response.text()).toContain(`origin=${requestOrigin};header=headers`)
     })
   })
 
@@ -113,7 +122,10 @@ describe('nuxt-better-auth module', async () => {
       // Sign up
       const signupRes = await fetch(url('/api/auth/sign-up/email'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': new URL(url('/')).origin,
+        },
         body: JSON.stringify(testUser),
       })
       expect(signupRes.status).toBe(200)

@@ -18,7 +18,10 @@ describe('auth.redirects option', async () => {
 
     const signupRes = await fetch(url('/api/auth/sign-up/email'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Origin': new URL(url('/')).origin,
+      },
       body: JSON.stringify(testUser),
     })
     expect(signupRes.status).toBe(200)

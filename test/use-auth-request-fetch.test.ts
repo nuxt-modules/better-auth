@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  inboundHeaders: {} as Record<string, string>,
   requestEvent: {} as object | undefined,
   requestFetch: vi.fn(async () => ({ ok: true })),
   requestOrigin: 'https://app.example',
@@ -15,7 +14,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('#imports', () => ({
   useRequestEvent: () => mocks.requestEvent,
   useRequestFetch: () => mocks.requestFetch,
-  useRequestHeaders: () => mocks.inboundHeaders,
   useRequestURL: () => ({ origin: mocks.requestOrigin }),
   useRuntimeConfig: () => mocks.runtimeConfig,
 }))
@@ -32,7 +30,6 @@ function lastOptions(): Record<string, any> | undefined {
 
 describe('useAuthRequestFetch', () => {
   beforeEach(() => {
-    mocks.inboundHeaders = {}
     mocks.requestEvent = {}
     mocks.requestFetch.mockClear()
     mocks.requestOrigin = 'https://app.example'
@@ -106,7 +103,7 @@ describe('useAuthRequestFetch', () => {
     expect(lastOptions()?.headers).toEqual({ origin: 'https://caller.example' })
   })
 
-  it('preserves a caller referer instead of adding a higher-priority origin', async () => {
+  it('preserves a caller referer while adding the current origin', async () => {
     const requestFetch = await loadRequestFetch()
 
     await requestFetch('/api/auth/test', {
@@ -114,7 +111,10 @@ describe('useAuthRequestFetch', () => {
       headers: { Referer: 'https://caller.example/page' },
     })
 
-    expect(lastOptions()?.headers).toEqual({ referer: 'https://caller.example/page' })
+    expect(lastOptions()?.headers).toEqual({
+      origin: 'https://app.example',
+      referer: 'https://caller.example/page',
+    })
   })
 
   it.each(['GET', 'get', 'HEAD', 'head', 'OPTIONS', 'options'])('leaves the safe %s method unchanged', async (method) => {
@@ -149,31 +149,5 @@ describe('useAuthRequestFetch', () => {
     await requestFetch(request, options)
 
     expect(mocks.requestFetch).toHaveBeenCalledWith(request, options)
-  })
-
-  it.each([
-    ['origin', { origin: 'https://outside.example' }],
-    ['referer', { referer: 'https://outside.example/page' }],
-    ['cross-site fetch metadata', { 'sec-fetch-site': 'cross-site' }],
-    ['same-site fetch metadata', { 'sec-fetch-site': 'same-site' }],
-  ])('does not synthesize over inbound %s', async (_label, inboundHeaders) => {
-    mocks.inboundHeaders = inboundHeaders
-    const requestFetch = await loadRequestFetch()
-
-    await requestFetch('/api/auth/test', {
-      method: 'POST',
-      headers: { 'x-test': 'preserved' },
-    })
-
-    expect(lastOptions()?.headers).toEqual({ 'x-test': 'preserved' })
-  })
-
-  it.each([undefined, 'same-origin', 'none'])('synthesizes for eligible fetch-site provenance %s', async (site) => {
-    mocks.inboundHeaders = site ? { 'sec-fetch-site': site } : {}
-    const requestFetch = await loadRequestFetch()
-
-    await requestFetch('/api/auth/test', { method: 'PUT' })
-
-    expect(lastOptions()?.headers).toEqual({ origin: 'https://app.example' })
   })
 })

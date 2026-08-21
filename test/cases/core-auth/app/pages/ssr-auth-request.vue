@@ -2,7 +2,9 @@
 const result = ref('pending')
 
 try {
-  const requestFetch = useAuthRequestFetch()
+  const requestFetch = useRequestURL().searchParams.has('raw')
+    ? useRequestFetch()
+    : useAuthRequestFetch()
   const response = await requestFetch('/api/auth/test/ssr-origin', {
     method: 'POST',
     headers: new Headers({ 'x-request-shape': 'headers' }),
