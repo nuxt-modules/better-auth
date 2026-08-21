@@ -1,16 +1,7 @@
 <script setup lang="ts">
 const appConfig = useAppConfig()
 const site = useSiteConfig()
-const route = useRoute()
-const { sidebarOpen, toggle: toggleSidebar } = useDocusSidebar()
 const { open: searchOpen } = useContentSearch()
-
-const isDocsPage = computed(() => route.path.startsWith('/getting-started')
-  || route.path.startsWith('/core-concepts')
-  || route.path.startsWith('/guides')
-  || route.path.startsWith('/integrations')
-  || route.path.startsWith('/api')
-  || route.path.startsWith('/better-auth'))
 
 const navLinks = [
   { name: 'docs', path: '/getting-started' },
@@ -20,7 +11,7 @@ const navLinks = [
 </script>
 
 <template>
-  <UHeader :ui="{ container: 'max-w-full !gap-0 !px-0 h-14 overflow-hidden', root: 'border-b border-[var(--ui-border)] h-14', left: 'gap-0 h-full', right: 'gap-0 h-full', title: 'h-full items-center' }" to="/" :title="appConfig.header?.title || site.name">
+  <UHeader :ui="{ container: 'max-w-full !gap-0 !px-0 h-14 overflow-hidden', root: 'border-b border-[var(--ui-border)] h-14', header: '!px-0 h-14', left: 'gap-0 h-full', right: 'gap-0 h-full lg:pr-4', title: 'h-full items-center' }" to="/" :title="appConfig.header?.title || site.name">
     <template #title>
       <div class="header-logo">
         <!-- Nuxt -->
@@ -70,14 +61,11 @@ const navLinks = [
             class="flex items-center h-full px-5 border-l border-[var(--ui-border)] text-muted transition-colors group-hover:text-[var(--ui-text)]"
             aria-label="GitHub"
           >
-            <UIcon name="i-simple-icons-github" class="size-4" />
+            <UIcon name="i-simple-icons-github" class="size-5" />
           </NuxtLink>
           <div class="absolute bottom-0 left-0 h-0.5 w-0 bg-[var(--ui-text-muted)] opacity-0 transition-all duration-500 group-hover:w-full group-hover:opacity-100" />
         </li>
       </nav>
-
-      <!-- Docs sidebar toggle (mobile) -->
-      <UButton v-if="isDocsPage" color="neutral" variant="ghost" :icon="sidebarOpen ? 'i-lucide-x' : 'i-lucide-panel-left'" class="mobile-header-action lg:hidden" :ui="{ leadingIcon: 'mobile-header-icon' }" @click="toggleSidebar" />
 
       <UButton
         color="neutral"
@@ -102,15 +90,14 @@ const navLinks = [
         color="neutral"
         variant="ghost"
         :icon="open ? 'i-lucide-x' : 'i-lucide-menu'"
-        class="mobile-header-action lg:hidden"
+        class="mobile-header-action mr-4 lg:hidden"
         :ui="{ leadingIcon: 'mobile-header-icon' }"
         @click="toggle"
       />
     </template>
 
     <template #body>
-      <UNavigationMenu :items="[]" orientation="vertical" class="w-full" />
-      <nav class="flex flex-col border-t border-[var(--ui-border)] mt-4 pt-4">
+      <nav class="flex flex-col">
         <NuxtLink
           v-for="link in navLinks"
           :key="link.name"
@@ -135,19 +122,21 @@ const navLinks = [
   padding-inline: 1rem;
   border-right: 1px solid var(--ui-border);
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 @media (min-width: 640px) {
   .header-logo {
     gap: 0.75rem;
-    width: var(--fd-sidebar-width, 268px);
+    /* Same token + box model as .docs-sidebar so borders line up */
+    width: var(--fd-sidebar-width, 280px);
     padding-inline: 1.25rem;
   }
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
   .header-logo {
-    width: 286px;
+    width: var(--fd-sidebar-width, 300px);
   }
 }
 
@@ -169,8 +158,8 @@ const navLinks = [
 :deep(.mobile-header-action > span),
 :deep(.mobile-header-action > svg) {
   display: block;
-  width: 1.375rem;
-  height: 1.375rem;
+  width: 1.25rem;
+  height: 1.25rem;
   margin: 0;
   flex: none;
 }

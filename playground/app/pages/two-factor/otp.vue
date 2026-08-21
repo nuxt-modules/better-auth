@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 
-const { client } = useUserSession()
+const client = useAuthClient()
 const toast = useToast()
 const emailWarning = useEmailWarning()
 
