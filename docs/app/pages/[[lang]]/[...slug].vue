@@ -47,28 +47,76 @@ const editLink = computed(() => {
     return
   return [github.value.url, 'edit', github.value.branch, github.value.rootDir, 'content', `${page.value?.stem}.${page.value?.extension}`].filter(Boolean).join('/')
 })
+
+const tocLinks = computed(() => page.value?.body?.toc?.links ?? [])
 </script>
 
 <template>
-  <UPage v-if="page">
-    <UPageHeader :title="page.title" :description="page.description" :headline="headline" :ui="{ wrapper: 'flex-row items-center flex-wrap justify-between' }">
-      <template #links>
-        <UButton v-for="(link, index) in (page as DocsCollectionItem).links" :key="index" size="sm" v-bind="link" />
-        <DocsPageHeaderLinks />
-      </template>
-    </UPageHeader>
+  <!--
+    DOM mirrors better-auth fumadocs DocsPage:
+    #nd-page > article#nd-article + aside#nd-toc
+    Widths driven by --fd-layout-width / --fd-toc-width / --fd-page-width (globals.css pattern)
+  -->
+  <div
+    v-if="page"
+    id="nd-page"
+    class="docs-page"
+  >
+    <article
+      id="nd-article"
+      class="docs-article"
+    >
+      <UPageHeader
+        :title="page.title"
+        :description="page.description"
+        :headline="headline"
+        :ui="{ wrapper: 'flex-row items-center flex-wrap justify-between' }"
+      >
+        <template #links>
+          <UButton
+            v-for="(link, index) in (page as DocsCollectionItem).links"
+            :key="index"
+            size="sm"
+            v-bind="link"
+          />
+          <DocsPageHeaderLinks />
+        </template>
+      </UPageHeader>
 
-    <UPageBody>
-      <ContentRenderer v-if="page" :value="page" />
-      <DocsPageFooter :surround="surround" :edit-link="editLink" />
-    </UPageBody>
+      <UPageBody>
+        <ContentRenderer
+          v-if="page"
+          :value="page"
+        />
+        <DocsPageFooter
+          :surround="surround"
+          :edit-link="editLink"
+        />
+      </UPageBody>
+    </article>
 
-    <template v-if="page?.body?.toc?.links?.length" #right>
-      <UContentToc highlight :title="appConfig.toc?.title || t('docs.toc')" :links="page.body?.toc?.links">
+    <aside
+      v-if="tocLinks.length"
+      id="nd-toc"
+      class="docs-toc"
+    >
+      <UContentToc
+        highlight
+        :title="appConfig.toc?.title || t('docs.toc')"
+        :links="tocLinks"
+        :ui="{
+          root: 'min-w-0',
+          container: 'min-w-0',
+          header: 'text-sm font-semibold mb-3 text-[var(--ui-text-highlighted)]',
+          links: 'space-y-1 min-w-0',
+          link: 'text-sm block py-1.5 pr-1 break-words text-[var(--ui-text-muted)] hover:text-[var(--ui-text)] transition-colors',
+          linkActive: 'text-[var(--ui-text-highlighted)]',
+        }"
+      >
         <template #bottom>
           <DocsAsideRightBottom />
         </template>
       </UContentToc>
-    </template>
-  </UPage>
+    </aside>
+  </div>
 </template>

@@ -15,6 +15,8 @@ const { open } = useContentSearch()
   align-items: center;
   gap: 0.5rem;
   width: 100%;
+  margin: 0;
+  flex-shrink: 0;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
   color: var(--ui-text-muted);
