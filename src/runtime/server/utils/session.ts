@@ -343,13 +343,11 @@ export async function getUserSession(event: ServerEvent): Promise<AppSession | n
 export async function setRequestSession(event: ServerEvent, session: AppSession | null): Promise<void> {
   const context = getRequestSessionContext(event)
   const inFlight = context[requestSessionLoadKey]
-  const write = (async () => {
-    if (inFlight)
-      await inFlight.catch(() => undefined)
-
-    context.requestSession = session
+  const write = (inFlight ?? Promise.resolve(null)).catch(() => undefined).then(() => {
+    if (context[requestSessionLoadKey] === write)
+      context.requestSession = session
     return session
-  })()
+  })
 
   context[requestSessionLoadKey] = write
   try {
@@ -364,15 +362,16 @@ export async function setRequestSession(event: ServerEvent, session: AppSession 
 export async function refreshSessionCookieCache(event: ServerEvent): Promise<AppSession | null> {
   const context = getRequestSessionContext(event)
   const inFlight = context[requestSessionLoadKey]
-  if (inFlight)
-    await inFlight.catch(() => undefined)
+  const load = (async () => {
+    if (inFlight)
+      await inFlight.catch(() => undefined)
 
-  delete context.requestSession
-  const load = loadFreshSession(event).then(({ headers, response }) => {
+    delete context.requestSession
+    const { headers, response } = await loadFreshSession(event)
     appendSetCookieHeaders(event, headers)
     context.requestSession = response
     return response
-  })
+  })()
 
   context[requestSessionLoadKey] = load
   try {
