@@ -7,9 +7,6 @@ watch(() => route.path, () => close())
 
 <template>
   <UMain class="docs-layout">
-    <!-- Full-width banner above sidebar + content so aside starts flush at top -->
-    <AnnouncementBanner />
-
     <div class="docs-grid">
       <!-- Left Sidebar -->
       <aside class="docs-sidebar">
@@ -48,8 +45,8 @@ watch(() => route.path, () => close())
   display: grid;
   grid-template-columns: var(--fd-sidebar-width) minmax(0, 1fr);
   align-items: start;
-  min-height: calc(100vh - var(--header-height, 3.5rem) - var(--banner-height, 42px));
-  min-height: calc(100dvh - var(--header-height, 3.5rem) - var(--banner-height, 42px));
+  min-height: calc(100vh - var(--header-height, 3.5rem));
+  min-height: calc(100dvh - var(--header-height, 3.5rem));
 }
 
 .docs-sidebar {

@@ -122,7 +122,6 @@ function getLang(filename: string) {
 </script>
 
 <template>
-  <AnnouncementBanner />
   <section class="relative w-full flex overflow-x-clip md:items-end md:justify-center bg-white/96 dark:bg-black/[0.96] antialiased min-h-[40rem] md:min-h-[50rem] lg:min-h-[40rem]">
     <!-- Spotlight Effect -->
     <LandingSpotlight />
