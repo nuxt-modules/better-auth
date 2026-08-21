@@ -271,6 +271,121 @@ describe('getUserSession', () => {
   })
 })
 
+describe('setRequestSession', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    getSessionMock.mockReset()
+    createSessionMock.mockReset()
+  })
+
+  it('makes a supplied session authoritative for downstream helpers without setting cookies', async () => {
+    const suppliedSession = {
+      user: { id: 'bearer-user', role: 'member' },
+      session: { id: 'bearer-session' },
+    }
+    const { getRequestSession, getUserSession, requireUserSession, setRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    await setRequestSession(event, suppliedSession as any)
+
+    await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
+    await expect(getUserSession(event)).resolves.toBe(suppliedSession)
+    await expect(requireUserSession(event)).resolves.toBe(suppliedSession)
+    expect(getSessionMock).not.toHaveBeenCalled()
+    expect(event.context.requestSession).toBe(suppliedSession)
+    expect(event.node.res.getHeader('set-cookie')).toBeUndefined()
+  })
+
+  it('treats null as an authoritative request session value', async () => {
+    const { getRequestSession, getUserSession, requireUserSession, setRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    await setRequestSession(event, null)
+
+    await expect(getRequestSession(event)).resolves.toBeNull()
+    await expect(getUserSession(event)).resolves.toBeNull()
+    await expect(requireUserSession(event)).rejects.toMatchObject({
+      statusCode: 401,
+      statusMessage: 'Authentication required',
+    })
+    expect(getSessionMock).not.toHaveBeenCalled()
+  })
+
+  it('takes ownership from an earlier in-flight session lookup', async () => {
+    let resolveSession: ((value: unknown) => void) | undefined
+    getSessionMock.mockImplementation(() => new Promise((resolve) => {
+      resolveSession = resolve
+    }))
+
+    const staleSession = {
+      user: { id: 'cookie-user' },
+      session: { id: 'cookie-session' },
+    }
+    const suppliedSession = {
+      user: { id: 'bearer-user' },
+      session: { id: 'bearer-session' },
+    }
+    const { getRequestSession, getUserSession, requireUserSession, setRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    const earlierLookup = getRequestSession(event)
+    const setting = setRequestSession(event, suppliedSession as any)
+    const laterRequestLookup = getRequestSession(event)
+    const laterUserLookup = getUserSession(event)
+    const laterRequiredLookup = requireUserSession(event)
+
+    resolveSession?.(staleSession)
+
+    await expect(earlierLookup).resolves.toEqual(staleSession)
+    await expect(setting).resolves.toBeUndefined()
+    await expect(laterRequestLookup).resolves.toBe(suppliedSession)
+    await expect(laterUserLookup).resolves.toBe(suppliedSession)
+    await expect(laterRequiredLookup).resolves.toBe(suppliedSession)
+    await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
+    expect(event.context.requestSession).toBe(suppliedSession)
+  })
+
+  it('supplies the session when an earlier lookup rejects', async () => {
+    let rejectSession: ((reason?: unknown) => void) | undefined
+    getSessionMock.mockImplementation(() => new Promise((_resolve, reject) => {
+      rejectSession = reject
+    }))
+
+    const suppliedSession = {
+      user: { id: 'bearer-user' },
+      session: { id: 'bearer-session' },
+    }
+    const { getRequestSession, setRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    const earlierLookup = getRequestSession(event)
+    const setting = setRequestSession(event, suppliedSession as any)
+    const laterLookup = getRequestSession(event)
+
+    rejectSession?.(new Error('session lookup failed'))
+
+    await expect(earlierLookup).rejects.toThrow('session lookup failed')
+    await expect(setting).resolves.toBeUndefined()
+    await expect(laterLookup).resolves.toBe(suppliedSession)
+    await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
+  })
+
+  it('supports events without a context object', async () => {
+    const suppliedSession = {
+      user: { id: 'bearer-user' },
+      session: { id: 'bearer-session' },
+    }
+    const { getRequestSession, setRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEventWithoutContext()
+
+    await setRequestSession(event, suppliedSession as any)
+
+    await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
+    expect(getSessionMock).not.toHaveBeenCalled()
+    expect('context' in event).toBe(false)
+  })
+})
+
 describe('refreshSessionCookieCache', () => {
   beforeEach(() => {
     vi.clearAllMocks()

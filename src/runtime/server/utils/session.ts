@@ -306,36 +306,59 @@ function updateRequestHeaders(event: ServerEvent, sessionCookie: string, cleared
 
 export async function getRequestSession(event: ServerEvent): Promise<AppSession | null> {
   const context = getRequestSessionContext(event)
-  if (context.requestSession !== undefined)
-    return context.requestSession
-
   const inFlight = context[requestSessionLoadKey]
   if (inFlight)
     return inFlight
+
+  if (context.requestSession !== undefined)
+    return context.requestSession
 
   const load = loadSession(event)
 
   context[requestSessionLoadKey] = load
   try {
     const session = await load
-    context.requestSession = session
+    if (context[requestSessionLoadKey] === load)
+      context.requestSession = session
     return session
   }
   finally {
-    delete context[requestSessionLoadKey]
+    if (context[requestSessionLoadKey] === load)
+      delete context[requestSessionLoadKey]
   }
 }
 
 export async function getUserSession(event: ServerEvent): Promise<AppSession | null> {
   const context = getRequestSessionContext(event)
-  if (context.requestSession !== undefined)
-    return context.requestSession
-
   const inFlight = context[requestSessionLoadKey]
   if (inFlight)
     return inFlight
 
+  if (context.requestSession !== undefined)
+    return context.requestSession
+
   return loadSession(event)
+}
+
+export async function setRequestSession(event: ServerEvent, session: AppSession | null): Promise<void> {
+  const context = getRequestSessionContext(event)
+  const inFlight = context[requestSessionLoadKey]
+  const write = (async () => {
+    if (inFlight)
+      await inFlight.catch(() => undefined)
+
+    context.requestSession = session
+    return session
+  })()
+
+  context[requestSessionLoadKey] = write
+  try {
+    await write
+  }
+  finally {
+    if (context[requestSessionLoadKey] === write)
+      delete context[requestSessionLoadKey]
+  }
 }
 
 export async function refreshSessionCookieCache(event: ServerEvent): Promise<AppSession | null> {
