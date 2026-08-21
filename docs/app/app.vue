@@ -34,9 +34,3 @@ provide('navigation', navigation)
     <UToaster />
   </div>
 </template>
-
-<style>
-.app-root {
-  --header-height: var(--ui-header-height, 56px);
-}
-</style>
