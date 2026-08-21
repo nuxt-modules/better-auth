@@ -18,7 +18,6 @@ watch(() => route.path, () => close())
 
       <!-- Main Content Area -->
       <div class="docs-main">
-        <AnnouncementBanner />
         <slot />
         <AppFooter />
       </div>
