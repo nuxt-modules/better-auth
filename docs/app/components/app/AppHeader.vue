@@ -153,7 +153,6 @@ const navLinks = [
   }
 }
 
-
 :deep(.mobile-header-action) {
   display: grid !important;
   place-items: center !important;

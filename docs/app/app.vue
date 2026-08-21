@@ -34,4 +34,3 @@ provide('navigation', navigation)
     <UToaster />
   </div>
 </template>
-
