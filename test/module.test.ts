@@ -27,7 +27,10 @@ describe('nuxt-better-auth module', async () => {
 
     it('adds the same-origin header to a cookie-bearing Better Auth mutation during SSR', async () => {
       const response = await fetch(url('/ssr-auth-request'), {
-        headers: { cookie: 'ssr-origin-probe=1' },
+        headers: {
+          'cookie': 'ssr-origin-probe=1',
+          'sec-fetch-site': 'same-origin',
+        },
       })
       expect(response.status).toBe(200)
 
@@ -44,7 +47,7 @@ describe('nuxt-better-auth module', async () => {
       expect(await response.text()).toContain('rejected:Missing or null Origin')
     })
 
-    it('uses the current origin for an SSR mutation entered from another site', async () => {
+    it('does not attest an SSR mutation entered from another site', async () => {
       const response = await fetch(url('/ssr-auth-request'), {
         headers: {
           'cookie': 'ssr-origin-probe=1',
@@ -54,8 +57,7 @@ describe('nuxt-better-auth module', async () => {
         },
       })
       expect(response.status).toBe(200)
-      const requestOrigin = new URL(url('/')).origin
-      expect(await response.text()).toContain(`origin=${requestOrigin};header=headers`)
+      expect(await response.text()).toContain('rejected:Invalid origin')
     })
   })
 
