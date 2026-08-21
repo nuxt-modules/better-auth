@@ -70,7 +70,7 @@ const navLinks = [
             class="flex items-center h-full px-5 border-l border-[var(--ui-border)] text-muted transition-colors group-hover:text-[var(--ui-text)]"
             aria-label="GitHub"
           >
-            <UIcon name="i-simple-icons-github" class="size-4" />
+            <UIcon name="i-simple-icons-github" class="size-5" />
           </NuxtLink>
           <div class="absolute bottom-0 left-0 h-0.5 w-0 bg-[var(--ui-text-muted)] opacity-0 transition-all duration-500 group-hover:w-full group-hover:opacity-100" />
         </li>
@@ -135,21 +135,24 @@ const navLinks = [
   padding-inline: 1rem;
   border-right: 1px solid var(--ui-border);
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 @media (min-width: 640px) {
   .header-logo {
     gap: 0.75rem;
-    width: var(--fd-sidebar-width, 268px);
+    /* Same token + box model as .docs-sidebar so borders line up */
+    width: var(--fd-sidebar-width, 280px);
     padding-inline: 1.25rem;
   }
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
   .header-logo {
-    width: 286px;
+    width: var(--fd-sidebar-width, 300px);
   }
 }
+
 
 :deep(.mobile-header-action) {
   display: grid !important;
@@ -169,8 +172,8 @@ const navLinks = [
 :deep(.mobile-header-action > span),
 :deep(.mobile-header-action > svg) {
   display: block;
-  width: 1.375rem;
-  height: 1.375rem;
+  width: 1.25rem;
+  height: 1.25rem;
   margin: 0;
   flex: none;
 }
