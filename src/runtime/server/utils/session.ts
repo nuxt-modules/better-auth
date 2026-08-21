@@ -306,46 +306,59 @@ function updateRequestHeaders(event: ServerEvent, sessionCookie: string, cleared
 
 export async function getRequestSession(event: ServerEvent): Promise<AppSession | null> {
   const context = getRequestSessionContext(event)
-  if (context.requestSession !== undefined)
-    return context.requestSession
-
   const inFlight = context[requestSessionLoadKey]
   if (inFlight)
     return inFlight
+
+  if (context.requestSession !== undefined)
+    return context.requestSession
 
   const load = loadSession(event)
 
   context[requestSessionLoadKey] = load
   try {
     const session = await load
-    context.requestSession = session
+    if (context[requestSessionLoadKey] === load)
+      context.requestSession = session
     return session
   }
   finally {
-    delete context[requestSessionLoadKey]
+    if (context[requestSessionLoadKey] === load)
+      delete context[requestSessionLoadKey]
   }
 }
 
 export async function getUserSession(event: ServerEvent): Promise<AppSession | null> {
   const context = getRequestSessionContext(event)
-  if (context.requestSession !== undefined)
-    return context.requestSession
-
   const inFlight = context[requestSessionLoadKey]
   if (inFlight)
     return inFlight
 
+  if (context.requestSession !== undefined)
+    return context.requestSession
+
   return loadSession(event)
+}
+
+export function setRequestSession(event: ServerEvent, session: AppSession | null): void {
+  const context = getRequestSessionContext(event)
+  context.requestSession = session
+  delete context[requestSessionLoadKey]
 }
 
 export async function refreshSessionCookieCache(event: ServerEvent): Promise<AppSession | null> {
   const context = getRequestSessionContext(event)
   const inFlight = context[requestSessionLoadKey]
-  if (inFlight)
-    await inFlight.catch(() => undefined)
+  const load = (inFlight ?? Promise.resolve(null)).catch(() => undefined).then(async () => {
+    if (context[requestSessionLoadKey] !== load)
+      return context.requestSession ?? null
 
-  delete context.requestSession
-  const load = loadFreshSession(event).then(({ headers, response }) => {
+    delete context.requestSession
+    const { headers, response } = await loadFreshSession(event)
+
+    if (context[requestSessionLoadKey] !== load)
+      return context.requestSession ?? null
+
     appendSetCookieHeaders(event, headers)
     context.requestSession = response
     return response

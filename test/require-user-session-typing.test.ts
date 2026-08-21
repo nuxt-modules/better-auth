@@ -92,13 +92,16 @@ export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
 `)
 
       writeFileSync(join(testDir, 'check.ts'), `import type { H3Event } from 'h3'
-import { requireUserSession } from './runtime/server/utils/session'
+import { requireUserSession, setRequestSession } from './runtime/server/utils/session'
 
 export async function check(event: H3Event) {
   const session = await requireUserSession(event, {
     user: { address: 'NQ12...' },
     rule: ({ user }) => Boolean(user.address),
   })
+
+  setRequestSession(event, session)
+  setRequestSession(event, null)
 
   return session.user.address
 }
