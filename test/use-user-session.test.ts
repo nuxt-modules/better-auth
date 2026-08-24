@@ -7,6 +7,7 @@ interface SessionState {
   isPending: boolean
   isRefetching: boolean
   error: unknown
+  refetch: ReturnType<typeof vi.fn>
 }
 
 const payload = {
@@ -36,6 +37,8 @@ const state = new Map<string, ReturnType<typeof ref>>()
 const navigateTo = vi.fn(async () => {})
 const $fetch = vi.fn(async () => null)
 const nuxtHooks = new Map<string, Array<() => void | Promise<void>>>()
+const sessionRefetch = vi.fn(async () => {})
+const primeSessionBootstrap = vi.fn(() => 'bootstrap-1')
 const nuxtApp = {
   payload,
   isHydrating: false,
@@ -51,10 +54,12 @@ const sessionAtom = ref<SessionState>({
   isPending: false,
   isRefetching: false,
   error: null,
+  refetch: sessionRefetch,
 })
 
 const mockClient: Record<string, any> = {
   useSession: vi.fn(() => sessionAtom),
+  hydrateSession: vi.fn(),
   getSession: vi.fn(async () => ({ data: null })),
   $store: {
     listen: vi.fn(),
@@ -67,6 +72,11 @@ let activeClient: Record<string, any> = mockClient
 
 vi.mock('#auth/client', () => ({
   default: vi.fn(() => activeClient),
+}))
+
+vi.mock('../src/runtime/internal/session-bootstrap', () => ({
+  primeSessionBootstrap,
+  sessionBootstrapQueryKey: '__nuxtBetterAuthSsrBootstrap',
 }))
 
 vi.mock('#imports', async () => {
@@ -165,10 +175,16 @@ describe('useUserSession hydration bootstrap', () => {
       isPending: false,
       isRefetching: false,
       error: null,
+      refetch: sessionRefetch,
     }
 
     mockClient.useSession.mockReset()
     mockClient.useSession.mockImplementation(() => sessionAtom)
+    mockClient.hydrateSession.mockReset()
+    sessionRefetch.mockReset()
+    sessionRefetch.mockResolvedValue(undefined)
+    primeSessionBootstrap.mockReset()
+    primeSessionBootstrap.mockReturnValue('bootstrap-1')
     mockClient.getSession.mockReset()
     mockClient.$store.listen.mockClear()
     mockClient.signOut.mockClear()
@@ -205,19 +221,19 @@ describe('useUserSession hydration bootstrap', () => {
     runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
-    let _signalCb: (() => void | Promise<void>) | undefined
-    mockClient.$store.listen.mockImplementation((_signal: string, cb: () => void | Promise<void>) => {
-      _signalCb = cb
-      return () => {
-        _signalCb = undefined
-      }
-    })
-
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
     expect(auth.ready.value).toBe(true)
-    expect(_signalCb).toBeDefined()
+    expect(primeSessionBootstrap).toHaveBeenCalledWith(mockClient, {
+      session: { id: 'session-1' },
+      user: { id: 'user-1' },
+    })
+    expect(mockClient.hydrateSession).toHaveBeenCalledOnce()
+    expect(mockClient.useSession).toHaveBeenCalledOnce()
+    expect(sessionRefetch).toHaveBeenCalledWith({
+      query: { __nuxtBetterAuthSsrBootstrap: 'bootstrap-1' },
+    })
   })
 
   it('bootstraps client session when SSR payload is not hydrated (even with option enabled)', async () => {
@@ -863,34 +879,30 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.user.value!.name).toBe('New')
   })
 
-  it('syncs session on $sessionSignal when option is enabled and SSR payload is hydrated', async () => {
+  it('syncs session after Better Auth refreshes hydrated SSR state', async () => {
     payload.serverRendered = true
     runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
-    let signalCb: (() => void | Promise<void>) | undefined
-    mockClient.$store.listen.mockImplementation((_signal: string, cb: () => void | Promise<void>) => {
-      signalCb = cb
-      return () => {
-        signalCb = undefined
-      }
-    })
-
-    mockClient.getSession.mockResolvedValueOnce({
+    const refreshedSession = {
       data: {
         session: { id: 'session-3', token: 'secret', ipAddress: '127.0.0.1' },
         user: { id: 'user-3', email: 'user3@example.com' },
       },
-    })
+      isPending: false,
+      isRefetching: false,
+      error: null,
+      refetch: sessionRefetch,
+    }
 
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
     expect(auth.ready.value).toBe(true)
 
-    await signalCb?.()
+    sessionAtom.value = refreshedSession
+    await flushPromises()
 
-    expect(mockClient.getSession).toHaveBeenCalledOnce()
     expect(auth.session.value).toEqual({ id: 'session-3', ipAddress: '127.0.0.1' })
     expect(auth.user.value).toEqual({ id: 'user-3', email: 'user3@example.com' })
   })

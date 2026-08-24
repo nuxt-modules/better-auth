@@ -4,6 +4,7 @@ import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeCo
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
 import { fetchSessionClient, fetchSessionServer, stripToken } from '../internal/session-fetch'
+import { primeSessionBootstrap, sessionBootstrapQueryKey } from '../../internal/session-bootstrap'
 import { isRecord } from '../internal/utils'
 import { createVueSafeAuthFacade, isAuthProxyProbeKey } from '../internal/vue-safe-auth-proxy'
 import { wrapAuthMethod } from '../internal/wrap-auth-method'
@@ -11,7 +12,6 @@ import { getAuthRuntimeFlags, useRawAuthClient } from './useAuthClient'
 
 export interface SignOutOptions { onSuccess?: () => void | Promise<void> }
 
-let _sessionSignalListenerBound = false
 let _signOutPromise: Promise<void> | null = null
 
 export interface UseUserSessionReturn {
@@ -42,28 +42,6 @@ function createServerOnlyActionNamespace(path: string) {
 
 const _signInServerOnly = createServerOnlyActionNamespace('signIn')
 const _signUpServerOnly = createServerOnlyActionNamespace('signUp')
-
-function ensureSessionSignalListener(client: AppAuthClient, onSignal: () => Promise<void>) {
-  if (_sessionSignalListenerBound)
-    return
-
-  const store = (client as unknown as { $store?: unknown }).$store
-  if (!isRecord(store))
-    return
-
-  const listen = (store as { listen?: unknown }).listen
-  if (typeof listen !== 'function')
-    return
-
-  _sessionSignalListenerBound = true
-  const listenFn = listen as (signal: string, cb: () => void | Promise<void>) => unknown
-  listenFn('$sessionSignal', async () => {
-    try {
-      await onSignal()
-    }
-    catch {}
-  })
-}
 
 export function useUserSession(): UseUserSessionReturn {
   const runtimeFlags = getAuthRuntimeFlags()
@@ -117,7 +95,19 @@ export function useUserSession(): UseUserSessionReturn {
     })
   }
 
-  if (shouldSkipInitialClientSessionFetch.value && !authReady.value)
+  const bootstrapRequestId = shouldSkipInitialClientSessionFetch.value && rawClient
+    ? primeSessionBootstrap(rawClient, { session: session.value, user: user.value })
+    : null
+  const reusedHydratedSession = bootstrapRequestId !== null
+
+  if (reusedHydratedSession && rawClient) {
+    rawClient.hydrateSession({
+      session: session.value,
+      user: user.value,
+    } as Parameters<typeof rawClient.hydrateSession>[0])
+  }
+
+  if (reusedHydratedSession && !authReady.value)
     authReady.value = true
 
   function clearSession() {
@@ -163,8 +153,13 @@ export function useUserSession(): UseUserSessionReturn {
   }
 
   // On client, subscribe to better-auth's reactive session store
-  if (runtimeFlags.client && rawClient && !shouldSkipInitialClientSessionFetch.value) {
+  if (runtimeFlags.client && rawClient) {
     const clientSession = rawClient.useSession()
+    if (bootstrapRequestId !== null) {
+      void clientSession.value.refetch({
+        query: { [sessionBootstrapQueryKey]: bootstrapRequestId } as never,
+      }).catch(() => {})
+    }
 
     watch(
       () => clientSession.value,
@@ -226,10 +221,6 @@ export function useUserSession(): UseUserSessionReturn {
         resolve()
       }, 5000)
     })
-  }
-
-  if (runtimeFlags.client && rawClient && shouldSkipInitialClientSessionFetch.value) {
-    ensureSessionSignalListener(rawClient, () => fetchSession({ force: true }))
   }
 
   async function signOut(options?: SignOutOptions) {
