@@ -4,7 +4,6 @@ import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeCo
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
 import { fetchSessionClient, fetchSessionServer, stripToken } from '../internal/session-fetch'
-import { primeSessionBootstrap, sessionBootstrapQueryKey } from '../../internal/session-bootstrap'
 import { isRecord } from '../internal/utils'
 import { createVueSafeAuthFacade, isAuthProxyProbeKey } from '../internal/vue-safe-auth-proxy'
 import { wrapAuthMethod } from '../internal/wrap-auth-method'
@@ -66,22 +65,6 @@ export function useUserSession(): UseUserSessionReturn {
     return !session.value && !user.value
   })
 
-  const skipHydratedSsrGetSession = computed(() => {
-    const authConfig = runtimeConfig.public.auth as { session?: { skipHydratedSsrGetSession?: boolean } } | undefined
-    return Boolean(authConfig?.session?.skipHydratedSsrGetSession)
-  })
-  const shouldSkipInitialClientSessionFetch = computed(() => {
-    if (!skipHydratedSsrGetSession.value)
-      return false
-    if (!runtimeFlags.client)
-      return false
-    if (!nuxtApp.payload.serverRendered)
-      return false
-    if (isPrerenderedPayload.value)
-      return false
-    return Boolean(session.value && user.value)
-  })
-
   if (isPrerenderHydrationEmptySnapshot.value && authReady.value && !prerenderReadyResetQueued.value) {
     prerenderReadyResetQueued.value = true
     nuxtApp.hook('app:suspense:resolve', () => {
@@ -94,21 +77,6 @@ export function useUserSession(): UseUserSessionReturn {
       }
     })
   }
-
-  const bootstrapRequestId = shouldSkipInitialClientSessionFetch.value && rawClient
-    ? primeSessionBootstrap(rawClient, { session: session.value, user: user.value })
-    : null
-  const reusedHydratedSession = bootstrapRequestId !== null
-
-  if (reusedHydratedSession && rawClient) {
-    rawClient.hydrateSession({
-      session: session.value,
-      user: user.value,
-    } as Parameters<typeof rawClient.hydrateSession>[0])
-  }
-
-  if (reusedHydratedSession && !authReady.value)
-    authReady.value = true
 
   function clearSession() {
     session.value = null
@@ -155,11 +123,6 @@ export function useUserSession(): UseUserSessionReturn {
   // On client, subscribe to better-auth's reactive session store
   if (runtimeFlags.client && rawClient) {
     const clientSession = rawClient.useSession()
-    if (bootstrapRequestId !== null) {
-      void clientSession.value.refetch({
-        query: { [sessionBootstrapQueryKey]: bootstrapRequestId } as never,
-      }).catch(() => {})
-    }
 
     watch(
       () => clientSession.value,

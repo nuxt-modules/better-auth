@@ -7,7 +7,6 @@ interface SessionState {
   isPending: boolean
   isRefetching: boolean
   error: unknown
-  refetch: ReturnType<typeof vi.fn>
 }
 
 const payload = {
@@ -20,9 +19,6 @@ const runtimeConfig = {
   public: {
     siteUrl: 'http://localhost:3000',
     auth: {
-      session: {
-        skipHydratedSsrGetSession: false,
-      },
       redirects: {} as Record<string, unknown>,
     },
   },
@@ -37,8 +33,6 @@ const state = new Map<string, ReturnType<typeof ref>>()
 const navigateTo = vi.fn(async () => {})
 const $fetch = vi.fn(async () => null)
 const nuxtHooks = new Map<string, Array<() => void | Promise<void>>>()
-const sessionRefetch = vi.fn(async () => {})
-const primeSessionBootstrap = vi.fn(() => 'bootstrap-1')
 const nuxtApp = {
   payload,
   isHydrating: false,
@@ -54,16 +48,11 @@ const sessionAtom = ref<SessionState>({
   isPending: false,
   isRefetching: false,
   error: null,
-  refetch: sessionRefetch,
 })
 
 const mockClient: Record<string, any> = {
   useSession: vi.fn(() => sessionAtom),
-  hydrateSession: vi.fn(),
   getSession: vi.fn(async () => ({ data: null })),
-  $store: {
-    listen: vi.fn(),
-  },
   signOut: vi.fn(async () => {}),
   signIn: { social: vi.fn(async () => ({})), oauth2: vi.fn(async () => ({})), email: vi.fn(async () => ({})) },
   signUp: { email: vi.fn(async () => ({})) },
@@ -72,11 +61,6 @@ let activeClient: Record<string, any> = mockClient
 
 vi.mock('#auth/client', () => ({
   default: vi.fn(() => activeClient),
-}))
-
-vi.mock('../src/runtime/internal/session-bootstrap', () => ({
-  primeSessionBootstrap,
-  sessionBootstrapQueryKey: '__nuxtBetterAuthSsrBootstrap',
 }))
 
 vi.mock('#imports', async () => {
@@ -163,7 +147,6 @@ describe('useUserSession hydration bootstrap', () => {
     requestURL.searchParams = new URLSearchParams()
     requestURL.origin = 'http://localhost:3000'
     runtimeConfig.public.siteUrl = 'http://localhost:3000'
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = false
     runtimeConfig.public.auth.redirects = {}
     navigateTo.mockClear()
     $fetch.mockReset()
@@ -175,18 +158,11 @@ describe('useUserSession hydration bootstrap', () => {
       isPending: false,
       isRefetching: false,
       error: null,
-      refetch: sessionRefetch,
     }
 
     mockClient.useSession.mockReset()
     mockClient.useSession.mockImplementation(() => sessionAtom)
-    mockClient.hydrateSession.mockReset()
-    sessionRefetch.mockReset()
-    sessionRefetch.mockResolvedValue(undefined)
-    primeSessionBootstrap.mockReset()
-    primeSessionBootstrap.mockReturnValue('bootstrap-1')
     mockClient.getSession.mockReset()
-    mockClient.$store.listen.mockClear()
     mockClient.signOut.mockClear()
     mockClient.updateUser = undefined
     mockClient.signIn.social.mockReset()
@@ -214,31 +190,11 @@ describe('useUserSession hydration bootstrap', () => {
     const auth = useUserSession()
 
     expect(auth.ready.value).toBe(true)
-  })
-
-  it('skips initial client session bootstrap when option is enabled and SSR payload is hydrated', async () => {
-    payload.serverRendered = true
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
-    seedHydratedState()
-
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
-
-    expect(auth.ready.value).toBe(true)
-    expect(primeSessionBootstrap).toHaveBeenCalledWith(mockClient, {
-      session: { id: 'session-1' },
-      user: { id: 'user-1' },
-    })
-    expect(mockClient.hydrateSession).toHaveBeenCalledOnce()
     expect(mockClient.useSession).toHaveBeenCalledOnce()
-    expect(sessionRefetch).toHaveBeenCalledWith({
-      query: { __nuxtBetterAuthSsrBootstrap: 'bootstrap-1' },
-    })
   })
 
-  it('bootstraps client session when SSR payload is not hydrated (even with option enabled)', async () => {
+  it('bootstraps client session when SSR payload is not hydrated', async () => {
     payload.serverRendered = true
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
 
     const useUserSession = await loadUseUserSession()
     useUserSession()
@@ -249,7 +205,6 @@ describe('useUserSession hydration bootstrap', () => {
   it('bootstraps client session for prerendered/cached payloads', async () => {
     payload.serverRendered = true
     payload.prerenderedAt = Date.now()
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
@@ -316,7 +271,6 @@ describe('useUserSession hydration bootstrap', () => {
 
   it('bootstraps client session on CSR navigation', async () => {
     payload.serverRendered = false
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
@@ -881,7 +835,6 @@ describe('useUserSession hydration bootstrap', () => {
 
   it('syncs session after Better Auth refreshes hydrated SSR state', async () => {
     payload.serverRendered = true
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
     const refreshedSession = {
@@ -892,7 +845,6 @@ describe('useUserSession hydration bootstrap', () => {
       isPending: false,
       isRefetching: false,
       error: null,
-      refetch: sessionRefetch,
     }
 
     const useUserSession = await loadUseUserSession()

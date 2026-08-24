@@ -51,9 +51,6 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { useHubKV: 
     useDatabase: databaseProvider !== 'none',
     databaseProvider,
     clientOnly,
-    session: {
-      skipHydratedSsrGetSession: options.session?.skipHydratedSsrGetSession ?? false,
-    },
   }) as AuthRuntimeConfig
 
   if (clientOnly) {

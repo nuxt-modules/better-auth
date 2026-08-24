@@ -2,7 +2,6 @@ import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import type { BetterAuthClientOptions } from 'better-auth/client'
 import type { ServerAuthContext as BaseServerAuthContext } from './types/augment'
 import { createAuthClient } from 'better-auth/vue'
-import { createSessionBootstrapFetch } from './internal/session-bootstrap'
 
 export interface ServerAuthContextExtension {}
 export type ServerAuthContext = BaseServerAuthContext & ServerAuthContextExtension
@@ -53,16 +52,6 @@ export interface BetterAuthModuleOptions {
    * Default: 'redirect'
    */
   redirectQueryKey?: string
-  session?: {
-    /**
-     * When enabled, and session/user are already hydrated from SSR, skip the initial
-     * client `/api/auth/get-session` network request while preserving Better Auth's
-     * session bootstrap and refresh manager.
-     *
-     * Default: false
-     */
-    skipHydratedSsrGetSession?: boolean
-  }
   /**
    * Enable secondary storage for sessions.
    * - `true`: Use NuxtHub KV (requires hub.kv: true)
@@ -89,7 +78,6 @@ export interface AuthRuntimeConfig {
   useDatabase: boolean
   databaseProvider: EffectiveDatabaseProviderId
   clientOnly: boolean
-  session: { skipHydratedSsrGetSession: boolean }
 }
 
 // Private runtime config (server-only)
@@ -108,21 +96,7 @@ export function defineClientAuth<T extends ClientAuthConfig>(config: T | ((ctx: 
     const ctx: ClientAuthContext = { siteUrl: baseURL }
     const resolved = typeof config === 'function' ? config(ctx) : config
     const { baseURL: configuredBaseURL, ...resolvedOptions } = resolved
-    const resolvedBaseURL = configuredBaseURL ?? baseURL
-    const bootstrapFetch = createSessionBootstrapFetch(
-      resolvedOptions.fetchOptions?.customFetchImpl ?? globalThis.fetch,
-    )
-    const clientOptions = {
-      ...resolvedOptions,
-      baseURL: resolvedBaseURL,
-      fetchOptions: {
-        ...resolvedOptions.fetchOptions,
-        customFetchImpl: bootstrapFetch.fetch,
-        plugins: [bootstrapFetch.plugin, ...(resolvedOptions.fetchOptions?.plugins ?? [])],
-      },
-    } as T
-    const client = createAuthClient(clientOptions)
-    bootstrapFetch.register(client)
-    return client
+    const clientOptions = { ...resolvedOptions, baseURL: configuredBaseURL ?? baseURL } as T
+    return createAuthClient(clientOptions)
   }
 }
