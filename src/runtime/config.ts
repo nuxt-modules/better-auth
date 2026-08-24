@@ -52,16 +52,6 @@ export interface BetterAuthModuleOptions {
    * Default: 'redirect'
    */
   redirectQueryKey?: string
-  session?: {
-    /**
-     * When enabled, and session/user are already hydrated from SSR, skip the initial
-     * client `/api/auth/get-session` bootstrap request. This also skips Better Auth's
-     * session refresh manager on those pages.
-     *
-     * Default: false
-     */
-    skipHydratedSsrGetSession?: boolean
-  }
   /**
    * Enable secondary storage for sessions.
    * - `true`: Use NuxtHub KV (requires hub.kv: true)
@@ -88,7 +78,6 @@ export interface AuthRuntimeConfig {
   useDatabase: boolean
   databaseProvider: EffectiveDatabaseProviderId
   clientOnly: boolean
-  session: { skipHydratedSsrGetSession: boolean }
 }
 
 // Private runtime config (server-only)

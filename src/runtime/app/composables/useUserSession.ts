@@ -11,7 +11,6 @@ import { getAuthRuntimeFlags, useRawAuthClient } from './useAuthClient'
 
 export interface SignOutOptions { onSuccess?: () => void | Promise<void> }
 
-let _sessionSignalListenerBound = false
 let _signOutPromise: Promise<void> | null = null
 
 export interface UseUserSessionReturn {
@@ -43,28 +42,6 @@ function createServerOnlyActionNamespace(path: string) {
 const _signInServerOnly = createServerOnlyActionNamespace('signIn')
 const _signUpServerOnly = createServerOnlyActionNamespace('signUp')
 
-function ensureSessionSignalListener(client: AppAuthClient, onSignal: () => Promise<void>) {
-  if (_sessionSignalListenerBound)
-    return
-
-  const store = (client as unknown as { $store?: unknown }).$store
-  if (!isRecord(store))
-    return
-
-  const listen = (store as { listen?: unknown }).listen
-  if (typeof listen !== 'function')
-    return
-
-  _sessionSignalListenerBound = true
-  const listenFn = listen as (signal: string, cb: () => void | Promise<void>) => unknown
-  listenFn('$sessionSignal', async () => {
-    try {
-      await onSignal()
-    }
-    catch {}
-  })
-}
-
 export function useUserSession(): UseUserSessionReturn {
   const runtimeFlags = getAuthRuntimeFlags()
   const runtimeConfig = useRuntimeConfig()
@@ -88,22 +65,6 @@ export function useUserSession(): UseUserSessionReturn {
     return !session.value && !user.value
   })
 
-  const skipHydratedSsrGetSession = computed(() => {
-    const authConfig = runtimeConfig.public.auth as { session?: { skipHydratedSsrGetSession?: boolean } } | undefined
-    return Boolean(authConfig?.session?.skipHydratedSsrGetSession)
-  })
-  const shouldSkipInitialClientSessionFetch = computed(() => {
-    if (!skipHydratedSsrGetSession.value)
-      return false
-    if (!runtimeFlags.client)
-      return false
-    if (!nuxtApp.payload.serverRendered)
-      return false
-    if (isPrerenderedPayload.value)
-      return false
-    return Boolean(session.value && user.value)
-  })
-
   if (isPrerenderHydrationEmptySnapshot.value && authReady.value && !prerenderReadyResetQueued.value) {
     prerenderReadyResetQueued.value = true
     nuxtApp.hook('app:suspense:resolve', () => {
@@ -116,9 +77,6 @@ export function useUserSession(): UseUserSessionReturn {
       }
     })
   }
-
-  if (shouldSkipInitialClientSessionFetch.value && !authReady.value)
-    authReady.value = true
 
   function clearSession() {
     session.value = null
@@ -163,7 +121,7 @@ export function useUserSession(): UseUserSessionReturn {
   }
 
   // On client, subscribe to better-auth's reactive session store
-  if (runtimeFlags.client && rawClient && !shouldSkipInitialClientSessionFetch.value) {
+  if (runtimeFlags.client && rawClient) {
     const clientSession = rawClient.useSession()
 
     watch(
@@ -226,10 +184,6 @@ export function useUserSession(): UseUserSessionReturn {
         resolve()
       }, 5000)
     })
-  }
-
-  if (runtimeFlags.client && rawClient && shouldSkipInitialClientSessionFetch.value) {
-    ensureSessionSignalListener(rawClient, () => fetchSession({ force: true }))
   }
 
   async function signOut(options?: SignOutOptions) {
