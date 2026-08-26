@@ -859,6 +859,28 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.user.value).toEqual({ id: 'user-3', email: 'user3@example.com' })
   })
 
+  it('does not re-sync session for nested mutations within the current Better Auth snapshot', async () => {
+    sessionAtom.value = {
+      data: {
+        session: { id: 'session-1', metadata: { role: 'member' } },
+        user: { id: 'user-1', email: 'user@example.com' },
+      },
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    const bridgedSession = auth.session.value
+
+    const metadata = sessionAtom.value.data!.session.metadata as { role: string }
+    metadata.role = 'admin'
+    await flushPromises()
+
+    expect(auth.session.value).toBe(bridgedSession)
+  })
+
   it('signOut navigates to redirects.logout when configured (and no onSuccess)', async () => {
     runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
 
