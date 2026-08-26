@@ -142,6 +142,8 @@ export function useUserSession(): UseUserSessionReturn {
         && Boolean(session.value && user.value)
         && !initialClientSession?.data?.session
         && !initialClientSession?.data?.user
+        && !initialClientSession?.isPending
+        && !initialClientSession?.isRefetching
 
     if (shouldReconcileInitialHydration)
       queueHydrationReconciliation()

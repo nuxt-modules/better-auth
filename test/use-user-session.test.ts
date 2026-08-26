@@ -285,6 +285,7 @@ describe('useUserSession hydration bootstrap', () => {
     payload.serverRendered = true
     nuxtApp.isHydrating = true
     seedHydratedState()
+    sessionAtom.value.isPending = true
 
     mockClient.getSession.mockResolvedValueOnce({
       data: {
@@ -298,8 +299,14 @@ describe('useUserSession hydration bootstrap', () => {
     await flushPromises()
 
     expect(mockClient.getSession).not.toHaveBeenCalled()
+    expect(nuxtHooks.get('app:mounted')).toBeUndefined()
     expect(auth.session.value).toEqual({ id: 'session-1' })
     expect(auth.user.value).toEqual({ id: 'user-1' })
+
+    sessionAtom.value = { ...sessionAtom.value, isPending: false }
+    await flushPromises()
+
+    expect((nuxtHooks.get('app:mounted') || [])).toHaveLength(1)
 
     nuxtApp.isHydrating = false
     await triggerNuxtHook('app:mounted')
