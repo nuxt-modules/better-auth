@@ -182,14 +182,16 @@ describe('useUserSession hydration bootstrap', () => {
     delete (globalThis as { __NUXT_BETTER_AUTH_TEST_FLAGS__?: { client: boolean, server: boolean } }).__NUXT_BETTER_AUTH_TEST_FLAGS__
   })
 
-  it('bootstraps client session by default even when SSR payload is hydrated', async () => {
+  it('subscribes without synchronously bridging the initial client snapshot', async () => {
     payload.serverRendered = true
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
-    expect(auth.ready.value).toBe(true)
+    expect(auth.ready.value).toBe(false)
+    expect(auth.session.value).toEqual({ id: 'session-1' })
+    expect(auth.user.value).toEqual({ id: 'user-1' })
     expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
@@ -283,6 +285,7 @@ describe('useUserSession hydration bootstrap', () => {
     payload.serverRendered = true
     nuxtApp.isHydrating = true
     seedHydratedState()
+    sessionAtom.value.isPending = true
 
     mockClient.getSession.mockResolvedValueOnce({
       data: {
@@ -296,8 +299,14 @@ describe('useUserSession hydration bootstrap', () => {
     await flushPromises()
 
     expect(mockClient.getSession).not.toHaveBeenCalled()
+    expect(nuxtHooks.get('app:mounted')).toBeUndefined()
     expect(auth.session.value).toEqual({ id: 'session-1' })
     expect(auth.user.value).toEqual({ id: 'user-1' })
+
+    sessionAtom.value = { ...sessionAtom.value, isPending: false }
+    await flushPromises()
+
+    expect((nuxtHooks.get('app:mounted') || [])).toHaveLength(1)
 
     nuxtApp.isHydrating = false
     await triggerNuxtHook('app:mounted')
@@ -850,16 +859,20 @@ describe('useUserSession hydration bootstrap', () => {
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
-    expect(auth.ready.value).toBe(true)
+    expect(auth.ready.value).toBe(false)
 
     sessionAtom.value = refreshedSession
     await flushPromises()
 
+    expect(auth.ready.value).toBe(true)
     expect(auth.session.value).toEqual({ id: 'session-3', ipAddress: '127.0.0.1' })
     expect(auth.user.value).toEqual({ id: 'user-3', email: 'user3@example.com' })
   })
 
   it('does not re-sync session for nested mutations within the current Better Auth snapshot', async () => {
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
     sessionAtom.value = {
       data: {
         session: { id: 'session-1', metadata: { role: 'member' } },
@@ -869,9 +882,7 @@ describe('useUserSession hydration bootstrap', () => {
       isRefetching: false,
       error: null,
     }
-
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
+    await flushPromises()
     const bridgedSession = auth.session.value
 
     const metadata = sessionAtom.value.data!.session.metadata as { role: string }

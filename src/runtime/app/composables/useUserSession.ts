@@ -120,9 +120,33 @@ export function useUserSession(): UseUserSessionReturn {
     }
   }
 
+  function queueHydrationReconciliation() {
+    if (hydrationReconcileQueued.value)
+      return
+
+    hydrationReconcileQueued.value = true
+    nuxtApp.hook('app:mounted', async () => {
+      await fetchSession({ force: true })
+      hydrationReconcileQueued.value = false
+    })
+  }
+
   // On client, subscribe to better-auth's reactive session store
   if (runtimeFlags.client && rawClient) {
     const clientSession = rawClient.useSession()
+    const initialClientSession = clientSession.value
+
+    const shouldReconcileInitialHydration
+      = nuxtApp.isHydrating
+        && nuxtApp.payload.serverRendered
+        && Boolean(session.value && user.value)
+        && !initialClientSession?.data?.session
+        && !initialClientSession?.data?.user
+        && !initialClientSession?.isPending
+        && !initialClientSession?.isRefetching
+
+    if (shouldReconcileInitialHydration)
+      queueHydrationReconciliation()
 
     watch(
       () => clientSession.value,
@@ -148,13 +172,7 @@ export function useUserSession(): UseUserSessionReturn {
               && !newSession?.data?.user
 
           if (isHydrationEmptySnapshot) {
-            if (!hydrationReconcileQueued.value) {
-              hydrationReconcileQueued.value = true
-              nuxtApp.hook('app:mounted', async () => {
-                await fetchSession({ force: true })
-                hydrationReconcileQueued.value = false
-              })
-            }
+            queueHydrationReconciliation()
             return
           }
 
@@ -163,7 +181,6 @@ export function useUserSession(): UseUserSessionReturn {
         if (!authReady.value && !newSession?.isPending && !newSession?.isRefetching)
           authReady.value = true
       },
-      { immediate: true },
     )
   }
 
