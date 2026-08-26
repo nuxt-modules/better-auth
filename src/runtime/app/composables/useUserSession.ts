@@ -163,7 +163,7 @@ export function useUserSession(): UseUserSessionReturn {
         if (!authReady.value && !newSession?.isPending && !newSession?.isRefetching)
           authReady.value = true
       },
-      { immediate: true, deep: true },
+      { immediate: true },
     )
   }
 
