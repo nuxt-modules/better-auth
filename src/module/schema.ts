@@ -74,6 +74,8 @@ async function loadAuthOptions(context: SchemaContext) {
       .map(([key, value]) => [key, value as string]),
   )
   const userConfig = await loadUserAuthConfig(configFile, isProduction, alias, context.nuxt.options.runtimeConfig, context.nuxt.options.rootDir)
+  if (!userConfig)
+    return null
 
   const extendedConfig: { plugins?: BetterAuthPlugin[] } = {}
   await context.nuxt.callHook('better-auth:config:extend', extendedConfig)
@@ -98,8 +100,25 @@ export async function setupBetterAuthSchema(
 
   const context: SchemaContext = { nuxt, serverConfigPath }
 
+  // Registered before generation so NuxtHub still resolves the schema file already
+  // on disk when generation below is skipped. resolveHubSchemaPath is a plain
+  // filesystem lookup, so it does not care whether this run produced the file.
+  const nuxtWithHubHooks = nuxt as Nuxt & { hook: (name: string, cb: (arg: { paths: string[], dialect: string }) => void) => void }
+  nuxtWithHubHooks.hook('hub:db:schema:extend', ({ paths, dialect: hookDialect }) => {
+    const schemaPath = resolveHubSchemaPath(nuxt.options.buildDir, nuxt.options.rootDir, hookDialect)
+    if (schemaPath)
+      paths.unshift(schemaPath)
+  })
+
   try {
-    const { userConfig, plugins } = await loadAuthOptions(context)
+    const authConfig = await loadAuthOptions(context)
+    // A config that failed to load carries none of the user's additionalFields or
+    // plugin columns. Regenerating from it would overwrite a correct schema file
+    // with a core-tables-only one, so leave whatever is already on disk alone.
+    if (!authConfig)
+      return
+
+    const { userConfig, plugins } = authConfig
     const userHasSecondaryStorage = userConfig.secondaryStorage != null
     const secondaryStorageResolution = resolveSchemaSecondaryStorageInjection(hubSecondaryStorage, userHasSecondaryStorage, !nuxt.options.dev)
     if (secondaryStorageResolution.error)
@@ -144,13 +163,6 @@ export async function setupBetterAuthSchema(
     addTemplate({ filename: `better-auth/schema.${dialect}.mjs`, getContents: () => schemaCode, write: true })
 
     consola.info(`Generated ${dialect} schema (.ts + .mjs)`)
-
-    const nuxtWithHubHooks = nuxt as Nuxt & { hook: (name: string, cb: (arg: { paths: string[], dialect: string }) => void) => void }
-    nuxtWithHubHooks.hook('hub:db:schema:extend', ({ paths, dialect: hookDialect }) => {
-      const schemaPath = resolveHubSchemaPath(nuxt.options.buildDir, nuxt.options.rootDir, hookDialect)
-      if (schemaPath)
-        paths.unshift(schemaPath)
-    })
   }
   catch (error) {
     const isProduction = !nuxt.options.dev
