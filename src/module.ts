@@ -134,7 +134,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     if (!setup.clientOnly) {
       const secondaryStorageTemplate = addTemplate({
         filename: 'better-auth/secondary-storage.mjs',
-        getContents: () => buildSecondaryStorageCode(setup.runtime.useHubKV),
+        getContents: () => buildSecondaryStorageCode(),
         write: true,
       })
       nuxt.options.alias['#auth/secondary-storage'] = secondaryStorageTemplate.dst
