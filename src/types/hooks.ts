@@ -3,6 +3,11 @@ import type { BetterAuthOptions } from 'better-auth'
 import type { DbDialect } from '../module/hub'
 import type { BetterAuthModuleOptions } from '../runtime/config'
 
+export interface BetterAuthPluginSources {
+  server?: string[]
+  client?: string[]
+}
+
 export interface BetterAuthDatabaseProviderBuildContext {
   hubDialect: DbDialect
   usePlural: boolean
@@ -28,6 +33,9 @@ export interface BetterAuthDatabaseProviderDefinition {
 
 declare module '@nuxt/schema' {
   interface NuxtHooks {
+    /** Register absolute server and client plugin module paths. */
+    'better-auth:plugins:extend': (sources: BetterAuthPluginSources) => void | Promise<void>
+
     /**
      * Extend better-auth config with additional plugins or options.
      * Called after user's auth.config.ts is loaded.
