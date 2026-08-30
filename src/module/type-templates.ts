@@ -31,12 +31,7 @@ export function registerServerTypeTemplates(input: RegisterServerTypeTemplatesIn
     filename: 'types/auth-secondary-storage.d.ts',
     getContents: () => `
 declare module '#auth/secondary-storage' {
-  interface SecondaryStorage {
-    get: (key: string) => Promise<string | null>
-    set: (key: string, value: unknown, ttl?: number) => Promise<void>
-    delete: (key: string) => Promise<void>
-  }
-  export function createSecondaryStorage(): SecondaryStorage | undefined
+  export function createSecondaryStorage(): undefined
 }
 `,
   }, { nitro: true })

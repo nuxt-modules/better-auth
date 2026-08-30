@@ -72,13 +72,7 @@ export default defineClientAuth({})
 ```ts
 export default defineNuxtConfig({
   modules: ['@nuxthub/core', '@nuxtjs/better-auth'],
-  hub: {
-    db: 'sqlite',
-    kv: true,
-  },
-  auth: {
-    hubSecondaryStorage: true,
-  },
+  hub: { db: 'sqlite' },
 })
 ```
 

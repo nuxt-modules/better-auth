@@ -27,18 +27,8 @@ export default extendClientAuth(createAppAuthClient, [${plugins.names}])
 `
 }
 
-export function buildSecondaryStorageCode(useHubKV: boolean): string {
-  if (!useHubKV)
-    return 'export function createSecondaryStorage() { return undefined }'
-
-  return `import { kv } from '@nuxthub/kv'
-export function createSecondaryStorage() {
-  return {
-    get: async (key) => kv.get(\`_auth:\${key}\`),
-    set: async (key, value, ttl) => kv.set(\`_auth:\${key}\`, value, { ttl }),
-    delete: async (key) => kv.del(\`_auth:\${key}\`),
-  }
-}`
+export function buildSecondaryStorageCode(): string {
+  return 'export function createSecondaryStorage() { return undefined }'
 }
 
 interface BuildDatabaseCodeInput {

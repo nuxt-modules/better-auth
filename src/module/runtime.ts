@@ -14,26 +14,26 @@ interface SetupRuntimeConfigInput {
   consola: ConsolaInstance
 }
 
-function resolveSecondaryStorage(input: SetupRuntimeConfigInput): { useHubKV: boolean, secondaryStorageEnabled: boolean } {
-  const { options, clientOnly, hasNuxtHub, hub } = input
+function resolveSecondaryStorage(input: SetupRuntimeConfigInput): { secondaryStorageEnabled: boolean } {
+  const { options, clientOnly } = input
 
   const opt = options.hubSecondaryStorage ?? false
-  const useHubKV = opt === true
-  const secondaryStorageEnabled = opt === true || opt === 'custom'
+  if (opt === true) {
+    throw new Error('[nuxt-better-auth] hubSecondaryStorage: true is not supported with Better Auth 1.7 because NuxtHub KV cannot provide the required atomic getAndDelete and increment operations. Set auth.hubSecondaryStorage to false, or use "custom" with an atomic secondaryStorage in defineServerAuth().')
+  }
+
+  const secondaryStorageEnabled = opt === 'custom'
 
   if (secondaryStorageEnabled && clientOnly) {
     throw new Error('[nuxt-better-auth] hubSecondaryStorage is not available in clientOnly mode. Either disable clientOnly or remove auth.hubSecondaryStorage.')
   }
-  if (useHubKV && (!hasNuxtHub || !hub?.kv)) {
-    throw new Error('[nuxt-better-auth] hubSecondaryStorage: true requires @nuxthub/core with hub.kv: true. Either add hub.kv: true to your nuxt.config or remove auth.hubSecondaryStorage.')
-  }
 
-  return { useHubKV, secondaryStorageEnabled }
+  return { secondaryStorageEnabled }
 }
 
-export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { useHubKV: boolean, secondaryStorageEnabled: boolean } {
+export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryStorageEnabled: boolean } {
   const { nuxt, options, clientOnly, databaseProvider, consola } = input
-  const { useHubKV, secondaryStorageEnabled } = resolveSecondaryStorage(input)
+  const { secondaryStorageEnabled } = resolveSecondaryStorage(input)
 
   nuxt.options.runtimeConfig.public = nuxt.options.runtimeConfig.public || {}
   const configuredSiteUrl = nuxt.options.runtimeConfig.public.siteUrl as string | undefined
@@ -58,7 +58,7 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { useHubKV: 
     if (!siteUrl)
       consola.warn('clientOnly mode: set runtimeConfig.public.siteUrl (or NUXT_PUBLIC_SITE_URL) to your frontend URL')
     consola.info('clientOnly mode enabled - server utilities (serverAuth, getRequestSession, getUserSession, requireUserSession) are not available')
-    return { useHubKV, secondaryStorageEnabled }
+    return { secondaryStorageEnabled }
   }
 
   const currentSecret = nuxt.options.runtimeConfig.betterAuthSecret as string | undefined
@@ -68,5 +68,5 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { useHubKV: 
     hubSecondaryStorage: options.hubSecondaryStorage ?? false,
   }) as AuthPrivateRuntimeConfig
 
-  return { useHubKV, secondaryStorageEnabled }
+  return { secondaryStorageEnabled }
 }

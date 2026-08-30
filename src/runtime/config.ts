@@ -65,9 +65,9 @@ export interface BetterAuthModuleOptions {
    */
   redirectQueryKey?: string
   /**
-   * Enable secondary storage for sessions.
-   * - `true`: Use NuxtHub KV (requires hub.kv: true)
-   * - `'custom'`: User provides own secondaryStorage in defineServerAuth()
+   * Configure secondary storage for sessions.
+   * - `true`: Unsupported with Better Auth 1.7; setup throws with migration guidance
+   * - `'custom'`: User provides an atomic secondaryStorage in defineServerAuth()
    * - `false` (default): No secondary storage from module
    */
   hubSecondaryStorage?: boolean | 'custom'

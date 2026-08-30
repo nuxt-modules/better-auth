@@ -42,7 +42,6 @@ export interface ResolvedAuthModuleSetup {
     buildContext?: BetterAuthDatabaseProviderBuildContext
   }
   runtime: {
-    useHubKV: boolean
     secondaryStorageEnabled: boolean
   }
   prepareTypes?: {
@@ -194,10 +193,6 @@ export async function resolveAuthModuleSetup(
     hub,
     consola,
   })
-
-  if (runtime.useHubKV && !nuxt.options.alias['hub:kv']) {
-    throw new Error('[nuxt-better-auth] hub:kv not found. Ensure @nuxthub/core is loaded before this module and hub.kv is enabled.')
-  }
 
   const hasHubDb = providerId === 'nuxthub'
   if (hasHubDb && !nuxt.options.alias['hub:db']) {
