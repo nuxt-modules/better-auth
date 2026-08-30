@@ -78,13 +78,24 @@ declare global {
   var __nuxtBetterAuthDefineServerAuth: RuntimeDefineServerAuthFn | undefined
 }
 
+const NO_DEFAULT_EXPORT_MESSAGE = '[@nuxtjs/better-auth] auth.config.ts does not export default. Expected: export default defineServerAuth(...)'
+const SCHEMA_NOT_REGENERATED_MESSAGE = 'The schema was not regenerated and any existing generated schema file was left unchanged.'
+
+/**
+ * Loads the user's `auth.config.ts`.
+ *
+ * Returns `null` when the config could not be loaded and `throwOnError` is
+ * false. `null` is distinct from an empty-but-valid config (`{}`): callers must
+ * treat it as "no config available" and leave anything derived from a previous
+ * successful load alone, rather than regenerating it from nothing.
+ */
 export async function loadUserAuthConfig(
   configPath: string,
   throwOnError = false,
   alias?: Record<string, string>,
   runtimeConfig: unknown = {},
   rootDir?: string,
-): Promise<Partial<BetterAuthOptions>> {
+): Promise<Partial<BetterAuthOptions> | null> {
   const { createJiti } = await import('jiti')
   const { defineServerAuth: runtimeDefineServerAuth } = await import('./runtime/config')
   const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false, alias })
@@ -106,18 +117,19 @@ export async function loadUserAuthConfig(
     if (typeof configFn === 'function') {
       return configFn({ runtimeConfig, db: null })
     }
-    consola.warn('[@nuxtjs/better-auth] auth.config.ts does not export default. Expected: export default defineServerAuth(...)')
     if (throwOnError) {
+      consola.warn(NO_DEFAULT_EXPORT_MESSAGE)
       throw new Error('auth.config.ts must export default defineServerAuth(...)')
     }
-    return {}
+    consola.error(`${NO_DEFAULT_EXPORT_MESSAGE}. ${SCHEMA_NOT_REGENERATED_MESSAGE}`)
+    return null
   }
   catch (error) {
     if (throwOnError) {
       throw new Error(`Failed to load auth config: ${error instanceof Error ? error.message : error}`)
     }
-    consola.error('[@nuxtjs/better-auth] Failed to load auth config for schema generation. Schema may be incomplete:', error)
-    return {}
+    consola.error(`[@nuxtjs/better-auth] Failed to load auth config for schema generation. ${SCHEMA_NOT_REGENERATED_MESSAGE}`, error)
+    return null
   }
   finally {
     const sharedDefineServerAuth = schemaGlobals.__nuxtBetterAuthDefineServerAuth
