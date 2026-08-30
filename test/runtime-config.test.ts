@@ -190,6 +190,24 @@ describe('setupRuntimeConfig hubSecondaryStorage validation', () => {
     expect(consola.warn).toHaveBeenCalledWith(expect.stringContaining('https://github.com/nuxt-hub/core/pull/927'))
   })
 
+  it('ignores hubSecondaryStorage: true with clientOnly guidance', () => {
+    const nuxt = createNuxtWithRuntimeConfig({ siteUrl: 'https://example.com' })
+    const consola = createConsolaMock()
+
+    const { secondaryStorageEnabled } = setupRuntimeConfig({
+      nuxt,
+      options: { hubSecondaryStorage: true },
+      clientOnly: true,
+      databaseProvider: 'none',
+      hasNuxtHub: false,
+      consola,
+    })
+
+    expect(secondaryStorageEnabled).toBe(false)
+    expect(consola.warn).toHaveBeenCalledWith(expect.stringContaining('ignored in clientOnly mode'))
+    expect(consola.warn).not.toHaveBeenCalledWith(expect.stringContaining('database-backed sessions'))
+  })
+
   it('throws when hubSecondaryStorage: "custom" in clientOnly mode', () => {
     const nuxt = createNuxtWithRuntimeConfig()
     const consola = createConsolaMock()

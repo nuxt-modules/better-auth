@@ -3,7 +3,6 @@ import type { ServerEvent } from '../internal/nitro-compat'
 import { betterAuth, env } from 'better-auth'
 import { withoutProtocol } from 'ufo'
 import { createDatabase, db } from '#auth/database'
-import { createSecondaryStorage } from '#auth/secondary-storage'
 import createServerAuth from '#auth/server'
 import { getRequestHost, getRequestProtocol, useRuntimeConfig } from '../internal/nitro-compat'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
@@ -26,6 +25,7 @@ const _authCache = new Map<string, AuthInstance>()
 const requestAuthKey = Symbol.for('nuxt-better-auth.requestAuth')
 let _baseURLInferenceLogged = false
 let _customSecondaryStorageMisconfigWarned = false
+let _unsupportedHubSecondaryStorageWarned = false
 
 interface RequestAuthContext {
   [requestAuthKey]?: AuthInstance
@@ -301,6 +301,10 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins)
 
   const hubSecondaryStorage = (runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' })?.hubSecondaryStorage
+  if (hubSecondaryStorage === true && !_unsupportedHubSecondaryStorageWarned) {
+    _unsupportedHubSecondaryStorageWarned = true
+    console.warn('[nuxt-better-auth] Runtime hubSecondaryStorage: true is unsupported with Better Auth 1.7 and will be ignored. The module will preserve secondaryStorage from defineServerAuth(). Remove NUXT_AUTH_HUB_SECONDARY_STORAGE or set it to false.')
+  }
   const customSecondaryStorage = resolveCustomSecondaryStorageRequirement(hubSecondaryStorage, userConfig.secondaryStorage != null, Boolean(import.meta.dev))
   if (customSecondaryStorage?.shouldThrow)
     throw new Error(customSecondaryStorage.message)
@@ -321,7 +325,6 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
   const authOptions: ResolvedAuthOptions = {
     ...userConfig,
     ...(database ? { database } : {}),
-    ...(hubSecondaryStorage === true ? { secondaryStorage: createSecondaryStorage() } : {}),
     secret: betterAuthSecret,
     baseURL: siteUrl,
     trustedOrigins,
