@@ -37,9 +37,9 @@ export interface BetterAuthModuleOptions {
   serverConfig?: string
   /** Client config path. Relative paths resolve from the layer that declares them. Default: 'app/auth.config' */
   clientConfig?: string
-  /** Server plugin modules. Relative paths resolve from the layer that declares them. */
+  /** Server plugin modules. Relative paths resolve from the declaring layer. Sources are additive and are not deduplicated. */
   serverPluginSources?: string[]
-  /** Client plugin modules. Relative paths resolve from the layer that declares them. */
+  /** Client plugin modules. Relative paths resolve from the declaring layer. Sources are additive and are not deduplicated. */
   clientPluginSources?: string[]
   redirects?: {
     /** Where to redirect unauthenticated users. Default: '/login' */

@@ -33,7 +33,7 @@ export interface BetterAuthDatabaseProviderDefinition {
 
 declare module '@nuxt/schema' {
   interface NuxtHooks {
-    /** Register absolute server and client plugin module paths. */
+    /** Register absolute plugin module paths during module setup. Sources are additive and are not deduplicated. */
     'better-auth:plugins:extend': (sources: BetterAuthPluginSources) => void | Promise<void>
 
     /**

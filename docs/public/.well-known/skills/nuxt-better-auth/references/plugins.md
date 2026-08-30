@@ -70,3 +70,5 @@ export default defineNuxtConfig({
 ```
 
 Relative paths resolve from the declaring layer. The module includes these plugins in schema generation, runtime auth instances, and inferred types.
+
+Plugin contributions are additive and are not deduplicated. Declare each plugin once, either in the app auth config, a layer source, or a module registration.
