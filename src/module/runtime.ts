@@ -22,7 +22,7 @@ function resolveSecondaryStorage(input: SetupRuntimeConfigInput): { hubSecondary
     if (clientOnly)
       consola.warn('[nuxt-better-auth] hubSecondaryStorage: true is ignored in clientOnly mode because this module does not run the auth server.')
     else
-      consola.warn('[nuxt-better-auth] hubSecondaryStorage: true cannot use NuxtHub KV with Better Auth 1.7 because NuxtHub KV lacks atomic getAndDelete and increment operations. The module will ignore this option and continue without injecting secondary storage. Better Auth uses database-backed sessions and process-local, in-memory rate limiting by default. Configure rateLimit.storage as "database" or provide rateLimit.customStorage for shared limits. Set auth.hubSecondaryStorage to false to silence this warning, or use "custom" with an atomic secondaryStorage in defineServerAuth(). Track NuxtHub support: https://github.com/nuxt-hub/core/pull/927')
+      consola.warn('[nuxt-better-auth] hubSecondaryStorage: true cannot use NuxtHub KV with Better Auth 1.7 because NuxtHub KV lacks atomic getAndDelete and increment operations. The module will ignore this option and continue without injecting secondary storage. Without a custom secondary store, sessions use the configured database when one exists and rate limiting defaults to process-local memory. Configure rateLimit.storage as "database" or provide rateLimit.customStorage for shared limits. Set auth.hubSecondaryStorage to false to silence this warning, or use "custom" with an atomic secondaryStorage in defineServerAuth(). Track NuxtHub support: https://github.com/nuxt-hub/core/pull/927')
     return { hubSecondaryStorage: false, secondaryStorageEnabled: false }
   }
 

@@ -9,6 +9,7 @@ import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-sto
 
 type AuthOptions = ReturnType<typeof createServerAuth>
 type UserAuthConfig = AuthOptions & {
+  rateLimit?: BetterAuthOptions['rateLimit']
   secrets?: BetterAuthOptions['secrets']
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   secondaryStorage?: BetterAuthOptions['secondaryStorage']
@@ -26,6 +27,7 @@ const requestAuthKey = Symbol.for('nuxt-better-auth.requestAuth')
 let _baseURLInferenceLogged = false
 let _customSecondaryStorageMisconfigWarned = false
 let _unsupportedHubSecondaryStorageWarned = false
+let _secondaryStorageRateLimitFallbackWarned = false
 
 interface RequestAuthContext {
   [requestAuthKey]?: AuthInstance
@@ -313,6 +315,17 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
     console.warn(customSecondaryStorage.message)
   }
 
+  const useMemoryRateLimit = userConfig.rateLimit?.storage === 'secondary-storage'
+    && !userConfig.rateLimit.customStorage
+    && !userConfig.secondaryStorage
+  if (useMemoryRateLimit && !_secondaryStorageRateLimitFallbackWarned) {
+    _secondaryStorageRateLimitFallbackWarned = true
+    console.warn('[nuxt-better-auth] rateLimit.storage: "secondary-storage" requires secondaryStorage. Falling back to process-local memory. Set rateLimit.storage to "database" or provide rateLimit.customStorage for shared limits.')
+  }
+  const rateLimit = useMemoryRateLimit
+    ? { ...userConfig.rateLimit, storage: 'memory' as const }
+    : userConfig.rateLimit
+
   if (!database) {
     const cached = _authCache.get(cacheKey)
     if (cached) {
@@ -324,6 +337,7 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
 
   const authOptions: ResolvedAuthOptions = {
     ...userConfig,
+    ...(rateLimit ? { rateLimit } : {}),
     ...(database ? { database } : {}),
     secret: betterAuthSecret,
     baseURL: siteUrl,
