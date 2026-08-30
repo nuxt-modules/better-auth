@@ -3,6 +3,11 @@ import type { BetterAuthPlugin } from 'better-auth'
 import type { DbDialect } from '../module/hub'
 import type { BetterAuthModuleOptions } from '../runtime/config'
 
+export interface BetterAuthPluginSources {
+  server?: string[]
+  client?: string[]
+}
+
 export interface BetterAuthDatabaseProviderBuildContext {
   hubDialect: DbDialect
   usePlural: boolean
@@ -28,6 +33,9 @@ export interface BetterAuthDatabaseProviderDefinition {
 
 declare module '@nuxt/schema' {
   interface NuxtHooks {
+    /** Register absolute plugin module paths during module setup. Sources are additive and are not deduplicated. */
+    'better-auth:plugins:extend': (sources: BetterAuthPluginSources) => void | Promise<void>
+
     /**
      * Add plugin schemas to generated Better Auth database tables.
      * This build-time hook does not install plugins in the runtime auth instance.

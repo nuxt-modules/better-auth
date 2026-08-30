@@ -55,3 +55,20 @@ await client?.multiSession.listDeviceSessions()
 ```
 
 Types from plugins are inferred automatically. See [references/types.md](types.md) for type augmentation.
+
+## Plugins supplied by layers
+
+Export each plugin as the default value of a source file and list the source paths in the layer's `nuxt.config.ts`:
+
+```ts
+export default defineNuxtConfig({
+  auth: {
+    serverPluginSources: ['./server/auth-plugin'],
+    clientPluginSources: ['./app/auth-plugin'],
+  },
+})
+```
+
+Relative paths resolve from the declaring layer. The module includes these plugins in schema generation, runtime auth instances, and inferred types.
+
+Plugin contributions are additive and are not deduplicated. Declare each plugin once, either in the app auth config, a layer source, or a module registration.

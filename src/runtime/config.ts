@@ -1,5 +1,5 @@
 import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
-import type { BetterAuthClientOptions } from 'better-auth/client'
+import type { BetterAuthClientOptions, BetterAuthClientPlugin } from 'better-auth/client'
 import type { ServerAuthContext as BaseServerAuthContext } from './types/augment'
 import { createAuthClient } from 'better-auth/vue'
 
@@ -18,6 +18,14 @@ export type ClientAuthConfig = Omit<BetterAuthClientOptions, 'baseURL'> & { base
 
 export type ServerAuthConfigFn = (ctx: ServerAuthContext) => ServerAuthConfig
 export type ClientAuthConfigFn = (ctx: ClientAuthContext) => ClientAuthConfig
+type ServerPlugins<T> = T extends { plugins: infer P extends readonly BetterAuthPlugin[] } ? P : []
+type ClientPlugins<T> = T extends { plugins: infer P extends BetterAuthClientPlugin[] } ? P : []
+type ExtendedServerAuthConfig<T, P extends readonly BetterAuthPlugin[]> = Omit<T, 'plugins'> & { plugins: [...ServerPlugins<T>, ...P] }
+type ExtendedClientAuthConfig<T, P extends BetterAuthClientPlugin[]> = Omit<T, 'plugins'> & { plugins: [...ClientPlugins<T>, ...P] }
+
+export type ClientAuthFactory<T extends ClientAuthConfig> = ((baseURL: string) => ReturnType<typeof createAuthClient<T>>) & {
+  resolveOptions: (baseURL: string) => T & { baseURL: string }
+}
 export type ModuleDatabaseProviderId = 'none' | 'nuxthub' | (string & {})
 export type EffectiveDatabaseProviderId = 'user' | ModuleDatabaseProviderId
 
@@ -29,6 +37,10 @@ export interface BetterAuthModuleOptions {
   serverConfig?: string
   /** Client config path. Relative paths resolve from the layer that declares them. Default: 'app/auth.config' */
   clientConfig?: string
+  /** Server plugin modules. Relative paths resolve from the declaring layer. Sources are additive and are not deduplicated. */
+  serverPluginSources?: string[]
+  /** Client plugin modules. Relative paths resolve from the declaring layer. Sources are additive and are not deduplicated. */
+  clientPluginSources?: string[]
   redirects?: {
     /** Where to redirect unauthenticated users. Default: '/login' */
     login?: string
@@ -91,12 +103,39 @@ export function defineServerAuth(config: ServerAuthConfig | ((ctx: ServerAuthCon
   return typeof config === 'function' ? config : () => config
 }
 
-export function defineClientAuth<T extends ClientAuthConfig>(config: T | ((ctx: ClientAuthContext) => T)): (baseURL: string) => ReturnType<typeof createAuthClient<T>> {
-  return (baseURL: string) => {
+export function extendServerAuth<const R extends ServerAuthConfig, const P extends readonly BetterAuthPlugin[]>(
+  createConfig: (ctx: ServerAuthContext) => R,
+  plugins: P,
+): (ctx: ServerAuthContext) => ExtendedServerAuthConfig<R, P> {
+  return (ctx) => {
+    const config = createConfig(ctx)
+    const basePlugins = (config.plugins || []) as ServerPlugins<R>
+    return { ...config, plugins: [...basePlugins, ...plugins] } as ExtendedServerAuthConfig<R, P>
+  }
+}
+
+function createClientAuthFactory<T extends ClientAuthConfig>(resolveOptions: (baseURL: string) => T & { baseURL: string }): ClientAuthFactory<T> {
+  const factory = ((baseURL: string) => createAuthClient(resolveOptions(baseURL))) as ClientAuthFactory<T>
+  factory.resolveOptions = resolveOptions
+  return factory
+}
+
+export function defineClientAuth<T extends ClientAuthConfig>(config: T | ((ctx: ClientAuthContext) => T)): ClientAuthFactory<T> {
+  return createClientAuthFactory((baseURL) => {
     const ctx: ClientAuthContext = { siteUrl: baseURL }
     const resolved = typeof config === 'function' ? config(ctx) : config
     const { baseURL: configuredBaseURL, ...resolvedOptions } = resolved
-    const clientOptions = { ...resolvedOptions, baseURL: configuredBaseURL ?? baseURL } as T
-    return createAuthClient(clientOptions)
-  }
+    return { ...resolvedOptions, baseURL: configuredBaseURL ?? baseURL } as T & { baseURL: string }
+  })
+}
+
+export function extendClientAuth<T extends ClientAuthConfig, const P extends BetterAuthClientPlugin[]>(
+  createClient: ClientAuthFactory<T>,
+  plugins: P,
+): ClientAuthFactory<ExtendedClientAuthConfig<T, P>> {
+  return createClientAuthFactory((baseURL) => {
+    const config = createClient.resolveOptions(baseURL)
+    const basePlugins = (config.plugins || []) as ClientPlugins<T>
+    return { ...config, plugins: [...basePlugins, ...plugins] } as ExtendedClientAuthConfig<T, P> & { baseURL: string }
+  })
 }

@@ -2,7 +2,7 @@ import type { Nuxt } from '@nuxt/schema'
 import { fileURLToPath } from 'node:url'
 import { loadNuxt } from '@nuxt/kit'
 import { afterEach, describe, expect, it } from 'vitest'
-import { resolveAuthConfigDescriptor, resolveAuthConfigDescriptors } from '../src/module/config-paths'
+import { resolveAuthConfigDescriptor, resolveAuthConfigDescriptors, resolveAuthPluginSources } from '../src/module/config-paths'
 
 const loadedNuxtInstances: Nuxt[] = []
 
@@ -25,6 +25,21 @@ afterEach(async () => {
 })
 
 describe('resolveAuthConfigDescriptor', () => {
+  it('resolves plugin sources from each declaring layer in Nuxt priority order', async () => {
+    const nuxt = await loadCase('layer-plugin-contributions')
+
+    expect(resolveAuthPluginSources(nuxt)).toEqual({
+      server: [
+        expect.stringContaining('/test/cases/layer-plugin-contributions/server/app-plugin'),
+        expect.stringContaining('/test/cases/layer-plugin-contributions-base/server/layer-plugin'),
+      ],
+      client: [
+        expect.stringContaining('/test/cases/layer-plugin-contributions/app/app-plugin'),
+        expect.stringContaining('/test/cases/layer-plugin-contributions-base/app/layer-plugin'),
+      ],
+    })
+  })
+
   it('discovers default configs from an extended layer', async () => {
     const nuxt = await loadCase('layer-default-configs')
     const configs = resolveAuthConfigDescriptors(nuxt)
