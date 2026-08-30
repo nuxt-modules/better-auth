@@ -14,12 +14,13 @@ interface SetupRuntimeConfigInput {
   consola: ConsolaInstance
 }
 
-function resolveSecondaryStorage(input: SetupRuntimeConfigInput): { secondaryStorageEnabled: boolean } {
-  const { options, clientOnly } = input
+function resolveSecondaryStorage(input: SetupRuntimeConfigInput): { hubSecondaryStorage: false | 'custom', secondaryStorageEnabled: boolean } {
+  const { options, clientOnly, consola } = input
 
   const opt = options.hubSecondaryStorage ?? false
   if (opt === true) {
-    throw new Error('[nuxt-better-auth] hubSecondaryStorage: true is not supported with Better Auth 1.7 because NuxtHub KV cannot provide the required atomic getAndDelete and increment operations. Set auth.hubSecondaryStorage to false, or use "custom" with an atomic secondaryStorage in defineServerAuth().')
+    consola.warn('[nuxt-better-auth] hubSecondaryStorage: true cannot use NuxtHub KV with Better Auth 1.7 because NuxtHub KV lacks atomic getAndDelete and increment operations. The module will ignore this option and continue without injecting secondary storage. Better Auth uses database-backed sessions and in-memory rate limiting by default. Set auth.hubSecondaryStorage to false to silence this warning, or use "custom" with an atomic secondaryStorage in defineServerAuth(). Track NuxtHub support: https://github.com/nuxt-hub/core/pull/927')
+    return { hubSecondaryStorage: false, secondaryStorageEnabled: false }
   }
 
   const secondaryStorageEnabled = opt === 'custom'
@@ -28,12 +29,12 @@ function resolveSecondaryStorage(input: SetupRuntimeConfigInput): { secondarySto
     throw new Error('[nuxt-better-auth] hubSecondaryStorage is not available in clientOnly mode. Either disable clientOnly or remove auth.hubSecondaryStorage.')
   }
 
-  return { secondaryStorageEnabled }
+  return { hubSecondaryStorage: opt, secondaryStorageEnabled }
 }
 
 export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryStorageEnabled: boolean } {
   const { nuxt, options, clientOnly, databaseProvider, consola } = input
-  const { secondaryStorageEnabled } = resolveSecondaryStorage(input)
+  const { hubSecondaryStorage, secondaryStorageEnabled } = resolveSecondaryStorage(input)
 
   nuxt.options.runtimeConfig.public = nuxt.options.runtimeConfig.public || {}
   const configuredSiteUrl = nuxt.options.runtimeConfig.public.siteUrl as string | undefined
@@ -64,9 +65,11 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryS
   const currentSecret = nuxt.options.runtimeConfig.betterAuthSecret as string | undefined
   nuxt.options.runtimeConfig.betterAuthSecret = currentSecret || process.env.NUXT_BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET || ''
 
-  nuxt.options.runtimeConfig.auth = defu(nuxt.options.runtimeConfig.auth as Record<string, unknown>, {
-    hubSecondaryStorage: options.hubSecondaryStorage ?? false,
+  const authRuntimeConfig = defu(nuxt.options.runtimeConfig.auth as Record<string, unknown>, {
+    hubSecondaryStorage,
   }) as AuthPrivateRuntimeConfig
+  authRuntimeConfig.hubSecondaryStorage = hubSecondaryStorage
+  nuxt.options.runtimeConfig.auth = authRuntimeConfig
 
   return { secondaryStorageEnabled }
 }

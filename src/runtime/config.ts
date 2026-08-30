@@ -66,7 +66,7 @@ export interface BetterAuthModuleOptions {
   redirectQueryKey?: string
   /**
    * Configure secondary storage for sessions.
-   * - `true`: Unsupported with Better Auth 1.7; setup throws with migration guidance
+   * - `true`: Temporarily falls back to database-backed sessions with a setup warning
    * - `'custom'`: User provides an atomic secondaryStorage in defineServerAuth()
    * - `false` (default): No secondary storage from module
    */
