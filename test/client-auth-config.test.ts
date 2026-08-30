@@ -8,7 +8,7 @@ vi.mock('better-auth/vue', () => ({
   createAuthClient,
 }))
 
-const { defineClientAuth } = await import('../src/runtime/config')
+const { defineClientAuth, extendClientAuth } = await import('../src/runtime/config')
 
 describe('defineClientAuth', () => {
   it('passes the inferred siteUrl to function syntax', () => {
@@ -59,6 +59,16 @@ describe('defineClientAuth', () => {
 
     expect(client).toMatchObject({
       baseURL: 'https://derived.example/api/auth',
+    })
+  })
+
+  it('appends contributed plugins after the app plugins', () => {
+    const appPlugin = { id: 'app' }
+    const layerPlugin = { id: 'layer' }
+    const factory = extendClientAuth(defineClientAuth({ plugins: [appPlugin] }), [layerPlugin])
+
+    expect(factory('https://example.test')).toMatchObject({
+      plugins: [appPlugin, layerPlugin],
     })
   })
 })

@@ -1,5 +1,32 @@
 import type { DbDialect } from './hub'
 
+function buildImports(sources: string[]): { imports: string, names: string } {
+  return {
+    imports: sources.map((source, index) => `import plugin${index} from ${JSON.stringify(source)}`).join('\n'),
+    names: sources.map((_, index) => `plugin${index}`).join(', '),
+  }
+}
+
+export function buildExtendedServerAuthCode(configPath: string, sources: string[]): string {
+  const plugins = buildImports(sources)
+  return `import createAppAuth from ${JSON.stringify(configPath)}
+import { extendServerAuth } from '@nuxtjs/better-auth/config'
+${plugins.imports}
+
+export default extendServerAuth(createAppAuth, [${plugins.names}])
+`
+}
+
+export function buildExtendedClientAuthCode(configPath: string, sources: string[]): string {
+  const plugins = buildImports(sources)
+  return `import createAppAuthClient from ${JSON.stringify(configPath)}
+import { extendClientAuth } from '@nuxtjs/better-auth/config'
+${plugins.imports}
+
+export default extendClientAuth(createAppAuthClient, [${plugins.names}])
+`
+}
+
 export function buildSecondaryStorageCode(): string {
   return 'export function createSecondaryStorage() { return undefined }'
 }

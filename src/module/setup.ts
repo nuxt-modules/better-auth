@@ -4,13 +4,14 @@ import type {
   BetterAuthDatabaseProviderBuildContext,
   BetterAuthDatabaseProviderDefinition,
   BetterAuthDatabaseProviderEnabledContext,
+  BetterAuthPluginSources,
 } from '../types/hooks'
 import type { AuthConfigDescriptor } from './config-paths'
 import type { NuxtHubOptions } from './hub'
 import { hasNuxtModule } from '@nuxt/kit'
 import { dirname } from 'pathe'
 import { resolveDatabaseProvider } from '../database-provider'
-import { resolveAuthConfigDescriptors } from './config-paths'
+import { resolveAuthConfigDescriptors, resolveAuthPluginSources } from './config-paths'
 import { getHubCasing, getHubDialect } from './hub'
 import { setupRuntimeConfig } from './runtime'
 import { buildDatabaseCode } from './templates'
@@ -24,6 +25,10 @@ export interface ResolvedAuthModuleSetup {
   aliases: {
     '#auth/server'?: string
     '#auth/client': string
+  }
+  pluginSources: {
+    server: string[]
+    client: string[]
   }
   hub: {
     hasNuxtHub: boolean
@@ -63,6 +68,7 @@ interface ResolveAuthModuleSetupInput {
   options: BetterAuthModuleOptions
   runtimeTypesAugmentPath: string
   consola: Parameters<typeof setupRuntimeConfig>[0]['consola']
+  registeredPluginSources?: BetterAuthPluginSources
 }
 
 interface ResolveAuthModuleSetupDependencies {
@@ -134,6 +140,10 @@ export async function resolveAuthModuleSetup(
 
   assertConfigPresence(configs, clientOnly)
 
+  const pluginSources = resolveAuthPluginSources(nuxt)
+  pluginSources.server.push(...(input.registeredPluginSources?.server || []))
+  pluginSources.client.push(...(input.registeredPluginSources?.client || []))
+
   const aliases: ResolvedAuthModuleSetup['aliases'] = {
     '#auth/server': clientOnly ? undefined : configs.server.path,
     '#auth/client': configs.client.path,
@@ -193,6 +203,7 @@ export async function resolveAuthModuleSetup(
     clientOnly,
     configs,
     aliases,
+    pluginSources,
     hub: {
       hasNuxtHub,
       options: hub,
