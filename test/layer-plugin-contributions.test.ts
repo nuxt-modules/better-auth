@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
 import { describe, expect, it } from 'vitest'
@@ -35,6 +36,10 @@ describe('layer plugin contributions', async () => {
       env,
       encoding: 'utf8',
     })
-    expect(typecheck.status, `vue-tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
+    expect(typecheck.status, `app vue-tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
+
+    const sharedTypes = readFileSync(`${fixtureDir}/.nuxt/nuxt.shared.d.ts`, 'utf8')
+    expect(sharedTypes).not.toContain('types/nuxt-better-auth-infer.d.ts')
+    expect(sharedTypes).not.toContain('types/nuxt-better-auth-social-providers.d.ts')
   }, 60_000)
 })

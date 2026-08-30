@@ -216,7 +216,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
           serverConfigPath: serverConfigPath!,
           hasHubDb: setup.serverTypes.hasHubDb,
           runtimeTypesPath: resolver.resolve('./runtime/types'),
-          sharedServerConfigSafe: isServerConfigSharedTypeSafe(setup.configs.server.path),
+          sharedServerConfigSafe: [setup.configs.server.path, ...setup.pluginSources.server].every(isServerConfigSharedTypeSafe),
           h3TypesPath: nitroImports.h3,
           nitroTypesPath: nitroImports.types,
         })

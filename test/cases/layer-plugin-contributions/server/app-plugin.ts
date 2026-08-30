@@ -1,1 +1,3 @@
-export default { id: 'app-server-plugin' }
+import { appServerPluginId } from '#server/plugin-id'
+
+export default { id: appServerPluginId }
