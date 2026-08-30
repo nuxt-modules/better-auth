@@ -33,7 +33,7 @@ export default defineNuxtConfig({
 
 Important:
 
-- NuxtHub KV cannot implement Better Auth 1.7's atomic `getAndDelete` and `increment` operations, so `hubSecondaryStorage: true` fails during setup
+- NuxtHub KV cannot implement Better Auth 1.7's atomic `getAndDelete` and `increment` operations, so `hubSecondaryStorage: true` logs a setup warning and continues without module-provided secondary storage. Sessions use the configured database when one exists. Track native support in [nuxt-hub/core#927](https://github.com/nuxt-hub/core/pull/927)
 - `hubSecondaryStorage: 'custom'` means you provide an atomic `secondaryStorage`, such as Redis or Upstash
 - use DB-only reads if you prefer stricter read-after-write consistency
 

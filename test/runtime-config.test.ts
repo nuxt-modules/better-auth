@@ -170,11 +170,11 @@ describe('setupRuntimeConfig secret resolution', () => {
 })
 
 describe('setupRuntimeConfig hubSecondaryStorage validation', () => {
-  it('rejects NuxtHub KV because Better Auth requires atomic secondary storage', () => {
+  it('warns and disables NuxtHub KV when atomic secondary storage is unavailable', () => {
     const nuxt = createNuxtWithRuntimeConfig()
     const consola = createConsolaMock()
 
-    expect(() => setupRuntimeConfig({
+    const { secondaryStorageEnabled } = setupRuntimeConfig({
       nuxt,
       options: { hubSecondaryStorage: true },
       clientOnly: false,
@@ -182,7 +182,30 @@ describe('setupRuntimeConfig hubSecondaryStorage validation', () => {
       hasNuxtHub: true,
       hub: { kv: true },
       consola,
-    })).toThrow('NuxtHub KV cannot provide the required atomic getAndDelete and increment operations')
+    })
+
+    expect(secondaryStorageEnabled).toBe(false)
+    expect((nuxt.options.runtimeConfig.auth as any).hubSecondaryStorage).toBe(false)
+    expect(consola.warn).toHaveBeenCalledWith(expect.stringContaining('continue without injecting secondary storage'))
+    expect(consola.warn).toHaveBeenCalledWith(expect.stringContaining('https://github.com/nuxt-hub/core/pull/927'))
+  })
+
+  it('ignores hubSecondaryStorage: true with clientOnly guidance', () => {
+    const nuxt = createNuxtWithRuntimeConfig({ siteUrl: 'https://example.com' })
+    const consola = createConsolaMock()
+
+    const { secondaryStorageEnabled } = setupRuntimeConfig({
+      nuxt,
+      options: { hubSecondaryStorage: true },
+      clientOnly: true,
+      databaseProvider: 'none',
+      hasNuxtHub: false,
+      consola,
+    })
+
+    expect(secondaryStorageEnabled).toBe(false)
+    expect(consola.warn).toHaveBeenCalledWith(expect.stringContaining('ignored in clientOnly mode'))
+    expect(consola.warn).not.toHaveBeenCalledWith(expect.stringContaining('database-backed sessions'))
   })
 
   it('throws when hubSecondaryStorage: "custom" in clientOnly mode', () => {

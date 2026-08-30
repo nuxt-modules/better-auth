@@ -3,13 +3,13 @@ import type { ServerEvent } from '../internal/nitro-compat'
 import { betterAuth, env } from 'better-auth'
 import { withoutProtocol } from 'ufo'
 import { createDatabase, db } from '#auth/database'
-import { createSecondaryStorage } from '#auth/secondary-storage'
 import createServerAuth from '#auth/server'
 import { getRequestHost, getRequestProtocol, useRuntimeConfig } from '../internal/nitro-compat'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
 
 type AuthOptions = ReturnType<typeof createServerAuth>
 type UserAuthConfig = AuthOptions & {
+  rateLimit?: BetterAuthOptions['rateLimit']
   secrets?: BetterAuthOptions['secrets']
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   secondaryStorage?: BetterAuthOptions['secondaryStorage']
@@ -26,6 +26,8 @@ const _authCache = new Map<string, AuthInstance>()
 const requestAuthKey = Symbol.for('nuxt-better-auth.requestAuth')
 let _baseURLInferenceLogged = false
 let _customSecondaryStorageMisconfigWarned = false
+let _unsupportedHubSecondaryStorageWarned = false
+let _secondaryStorageRateLimitFallbackWarned = false
 
 interface RequestAuthContext {
   [requestAuthKey]?: AuthInstance
@@ -301,6 +303,10 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins)
 
   const hubSecondaryStorage = (runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' })?.hubSecondaryStorage
+  if (hubSecondaryStorage === true && !_unsupportedHubSecondaryStorageWarned) {
+    _unsupportedHubSecondaryStorageWarned = true
+    console.warn('[nuxt-better-auth] Runtime hubSecondaryStorage: true is unsupported with Better Auth 1.7 and will be ignored. The module will preserve secondaryStorage from defineServerAuth(). Remove NUXT_AUTH_HUB_SECONDARY_STORAGE or set it to false.')
+  }
   const customSecondaryStorage = resolveCustomSecondaryStorageRequirement(hubSecondaryStorage, userConfig.secondaryStorage != null, Boolean(import.meta.dev))
   if (customSecondaryStorage?.shouldThrow)
     throw new Error(customSecondaryStorage.message)
@@ -308,6 +314,17 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
     _customSecondaryStorageMisconfigWarned = true
     console.warn(customSecondaryStorage.message)
   }
+
+  const useMemoryRateLimit = userConfig.rateLimit?.storage === 'secondary-storage'
+    && !userConfig.rateLimit.customStorage
+    && !userConfig.secondaryStorage
+  if (useMemoryRateLimit && !_secondaryStorageRateLimitFallbackWarned) {
+    _secondaryStorageRateLimitFallbackWarned = true
+    console.warn('[nuxt-better-auth] rateLimit.storage: "secondary-storage" requires secondaryStorage. Falling back to process-local memory. Set rateLimit.storage to "database" or provide rateLimit.customStorage for shared limits.')
+  }
+  const rateLimit = useMemoryRateLimit
+    ? { ...userConfig.rateLimit, storage: 'memory' as const }
+    : userConfig.rateLimit
 
   if (!database) {
     const cached = _authCache.get(cacheKey)
@@ -320,8 +337,8 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
 
   const authOptions: ResolvedAuthOptions = {
     ...userConfig,
+    ...(rateLimit ? { rateLimit } : {}),
     ...(database ? { database } : {}),
-    ...(hubSecondaryStorage === true ? { secondaryStorage: createSecondaryStorage() } : {}),
     secret: betterAuthSecret,
     baseURL: siteUrl,
     trustedOrigins,

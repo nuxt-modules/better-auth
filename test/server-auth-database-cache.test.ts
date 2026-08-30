@@ -71,6 +71,7 @@ describe('serverAuth database cache and secret validation', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs()
+    vi.restoreAllMocks()
   })
 
   it('rejects missing singular and versioned secrets before creating auth', async () => {
@@ -235,5 +236,62 @@ describe('serverAuth database cache and secret validation', () => {
     expect(first).toBe(second)
     expect(createDatabaseMock).toHaveBeenCalledTimes(2)
     expect(betterAuthMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves user secondary storage when runtime config contains stale true', async () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const secondaryStorage = {
+      get: vi.fn(),
+      getAndDelete: vi.fn(),
+      increment: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+    }
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://example.com' },
+      auth: { hubSecondaryStorage: true },
+      betterAuthSecret: 'test-secret-for-testing-only-32chars',
+    })
+    createServerAuthMock.mockReturnValue({
+      trustedOrigins: undefined,
+      secondaryStorage,
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+    serverAuth()
+
+    expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({ secondaryStorage }))
+    expect(consoleWarn).toHaveBeenCalledWith(expect.stringContaining('Runtime hubSecondaryStorage: true is unsupported'))
+  })
+
+  it('falls back to memory when secondary-storage rate limiting has no store', async () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    createServerAuthMock.mockReturnValue({
+      trustedOrigins: undefined,
+      rateLimit: { storage: 'secondary-storage' },
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+    serverAuth()
+
+    expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({
+      rateLimit: { storage: 'memory' },
+    }))
+    expect(consoleWarn).toHaveBeenCalledWith(expect.stringContaining('Falling back to process-local memory'))
+  })
+
+  it('preserves custom rate-limit storage without secondary storage', async () => {
+    const customStorage = { consume: vi.fn() }
+    createServerAuthMock.mockReturnValue({
+      trustedOrigins: undefined,
+      rateLimit: { storage: 'secondary-storage', customStorage },
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+    serverAuth()
+
+    expect(betterAuthMock).toHaveBeenCalledWith(expect.objectContaining({
+      rateLimit: { storage: 'secondary-storage', customStorage },
+    }))
   })
 })
