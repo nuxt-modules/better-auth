@@ -11,7 +11,7 @@ import { version } from '../package.json'
 import { resolveAuthConfigDescriptors } from './module/config-paths'
 import { resolveNitroCompatibilityImports } from './module/compatibility'
 import { registerAuthMiddlewareHook, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
-import { setupBetterAuthSchema } from './module/schema'
+import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
 import { collectAuthRouteRules, resolveAuthModuleSetup } from './module/setup'
 import { buildAuthRouteRulesCode, buildExtendedClientAuthCode, buildExtendedServerAuthCode, buildSchemaExportCode, buildSecondaryStorageCode } from './module/templates'
@@ -116,7 +116,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     await createDefaultAuthConfigFiles(nuxt)
   },
   setup(options, nuxt) {
-    nuxt.hook('modules:done', async () => {
+    const finishSetup = async () => {
       const resolver = createResolver(import.meta.url)
       const nitroImports = resolveNitroCompatibilityImports(nuxt._version)
       nuxt.options.alias['#better-auth/nitro-compat'] = resolver.resolve(`./runtime/server/internal/${nitroImports.runtime}`)
@@ -248,6 +248,19 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 
       await registerDevtools({ nuxt, clientOnly: setup.clientOnly, hasHubDb: setup.database.hasHubDb, resolve: resolver.resolve })
       registerRouteRulesMetaHook(nuxt)
+
+      return Boolean(setup.schemaGeneration)
+    }
+
+    let setupPromise: Promise<boolean> | undefined
+    const finishSetupOnce = () => {
+      setupPromise ||= finishSetup()
+      return setupPromise
+    }
+
+    registerNuxtHubSchemaHook(nuxt, finishSetupOnce)
+    nuxt.hook('modules:done', async () => {
+      await finishSetupOnce()
     })
   },
 })

@@ -66,6 +66,22 @@ export function resolveHubSchemaPath(
   return null
 }
 
+export function registerNuxtHubSchemaHook(
+  nuxt: Nuxt,
+  finishSetup: () => Promise<boolean>,
+): void {
+  const nuxtWithHubHooks = nuxt as Nuxt & { hook: (name: string, cb: (arg: { paths: string[], dialect: string }) => Promise<void>) => void }
+  nuxtWithHubHooks.hook('hub:db:schema:extend', async ({ paths, dialect }) => {
+    const hasHubSchema = await finishSetup()
+    if (!hasHubSchema)
+      return
+
+    const schemaPath = resolveHubSchemaPath(nuxt.options.buildDir, nuxt.options.rootDir, dialect)
+    if (schemaPath && !paths.includes(schemaPath))
+      paths.unshift(schemaPath)
+  })
+}
+
 async function loadAuthOptions(context: SchemaContext) {
   const isProduction = !context.nuxt.options.dev
   const configFile = CONFIG_EXTENSION_RE.test(context.serverConfigPath) ? context.serverConfigPath : `${context.serverConfigPath}.ts`
@@ -100,16 +116,6 @@ export async function setupBetterAuthSchema(
   }
 
   const context: SchemaContext = { nuxt, serverConfigPath }
-
-  // Registered before generation so NuxtHub still resolves the schema file already
-  // on disk when generation below is skipped. resolveHubSchemaPath is a plain
-  // filesystem lookup, so it does not care whether this run produced the file.
-  const nuxtWithHubHooks = nuxt as Nuxt & { hook: (name: string, cb: (arg: { paths: string[], dialect: string }) => void) => void }
-  nuxtWithHubHooks.hook('hub:db:schema:extend', ({ paths, dialect: hookDialect }) => {
-    const schemaPath = resolveHubSchemaPath(nuxt.options.buildDir, nuxt.options.rootDir, hookDialect)
-    if (schemaPath)
-      paths.unshift(schemaPath)
-  })
 
   try {
     const authConfig = await loadAuthOptions(context)

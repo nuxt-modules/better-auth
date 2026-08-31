@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { runWithNuxtContext } from '@nuxt/kit'
 import { getAuthTables } from 'better-auth/db'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { setupBetterAuthSchema } from '../src/module/schema'
+import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from '../src/module/schema'
 import { buildSchemaExportCode } from '../src/module/templates'
 import { defineClientAuth, defineServerAuth } from '../src/runtime/config'
 import { generateDrizzleSchema, loadUserAuthConfig } from '../src/schema-generator'
@@ -59,7 +59,7 @@ function createSchemaProject(options: { dev: boolean, config: string }) {
   const serverConfigPath = join(serverDir, 'auth.config')
   writeFileSync(`${serverConfigPath}.ts`, options.config)
 
-  const hooks = new Map<string, (payload: { paths: string[], dialect: string }) => void>()
+  const hooks = new Map<string, (payload: { paths: string[], dialect: string }) => void | Promise<void>>()
 
   const nuxt = {
     options: {
@@ -72,20 +72,28 @@ function createSchemaProject(options: { dev: boolean, config: string }) {
       hub: { db: 'sqlite' },
     },
     callHook: async () => {},
-    hook: (name: string, cb: (payload: { paths: string[], dialect: string }) => void) => {
+    hook: (name: string, cb: (payload: { paths: string[], dialect: string }) => void | Promise<void>) => {
       hooks.set(name, cb)
     },
   } as unknown as Nuxt
 
   const schemaPath = join(buildDir, 'better-auth', 'schema.sqlite.ts')
 
-  const run = () => runWithNuxtContext(nuxt, () => setupBetterAuthSchema(
-    nuxt,
-    serverConfigPath,
-    {} as BetterAuthModuleOptions,
-    silentConsola,
-    undefined,
-  ))
+  let setupPromise: Promise<boolean> | undefined
+  const finishSetup = () => {
+    setupPromise ||= runWithNuxtContext(nuxt, () => setupBetterAuthSchema(
+      nuxt,
+      serverConfigPath,
+      {} as BetterAuthModuleOptions,
+      silentConsola,
+      undefined,
+    )).then(() => true)
+    return setupPromise
+  }
+  const run = async () => {
+    await finishSetup()
+  }
+  registerNuxtHubSchemaHook(nuxt, finishSetup)
 
   const writeExistingSchema = (contents: string) => {
     mkdirSync(join(buildDir, 'better-auth'), { recursive: true })
@@ -93,9 +101,9 @@ function createSchemaProject(options: { dev: boolean, config: string }) {
   }
 
   /** Fires NuxtHub's `hub:db:schema:extend` hook and returns the paths it collected. */
-  const collectHubSchemaPaths = () => {
+  const collectHubSchemaPaths = async () => {
     const paths: string[] = []
-    hooks.get('hub:db:schema:extend')?.({ paths, dialect: 'sqlite' })
+    await hooks.get('hub:db:schema:extend')?.({ paths, dialect: 'sqlite' })
     return paths
   }
 
@@ -317,7 +325,7 @@ describe.each([
 
     await project.run()
 
-    expect(project.collectHubSchemaPaths()).toEqual([project.schemaPath])
+    await expect(project.collectHubSchemaPaths()).resolves.toEqual([project.schemaPath])
   })
 })
 
