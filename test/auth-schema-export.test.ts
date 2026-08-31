@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { rmSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'pathe'
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
@@ -15,6 +15,9 @@ describe('#auth/schema export', async () => {
   })
   if (prepare.status !== 0)
     throw new Error(`clean nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`)
+
+  const hubSchemaEntry = readFileSync(join(rootDir, '.nuxt/hub/db/schema.entry.ts'), 'utf8')
+  const betterAuthSchema = join(rootDir, '.nuxt/better-auth/schema.sqlite.ts')
 
   await setup({
     rootDir,
@@ -44,5 +47,9 @@ describe('#auth/schema export', async () => {
     expect(res.hasNamedAccount).toBe(true)
     expect(res.hasAccounts).toBe(true)
     expect(res.hasVerification).toBe(true)
+  })
+
+  it('contributes the generated schema to NuxtHub on a clean prepare', () => {
+    expect(hubSchemaEntry).toContain(`export * from '${betterAuthSchema}'`)
   })
 })
