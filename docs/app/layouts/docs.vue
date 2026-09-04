@@ -1,8 +1,4 @@
 <script setup lang="ts">
-const route = useRoute()
-const { sidebarOpen, close } = useDocusSidebar()
-
-watch(() => route.path, () => close())
 </script>
 
 <template>
@@ -22,21 +18,6 @@ watch(() => route.path, () => close())
         <AppFooter />
       </div>
     </div>
-
-    <!-- Mobile Sidebar Overlay -->
-    <Teleport to="body">
-      <Transition name="sidebar-backdrop">
-        <div v-if="sidebarOpen" class="sidebar-backdrop" @click="sidebarOpen = false" />
-      </Transition>
-      <Transition name="sidebar-slide">
-        <aside v-if="sidebarOpen" class="docs-sidebar-mobile">
-          <DocsSearchButton />
-          <div class="sidebar-scroll">
-            <DocsSidebar />
-          </div>
-        </aside>
-      </Transition>
-    </Teleport>
   </UMain>
 </template>
 
@@ -88,49 +69,6 @@ watch(() => route.path, () => close())
   display: flex;
   flex-direction: column;
   overflow-x: clip;
-}
-
-/* Mobile sidebar (teleported to body — use :root --header-height fallbacks) */
-.docs-sidebar-mobile {
-  position: fixed;
-  left: 0;
-  top: var(--header-height, 3.5rem);
-  width: min(var(--fd-sidebar-width), 85vw);
-  height: calc(100vh - var(--header-height, 3.5rem));
-  height: calc(100dvh - var(--header-height, 3.5rem));
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  z-index: 50;
-  border-right: 1px solid var(--ui-border);
-  background: var(--ui-bg);
-}
-
-.sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  top: var(--header-height, 3.5rem);
-  z-index: 40;
-  background: rgba(0, 0, 0, 0.5);
-}
-
-/* Transitions */
-.sidebar-slide-enter-active,
-.sidebar-slide-leave-active {
-  transition: transform 0.2s ease;
-}
-.sidebar-slide-enter-from,
-.sidebar-slide-leave-to {
-  transform: translateX(-100%);
-}
-
-.sidebar-backdrop-enter-active,
-.sidebar-backdrop-leave-active {
-  transition: opacity 0.2s ease;
-}
-.sidebar-backdrop-enter-from,
-.sidebar-backdrop-leave-to {
-  opacity: 0;
 }
 
 /* Mobile: single column, no sidebar */
