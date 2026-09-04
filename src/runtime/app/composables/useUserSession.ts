@@ -12,6 +12,7 @@ import { getAuthRuntimeFlags, useRawAuthClient } from './useAuthClient'
 export interface SignOutOptions { onSuccess?: () => void | Promise<void> }
 
 let _signOutPromise: Promise<void> | null = null
+const _sessionSyncApps = new WeakSet<object>()
 
 export interface UseUserSessionReturn {
   session: Ref<AuthSession | null>
@@ -132,7 +133,7 @@ export function useUserSession(): UseUserSessionReturn {
   }
 
   // On client, subscribe to better-auth's reactive session store
-  if (runtimeFlags.client && rawClient) {
+  if (runtimeFlags.client && rawClient && !_sessionSyncApps.has(nuxtApp)) {
     const clientSession = rawClient.useSession()
     const initialClientSession = clientSession.value
 
@@ -182,6 +183,8 @@ export function useUserSession(): UseUserSessionReturn {
           authReady.value = true
       },
     )
+
+    _sessionSyncApps.add(nuxtApp)
   }
 
   function waitForSession(): Promise<void> {

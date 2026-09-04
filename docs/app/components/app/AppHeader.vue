@@ -1,17 +1,45 @@
 <script setup lang="ts">
 const appConfig = useAppConfig()
 const site = useSiteConfig()
+const route = useRoute()
 const { open: searchOpen } = useContentSearch()
+const isMenuOpen = ref(false)
 
 const navLinks = [
   { name: 'docs', path: '/getting-started' },
   { name: 'demo', path: 'https://demo-nuxt-better-auth.onmax.me', external: true },
   { name: 'better-auth', path: 'https://www.better-auth.com', external: true },
 ]
+
+function handleNavClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  const link = target?.closest('a')
+  if (link && !link.target && !link.getAttribute('target')) {
+    isMenuOpen.value = false
+  }
+}
+
+function handleSearchClick() {
+  isMenuOpen.value = false
+  searchOpen.value = true
+}
 </script>
 
 <template>
-  <UHeader :ui="{ container: 'max-w-full !gap-0 !px-0 h-14 overflow-hidden', root: 'border-b border-[var(--ui-border)] h-14', header: '!px-0 h-14', left: 'gap-0 h-full', right: 'gap-0 h-full lg:pr-4', title: 'h-full items-center' }" to="/" :title="appConfig.header?.title || site.name">
+  <UHeader
+    v-model:open="isMenuOpen"
+    :ui="{
+      container: 'max-w-full !gap-0 !px-0 h-14 overflow-hidden',
+      root: 'border-b border-[var(--ui-border)] h-14',
+      header: '!px-0 h-14',
+      left: 'gap-0 h-full',
+      right: 'gap-0 h-full lg:pr-4',
+      title: 'h-full items-center',
+      body: '!p-0 overflow-y-auto max-h-[calc(100dvh-3.5rem)]',
+    }"
+    to="/"
+    :title="appConfig.header?.title || site.name"
+  >
     <template #title>
       <div class="header-logo">
         <!-- Nuxt -->
@@ -97,17 +125,86 @@ const navLinks = [
     </template>
 
     <template #body>
-      <nav class="flex flex-col">
-        <NuxtLink
-          v-for="link in navLinks"
-          :key="link.name"
-          :to="link.path"
-          :target="link.external ? '_blank' : undefined"
-          class="px-4 py-2 text-sm text-muted hover:text-[var(--ui-text)]"
-        >
-          {{ link.name }}
-        </NuxtLink>
-      </nav>
+      <div class="mobile-sidebar-content" @click="handleNavClick">
+        <!-- Top Navigation Links -->
+        <nav class="mobile-nav-list">
+          <NuxtLink
+            to="/"
+            class="mobile-nav-link"
+            :class="{ active: route.path === '/' }"
+          >
+            <span class="mobile-nav-icon-wrap">
+              <UIcon name="i-solar-home-2-bold" class="size-5" />
+            </span>
+            <span>_hello</span>
+          </NuxtLink>
+
+          <NuxtLink
+            v-for="link in navLinks"
+            :key="link.name"
+            :to="link.path"
+            :target="link.external ? '_blank' : undefined"
+            class="mobile-nav-link"
+            :class="{ active: !link.external && route.path.startsWith(link.path) }"
+          >
+            <span class="mobile-nav-icon-wrap">
+              <UIcon
+                v-if="link.name === 'docs'"
+                name="i-solar-book-bookmark-bold"
+                class="size-5"
+              />
+              <UIcon
+                v-else-if="link.name === 'demo'"
+                name="i-solar-play-circle-bold"
+                class="size-5"
+              />
+              <svg
+                v-else-if="link.name === 'better-auth'"
+                viewBox="0 0 60 45"
+                fill="none"
+                class="w-5 h-auto"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fill-rule="evenodd"
+                  clip-rule="evenodd"
+                  d="M0 0H15V15H30V30H15V45H0V30V15V0ZM45 30V15H30V0H45H60V15V30V45H45H30V30H45Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <span>{{ link.name }}</span>
+            <UIcon
+              v-if="link.external"
+              name="i-lucide-external-link"
+              class="mobile-nav-external"
+            />
+          </NuxtLink>
+
+          <NuxtLink
+            to="https://github.com/nuxt-modules/better-auth"
+            target="_blank"
+            class="mobile-nav-link"
+          >
+            <span class="mobile-nav-icon-wrap">
+              <UIcon name="i-simple-icons-github" class="size-5" />
+            </span>
+            <span>GitHub</span>
+            <UIcon name="i-lucide-external-link" class="mobile-nav-external" />
+          </NuxtLink>
+        </nav>
+
+        <!-- Search button in mobile sidebar -->
+        <DocsSearchButton @click="handleSearchClick" />
+
+        <!-- Documentation Sidebar Tree -->
+        <div class="mobile-docs-tree">
+          <div class="mobile-docs-header">
+            Documentation
+          </div>
+          <DocsSidebar />
+        </div>
+      </div>
     </template>
   </UHeader>
 </template>
@@ -176,5 +273,78 @@ const navLinks = [
 
 :deep(.mobile-header-action + .mobile-header-action) {
   border-left: 1px solid var(--ui-border);
+}
+
+.mobile-sidebar-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100%;
+  padding-bottom: 2rem;
+}
+
+.mobile-nav-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.mobile-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--ui-text-muted);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.mobile-nav-link:hover {
+  color: var(--ui-text);
+  background-color: color-mix(in srgb, var(--ui-primary) 10%, transparent);
+}
+
+.mobile-nav-link.active {
+  color: var(--ui-text);
+  font-weight: 500;
+  background-color: color-mix(in srgb, var(--ui-primary) 10%, transparent);
+}
+
+.mobile-nav-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.mobile-nav-link:hover .mobile-nav-icon-wrap,
+.mobile-nav-link.active .mobile-nav-icon-wrap {
+  opacity: 1;
+}
+
+.mobile-nav-external {
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-left: auto;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.mobile-docs-tree {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-docs-header {
+  padding: 0.75rem 1.25rem 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ui-text-muted);
 }
 </style>
