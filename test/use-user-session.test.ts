@@ -204,6 +204,15 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
+  it('installs the client session bridge once per Nuxt app', async () => {
+    const useUserSession = await loadUseUserSession()
+
+    for (let index = 0; index < 100; index++)
+      useUserSession()
+
+    expect(mockClient.useSession).toHaveBeenCalledOnce()
+  })
+
   it('bootstraps client session for prerendered/cached payloads', async () => {
     payload.serverRendered = true
     payload.prerenderedAt = Date.now()
