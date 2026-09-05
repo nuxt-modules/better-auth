@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
@@ -11,16 +10,6 @@ const env = {
 
 describe('public composables subpath export', () => {
   it('typechecks consumer imports from @nuxtjs/better-auth/composables', () => {
-    if (!existsSync(fileURLToPath(new URL('../dist/runtime/composables.js', import.meta.url)))) {
-      const build = spawnSync('pnpm', ['exec', 'nuxt-module-build', 'build'], {
-        cwd: fileURLToPath(new URL('..', import.meta.url)),
-        env,
-        encoding: 'utf8',
-        timeout: 120_000,
-      })
-      expect(build.status, `nuxt-module-build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
-    }
-
     const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
       cwd: fixtureDir,
       env,
