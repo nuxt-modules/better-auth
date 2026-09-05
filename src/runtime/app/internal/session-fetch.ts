@@ -21,12 +21,15 @@ export async function fetchSessionServer(
   session: Ref<AuthSession | null>,
   user: Ref<AuthUser | null>,
   authReady: Ref<boolean>,
-  options: { headers?: HeadersInit } = {},
+  options: { headers?: HeadersInit, force?: boolean } = {},
 ): Promise<void> {
   try {
     const headers = options.headers || useRequestHeaders(['cookie'])
     const requestFetch = useRequestFetch()
-    const data = await requestFetch<SessionResponse | null>('/api/auth/get-session', { headers })
+    const data = await requestFetch<SessionResponse | null>('/api/auth/get-session', {
+      headers,
+      ...(options.force ? { query: { disableCookieCache: true } } : {}),
+    })
 
     if (data?.session && data?.user) {
       session.value = stripToken(data.session)

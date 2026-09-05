@@ -434,6 +434,19 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.ready.value).toBe(true)
   })
 
+  it('bypasses the cookie cache when forcing an SSR session refresh', async () => {
+    setRuntimeFlags({ client: false, server: true })
+    $fetch.mockImplementationOnce(async (_path: string, options: { query?: { disableCookieCache?: boolean } }) => ({
+      session: { id: 'session-server' },
+      user: { id: options.query?.disableCookieCache ? 'fresh-user' : 'cached-user' },
+    }))
+
+    const auth = (await loadUseUserSession())()
+    await auth.fetchSession({ force: true })
+
+    expect(auth.user.value?.id).toBe('fresh-user')
+  })
+
   it('fetchSession clears SSR state on server when no session is returned', async () => {
     setRuntimeFlags({ client: false, server: true })
     seedHydratedState()
