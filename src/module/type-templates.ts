@@ -360,6 +360,8 @@ declare module '#nuxt-better-auth' {
     userAgent?: string | null
   }
 
+  export type ClientAuthSession = Omit<AuthSession, 'token'>
+
   export interface ServerAuthContext {
     runtimeConfig: Record<string, unknown>
     db: unknown
@@ -371,7 +373,7 @@ declare module '#nuxt-better-auth' {
 
   export interface UserSessionComposable {
     user: Ref<AuthUser | null>
-    session: Ref<AuthSession | null>
+    session: Ref<ClientAuthSession | null>
     loggedIn: ComputedRef<boolean>
     ready: ComputedRef<boolean>
     fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>

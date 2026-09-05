@@ -1,4 +1,4 @@
-import type { AuthSession, AuthUser } from '#nuxt-better-auth'
+import type { AuthSession, AuthUser, ClientAuthSession } from '#nuxt-better-auth'
 import { parseJSON } from 'better-auth/client'
 import { defineNuxtPlugin, useRequestEvent, useRequestHeaders, useState } from '#imports'
 
@@ -6,7 +6,7 @@ export default defineNuxtPlugin({
   name: 'auth:session-init',
   enforce: 'pre',
   async setup() {
-    const session = useState<AuthSession | null>('auth:session', () => null)
+    const session = useState<ClientAuthSession | null>('auth:session', () => null)
     const user = useState<AuthUser | null>('auth:user', () => null)
     const authReady = useState('auth:ready', () => false)
 
@@ -19,7 +19,7 @@ export default defineNuxtPlugin({
         if (data?.session && data?.user) {
           // Filter out sensitive token field from client state
           const { token: _, ...safeSession } = data.session
-          session.value = safeSession as AuthSession
+          session.value = safeSession
           user.value = data.user
         }
       }
