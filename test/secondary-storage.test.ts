@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveSchemaSecondaryStorageInjection } from '../src/module/schema'
-import { buildSecondaryStorageCode } from '../src/module/templates'
 import { resolveCustomSecondaryStorageRequirement } from '../src/runtime/server/utils/custom-secondary-storage'
-
-describe('generated secondary storage', () => {
-  it('does not emit the incomplete NuxtHub KV adapter', () => {
-    expect(buildSecondaryStorageCode()).toBe('export function createSecondaryStorage() { return undefined }')
-  })
-})
 
 describe('custom secondary storage runtime requirement', () => {
   it('returns null when mode is not custom', () => {

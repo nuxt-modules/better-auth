@@ -62,7 +62,6 @@ function expectSharedTypeReferencesToStayClientSafe(fixtureDir: string) {
     'types/nitro-imports.d.ts',
     'types/auth-database.d.ts',
     'types/auth-schema.d.ts',
-    'types/auth-secondary-storage.d.ts',
     'hub/db.d.ts',
   ]
 
