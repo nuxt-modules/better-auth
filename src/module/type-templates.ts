@@ -28,15 +28,6 @@ export function registerServerTypeTemplates(input: RegisterServerTypeTemplatesIn
     : { nuxt: true, nitro: true, node: true }
 
   addTypeTemplate({
-    filename: 'types/auth-secondary-storage.d.ts',
-    getContents: () => `
-declare module '#auth/secondary-storage' {
-  export function createSecondaryStorage(): undefined
-}
-`,
-  }, { nitro: true })
-
-  addTypeTemplate({
     filename: 'types/auth-database.d.ts',
     getContents: () => `
 declare module '#auth/database' {
@@ -72,7 +63,6 @@ declare module '#auth/schema' {
 /// <reference path="./nitro-imports.d.ts" />
 /// <reference path="./auth-database.d.ts" />
 /// <reference path="./auth-schema.d.ts" />
-/// <reference path="./auth-secondary-storage.d.ts" />
 ${hasHubDb ? '/// <reference path="../hub/db.d.ts" />' : ''}
 
 export {}
@@ -383,6 +373,8 @@ declare module '#nuxt-better-auth' {
     userAgent?: string | null
   }
 
+  export type ClientAuthSession = Omit<AuthSession, 'token'>
+
   export interface ServerAuthContext {
     runtimeConfig: Record<string, unknown>
     db: unknown
@@ -399,7 +391,7 @@ declare module '#nuxt-better-auth' {
 
   export interface UserSessionComposable {
     user: Ref<AuthUser | null>
-    session: Ref<AuthSession | null>
+    session: Ref<ClientAuthSession | null>
     loggedIn: ComputedRef<boolean>
     ready: ComputedRef<boolean>
     fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>

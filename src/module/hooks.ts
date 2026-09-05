@@ -69,7 +69,6 @@ export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): 
       join(nuxt.options.buildDir, 'types/nitro-imports.d.ts'),
       join(nuxt.options.buildDir, 'types/auth-database.d.ts'),
       join(nuxt.options.buildDir, 'types/auth-schema.d.ts'),
-      join(nuxt.options.buildDir, 'types/auth-secondary-storage.d.ts'),
     ]
 
     if (hasHubDb)
@@ -81,7 +80,6 @@ export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): 
       '#auth/client': nuxt.options.alias['#auth/client'],
       '#auth/database': nuxt.options.alias['#auth/database'],
       '#auth/schema': nuxt.options.alias['#auth/schema'],
-      '#auth/secondary-storage': nuxt.options.alias['#auth/secondary-storage'],
       '#auth/route-rules': nuxt.options.alias['#auth/route-rules'],
     } as const
 

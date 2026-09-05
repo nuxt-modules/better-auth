@@ -26,6 +26,8 @@ export interface AuthSession {
   userAgent?: string | null
 }
 
+export type ClientAuthSession = Omit<AuthSession, 'token'>
+
 // Server auth context - extended by generated types with hub:db types
 export interface ServerAuthContext {
   runtimeConfig: Record<string, unknown>
@@ -45,7 +47,7 @@ export interface AuthUserUpdateInput {
 // Composable return type
 export interface UserSessionComposable {
   user: Ref<AuthUser | null>
-  session: Ref<AuthSession | null>
+  session: Ref<ClientAuthSession | null>
   loggedIn: ComputedRef<boolean>
   ready: ComputedRef<boolean>
   fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>

@@ -1,7 +1,7 @@
 import type { AuthSocialProviderRegistry, AuthUser, UserMatch } from '#nuxt-better-auth'
 
 // Re-export augmentable types
-export type { AppSession, AuthSession, AuthSocialProviderRegistry, AuthUser, AuthUserUpdateInput, RequireSessionOptions, ServerAuthContext, UserMatch, UserSessionComposable } from './types/augment'
+export type { AppSession, AuthSession, AuthSocialProviderRegistry, AuthUser, AuthUserUpdateInput, ClientAuthSession, RequireSessionOptions, ServerAuthContext, UserMatch, UserSessionComposable } from './types/augment'
 
 export type AuthSocialProviderId = AuthSocialProviderRegistry extends { ids: infer T } ? Extract<T, string> : never
 
