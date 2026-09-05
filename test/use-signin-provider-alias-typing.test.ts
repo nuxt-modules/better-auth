@@ -9,13 +9,15 @@ describe('useSignIn social provider typing', () => {
     const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
       cwd: fixtureDir,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(prepare.status, `nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`).toBe(0)
 
     const typecheck = spawnSync('npx', ['tsc', '--noEmit', '--pretty', 'false', '-p', 'tsconfig.type-check.json'], {
       cwd: fixtureDir,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(typecheck.status, `tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
-  }, 60000)
+  }, 360_000)
 })

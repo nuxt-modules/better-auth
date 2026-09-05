@@ -1,4 +1,5 @@
 import type { AuthSession, AuthUser, ClientAuthSession } from '#nuxt-better-auth'
+import { parseJSON } from 'better-auth/client'
 import { defineNuxtPlugin, useRequestEvent, useRequestHeaders, useState } from '#imports'
 
 export default defineNuxtPlugin({
@@ -14,7 +15,7 @@ export default defineNuxtPlugin({
     if (event) {
       try {
         const headers = useRequestHeaders(['cookie'])
-        const data = await $fetch<{ session: AuthSession & { token?: string }, user: AuthUser } | null>('/api/auth/get-session', { headers })
+        const data = await $fetch<{ session: AuthSession & { token?: string }, user: AuthUser } | null>('/api/auth/get-session', { headers, parseResponse: parseJSON })
         if (data?.session && data?.user) {
           // Filter out sensitive token field from client state
           const { token: _, ...safeSession } = data.session

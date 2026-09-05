@@ -216,7 +216,9 @@ export function useUserSession(): UseUserSessionReturn {
     }
 
     _signOutPromise = (async () => {
-      await rawClient.signOut()
+      const result = await rawClient.signOut()
+      if (isRecord(result) && result.error)
+        throw new Error(normalizeAuthActionError(result.error).message)
       clearSession()
 
       if (options?.onSuccess) {
