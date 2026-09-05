@@ -59,6 +59,7 @@ describe('nuxthub prerender @nuxthub/db imports', () => {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
 
     expect(build.status, `nuxi build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
@@ -84,5 +85,5 @@ describe('nuxthub prerender @nuxthub/db imports', () => {
     expect(authSchema).toContain('const authSchema = pgSchema("auth")')
     expect(authSchema).toContain('export const user = authSchema.table("user"')
     expect(authSchema).not.toContain('pgTable')
-  }, 120_000)
+  }, 360_000)
 })

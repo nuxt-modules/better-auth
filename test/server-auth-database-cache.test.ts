@@ -11,10 +11,6 @@ vi.mock('#auth/database', () => ({
   db: { query: {} },
 }))
 
-vi.mock('#auth/secondary-storage', () => ({
-  createSecondaryStorage: vi.fn(() => undefined),
-}))
-
 vi.mock('#auth/server', () => ({
   default: createServerAuthMock,
 }))
