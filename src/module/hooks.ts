@@ -56,6 +56,7 @@ export function registerServerRuntime(input: RegisterServerRuntimeInput): void {
     'useAuthClientAction',
     'useAuthRequestFetch',
     'useSignIn',
+    'useSignOut',
     'useSignUp',
     'useUserSession',
     'useUserSessionState',

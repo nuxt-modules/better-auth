@@ -68,6 +68,7 @@ vi.mock('#imports', async () => {
   const vue = await import('vue')
   return {
     computed: vue.computed,
+    ref: vue.ref,
     navigateTo,
     nextTick: vue.nextTick,
     watch: vue.watch,
@@ -93,6 +94,12 @@ async function loadUseUserSession() {
   vi.resetModules()
   const mod = await import('../src/runtime/app/composables/useUserSession')
   return mod.useUserSession
+}
+
+async function loadUseSignOut() {
+  vi.resetModules()
+  const mod = await import('../src/runtime/app/composables/useSignOut')
+  return mod.useSignOut
 }
 
 async function loadAuthComposables() {
@@ -1028,6 +1035,145 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.signOut).toHaveBeenCalledOnce()
     expect(navigateTo).toHaveBeenCalledTimes(1)
     expect(navigateTo).toHaveBeenCalledWith('/logged-out')
+  })
+
+  it('useSignOut tracks pending state, clears the session, and redirects on success', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    seedHydratedState()
+    let resolveSignOut: () => void = () => {}
+    mockClient.signOut.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveSignOut = resolve
+    }))
+    const signOut = (await loadUseSignOut())()
+
+    expect(signOut.status.value).toBe('idle')
+    expect(signOut.error.value).toBeNull()
+    const pending = signOut.execute()
+    expect(signOut.status.value).toBe('pending')
+    expect(state.get('auth:user')?.value).toEqual({ id: 'user-1' })
+    expect(navigateTo).not.toHaveBeenCalled()
+
+    resolveSignOut()
+    await pending
+
+    expect(signOut.status.value).toBe('success')
+    expect(signOut.error.value).toBeNull()
+    expect(state.get('auth:session')?.value).toBeNull()
+    expect(state.get('auth:user')?.value).toBeNull()
+    expect(navigateTo).toHaveBeenCalledWith('/logged-out')
+  })
+
+  it.each([401, 500])('useSignOut exposes HTTP %i errors without clearing the session and supports retry', async (status) => {
+    const client = createAuthClient({
+      baseURL: 'https://auth.example.test',
+      fetchOptions: {
+        customFetchImpl: async () => Response.json({ message: 'Logout unavailable' }, { status }),
+      },
+    })
+    mockClient.signOut.mockImplementationOnce(() => client.signOut())
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    seedHydratedState()
+    const signOut = (await loadUseSignOut())()
+
+    await signOut.execute()
+
+    expect(signOut.status.value).toBe('error')
+    expect(signOut.error.value?.message).toBe('Logout unavailable')
+    expect(state.get('auth:session')?.value).toEqual({ id: 'session-1' })
+    expect(state.get('auth:user')?.value).toEqual({ id: 'user-1' })
+    expect(navigateTo).not.toHaveBeenCalled()
+
+    await signOut.execute()
+
+    expect(signOut.status.value).toBe('success')
+    expect(signOut.error.value).toBeNull()
+    expect(state.get('auth:user')?.value).toBeNull()
+    expect(navigateTo).toHaveBeenCalledOnce()
+  })
+
+  it('useSignOut exposes network failures without invoking onSuccess', async () => {
+    mockClient.signOut.mockRejectedValueOnce(new Error('Network unavailable'))
+    seedHydratedState()
+    const signOut = (await loadUseSignOut())()
+    const onSuccess = vi.fn()
+
+    await signOut.execute({ onSuccess })
+
+    expect(signOut.status.value).toBe('error')
+    expect(signOut.error.value?.message).toBe('Network unavailable')
+    expect(state.get('auth:user')?.value).toEqual({ id: 'user-1' })
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('useSignOut waits for onSuccess instead of using the configured redirect', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    seedHydratedState()
+    let resolveSuccess: () => void = () => {}
+    const onSuccess = vi.fn(() => new Promise<void>((resolve) => {
+      resolveSuccess = resolve
+    }))
+    const signOut = (await loadUseSignOut())()
+    const pending = signOut.execute({ onSuccess })
+    await flushPromises()
+
+    expect(onSuccess).toHaveBeenCalledOnce()
+    expect(signOut.status.value).toBe('pending')
+    expect(state.get('auth:user')?.value).toBeNull()
+    resolveSuccess()
+    await pending
+
+    expect(signOut.status.value).toBe('success')
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('useSignOut coalesces requests across independent action handles', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    let resolveSignOut: () => void = () => {}
+    mockClient.signOut.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveSignOut = resolve
+    }))
+    const useSignOut = await loadUseSignOut()
+    const first = useSignOut()
+    const second = useSignOut()
+    const firstRequest = first.execute()
+    const secondRequest = second.execute()
+
+    expect(first.status.value).toBe('pending')
+    expect(second.status.value).toBe('pending')
+    expect(mockClient.signOut).toHaveBeenCalledOnce()
+    resolveSignOut()
+    await Promise.all([firstRequest, secondRequest])
+
+    expect(first.status.value).toBe('success')
+    expect(second.status.value).toBe('success')
+    expect(navigateTo).toHaveBeenCalledOnce()
+  })
+
+  it('useSignOut signs out anonymous users without deleting their accounts', async () => {
+    seedHydratedState()
+    state.set('auth:user', ref({ id: 'anonymous-1', isAnonymous: true }))
+    const deleteAnonymousUser = vi.fn()
+    activeClient = { ...mockClient, deleteAnonymousUser }
+    const signOut = (await loadUseSignOut())()
+
+    await signOut.execute()
+
+    expect(mockClient.signOut).toHaveBeenCalledOnce()
+    expect(deleteAnonymousUser).not.toHaveBeenCalled()
+    expect(signOut.status.value).toBe('success')
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('useSignOut is safe to create during SSR but reports client-only execution', async () => {
+    setRuntimeFlags({ client: false, server: true })
+    const signOut = (await loadUseSignOut())()
+    expect(signOut.status.value).toBe('idle')
+
+    await signOut.execute()
+
+    expect(signOut.status.value).toBe('error')
+    expect(signOut.error.value?.message).toBe('signOut can only be called on client-side')
+    expect(mockClient.signOut).not.toHaveBeenCalled()
   })
 
   it('treats expected unauthenticated getSession errors as a normal signed-out state', async () => {

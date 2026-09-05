@@ -17,7 +17,7 @@ describe('public auto-imports', () => {
 
     const appImports = readFileSync(`${fixtureDir}/.nuxt/imports.d.ts`, 'utf8')
     const serverImports = readFileSync(`${fixtureDir}/.nuxt/types/nitro-imports.d.ts`, 'utf8')
-    for (const name of ['runWithSessionRefresh', 'useAction', 'useAuthAsyncData', 'useAuthClient', 'useAuthClientAction', 'useAuthRequestFetch', 'useSignIn', 'useSignUp', 'useUserSession', 'useUserSessionState', 'SignOutOptions', 'UseUserSessionReturn', 'UseUserSessionStateReturn', 'UseAuthAsyncDataOptions'])
+    for (const name of ['runWithSessionRefresh', 'useAction', 'useAuthAsyncData', 'useAuthClient', 'useAuthClientAction', 'useAuthRequestFetch', 'useSignIn', 'useSignOut', 'useSignUp', 'useUserSession', 'useUserSessionState', 'SignOutOptions', 'UseUserSessionReturn', 'UseUserSessionStateReturn', 'UseAuthAsyncDataOptions'])
       expect(appImports).toMatch(new RegExp(`export (?:type )?\\{[^}]*\\b${name}\\b[^}]*\\}`))
     for (const name of ['serverAuth', 'defineServerAuth', 'getRequestSession', 'getUserSession', 'setRequestSession', 'refreshSessionCookieCache', 'setSessionCookie', 'createSession', 'requireUserSession'])
       expect(new RegExp(`export (?:type )?\\{[^}]*\\b${name}\\b[^}]*\\}`).test(serverImports)).toBe(!clientOnly)
