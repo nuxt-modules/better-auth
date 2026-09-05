@@ -15,6 +15,7 @@ const nitroCompatibilityAlias = {
 
 export default defineConfig({
   test: {
+    globalSetup: ['./test/setup/build-package.ts'],
     projects: [
       {
         resolve: {
