@@ -27,10 +27,6 @@ export default extendClientAuth(createAppAuthClient, [${plugins.names}])
 `
 }
 
-export function buildSecondaryStorageCode(): string {
-  return 'export function createSecondaryStorage() { return undefined }'
-}
-
 interface BuildDatabaseCodeInput {
   provider: 'none' | 'nuxthub'
   hubDialect: DbDialect

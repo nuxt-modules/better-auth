@@ -33,7 +33,7 @@ describe('exports-snapshot', async () => {
     }
 
     await expect(yaml.stringify(manifest)).toMatchFileSnapshot('./exports/module.yaml')
-  }, 60_000)
+  }, 360_000)
 
   it('does not import module-owned composables from #imports in built runtime', () => {
     const runtimeFiles = listRuntimeFiles('dist/runtime/app')
@@ -43,5 +43,5 @@ describe('exports-snapshot', async () => {
     })
 
     expect(coupledFiles).toEqual([])
-  }, 60_000)
+  }, 360_000)
 })

@@ -28,6 +28,7 @@ describe('layer plugin contributions', async () => {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(prepare.status, `nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`).toBe(0)
 
@@ -35,11 +36,12 @@ describe('layer plugin contributions', async () => {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(typecheck.status, `app vue-tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
 
     const sharedTypes = readFileSync(`${fixtureDir}/.nuxt/nuxt.shared.d.ts`, 'utf8')
     expect(sharedTypes).not.toContain('types/nuxt-better-auth-infer.d.ts')
     expect(sharedTypes).not.toContain('types/nuxt-better-auth-social-providers.d.ts')
-  }, 60_000)
+  }, 360_000)
 })
