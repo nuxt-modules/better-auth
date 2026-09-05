@@ -13,12 +13,12 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": [],
   "files": [
     "./.nuxt/types/nuxt-better-auth.d.ts",
     "./.nuxt/types/nuxt-better-auth-client.d.ts",
     "./.nuxt/types/nuxt-better-auth-endpoints.d.ts",
     "./.nuxt/types/nuxt-better-auth-social-providers.d.ts",
     "./typecheck-target.ts"
-  ]
+  ],
+  "include": []
 }
