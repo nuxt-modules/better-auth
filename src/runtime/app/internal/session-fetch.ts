@@ -22,12 +22,16 @@ export async function fetchSessionServer(
   session: Ref<AuthSession | null>,
   user: Ref<AuthUser | null>,
   authReady: Ref<boolean>,
-  options: { headers?: HeadersInit } = {},
+  options: { headers?: HeadersInit, force?: boolean } = {},
 ): Promise<void> {
   try {
     const headers = options.headers || useRequestHeaders(['cookie'])
     const requestFetch = useRequestFetch()
-    const data = await requestFetch<SessionResponse | null>('/api/auth/get-session', { headers, parseResponse: parseJSON })
+    const data = await requestFetch<SessionResponse | null>('/api/auth/get-session', {
+      headers,
+      parseResponse: parseJSON,
+      ...(options.force ? { query: { disableCookieCache: true } } : {}),
+    })
 
     if (data?.session && data?.user) {
       session.value = stripToken(data.session)
@@ -57,7 +61,7 @@ export async function fetchSessionClient(
 ): Promise<void> {
   try {
     const headers = options.headers || useRequestHeaders(['cookie'])
-    const fetchOptions = headers ? { headers } : undefined
+    const fetchOptions = { ...(headers ? { headers } : {}), throw: false as const }
     const query = options.force ? { disableCookieCache: true } : undefined
     const result = await client.getSession({ query }, fetchOptions)
     const data = result.data as SessionResponse | null

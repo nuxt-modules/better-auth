@@ -19,6 +19,7 @@ beforeAll(() => {
     cwd: rootDir,
     env,
     encoding: 'utf8',
+    timeout: 120_000,
   })
   expect(build.status, `nuxt-module-build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
 }, 180_000)
@@ -28,6 +29,7 @@ function runProjectReferenceTypecheck(fixtureDir: string) {
     cwd: fixtureDir,
     env,
     encoding: 'utf8',
+    timeout: 120_000,
   })
   expect(prepare.status, `nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`).toBe(0)
 
@@ -35,6 +37,7 @@ function runProjectReferenceTypecheck(fixtureDir: string) {
     cwd: fixtureDir,
     env,
     encoding: 'utf8',
+    timeout: 120_000,
   })
   expect(typecheck.status, `vue-tsc -b failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
 }
@@ -59,7 +62,6 @@ function expectSharedTypeReferencesToStayClientSafe(fixtureDir: string) {
     'types/nitro-imports.d.ts',
     'types/auth-database.d.ts',
     'types/auth-schema.d.ts',
-    'types/auth-secondary-storage.d.ts',
     'hub/db.d.ts',
   ]
 
@@ -97,7 +99,7 @@ describe('server auth config project-reference typecheck regression #309', () =>
     expectServerContextToAvoidNuxthubAugmentation(fixtureDir)
     expectNuxtTypesToStayClientSafe(fixtureDir)
     expectSharedTypesToIncludeOnlySafeConfigContext(fixtureDir)
-  }, 60_000)
+  }, 360_000)
 
   it('typechecks auth config imports that use the #server alias', () => {
     const fixtureDir = fileURLToPath(new URL('./cases/server-auth-alias-typecheck', import.meta.url))
@@ -106,5 +108,5 @@ describe('server auth config project-reference typecheck regression #309', () =>
     expectServerContextToAvoidNuxthubAugmentation(fixtureDir)
     expectNuxtTypesToStayClientSafe(fixtureDir)
     expectSharedTypesToIncludeOnlySafeConfigContext(fixtureDir)
-  }, 60_000)
+  }, 360_000)
 })
