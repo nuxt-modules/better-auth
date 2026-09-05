@@ -12,6 +12,7 @@ describe('#auth/schema export', async () => {
   const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
     cwd: rootDir,
     encoding: 'utf8',
+    timeout: 120_000,
   })
   if (prepare.status !== 0)
     throw new Error(`clean nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`)

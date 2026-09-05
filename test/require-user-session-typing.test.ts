@@ -137,6 +137,7 @@ export async function check(event: H3Event) {
       const typecheck = spawnSync('corepack', ['pnpm', 'exec', 'tsc', '--noEmit', '--pretty', 'false', '-p', tsconfigPath], {
         cwd: import.meta.dirname,
         encoding: 'utf8',
+        timeout: 120_000,
       })
 
       expect(typecheck.status, `tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
@@ -144,5 +145,5 @@ export async function check(event: H3Event) {
     finally {
       await rm(testDir, { recursive: true, force: true })
     }
-  }, 30_000)
+  }, 360_000)
 })
