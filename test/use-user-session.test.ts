@@ -427,7 +427,7 @@ describe('useUserSession hydration bootstrap', () => {
     const auth = useUserSession()
     await auth.fetchSession()
 
-    expect($fetch).toHaveBeenCalledWith('/api/auth/get-session', { headers: { cookie: 'session=test' } })
+    expect($fetch).toHaveBeenCalledWith('/api/auth/get-session', { headers: { cookie: 'session=test' }, parseResponse: expect.any(Function) })
     expect(auth.session.value).toEqual({ id: 'session-server', ipAddress: '127.0.0.1' })
     expect(auth.user.value).toEqual({ id: 'user-server', email: 'server@example.com' })
     expect(auth.ready.value).toBe(true)
