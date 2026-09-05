@@ -1,20 +1,20 @@
 import type { BetterAuthOptions } from 'better-auth'
-import type { H3Event } from 'h3'
-import { betterAuth } from 'better-auth'
-import { getRequestHost, getRequestProtocol } from 'h3'
-import { useRuntimeConfig } from 'nitropack/runtime'
+import type { ServerEvent } from '../internal/nitro-compat'
+import { betterAuth, env } from 'better-auth'
 import { withoutProtocol } from 'ufo'
 import { createDatabase, db } from '#auth/database'
-import { createSecondaryStorage } from '#auth/secondary-storage'
 import createServerAuth from '#auth/server'
+import { getRequestHost, getRequestProtocol, useRuntimeConfig } from '../internal/nitro-compat'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
 
 type AuthOptions = ReturnType<typeof createServerAuth>
 type UserAuthConfig = AuthOptions & {
+  rateLimit?: BetterAuthOptions['rateLimit']
+  secrets?: BetterAuthOptions['secrets']
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   secondaryStorage?: BetterAuthOptions['secondaryStorage']
 }
-type ResolvedAuthOptions = UserAuthConfig & {
+type ResolvedAuthOptions = Omit<UserAuthConfig, 'secret' | 'baseURL' | 'trustedOrigins' | 'database'> & {
   secret: string
   baseURL: string
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
@@ -26,6 +26,8 @@ const _authCache = new Map<string, AuthInstance>()
 const requestAuthKey = Symbol.for('nuxt-better-auth.requestAuth')
 let _baseURLInferenceLogged = false
 let _customSecondaryStorageMisconfigWarned = false
+let _unsupportedHubSecondaryStorageWarned = false
+let _secondaryStorageRateLimitFallbackWarned = false
 
 interface RequestAuthContext {
   [requestAuthKey]?: AuthInstance
@@ -33,8 +35,8 @@ interface RequestAuthContext {
 
 const fallbackRequestAuthContext = new WeakMap<object, RequestAuthContext>()
 
-function getRequestAuthContext(event: H3Event): RequestAuthContext {
-  const eventWithContext = event as H3Event & { context?: unknown }
+function getRequestAuthContext(event: ServerEvent): RequestAuthContext {
+  const eventWithContext = event as ServerEvent & { context?: unknown }
   if (eventWithContext.context && typeof eventWithContext.context === 'object')
     return eventWithContext.context as RequestAuthContext
 
@@ -88,7 +90,7 @@ function resolveConfiguredSiteUrl(config: ReturnType<typeof useRuntimeConfig>): 
   return validateURL(config.public.siteUrl)
 }
 
-function resolveEventOrigin(event?: H3Event): string | undefined {
+function resolveEventOrigin(event?: ServerEvent): string | undefined {
   if (!event)
     return undefined
 
@@ -179,7 +181,7 @@ function resolveDevFallback(): { origin: string, source: string } | undefined {
   return { origin: 'http://localhost:3000', source: 'development fallback' }
 }
 
-function getBaseURL(event?: H3Event): string {
+function getBaseURL(event?: ServerEvent): string {
   const config = useRuntimeConfig()
   const configuredSiteUrl = resolveConfiguredSiteUrl(config)
   if (configuredSiteUrl)
@@ -273,10 +275,21 @@ function withDevTrustedOrigins(
 }
 
 /** Returns Better Auth instance. Caches per resolved host (or single instance when siteUrl is explicit). */
-export function serverAuth(event?: H3Event): AuthInstance {
+export function serverAuth(event?: ServerEvent): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
-  const siteUrl = getBaseURL(event)
+  const betterAuthSecret = runtimeConfig.betterAuthSecret || env.BETTER_AUTH_SECRET || ''
+  if (betterAuthSecret && betterAuthSecret.length < 32)
+    throw new Error('[nuxt-better-auth] Singular auth secret must be at least 32 characters for security')
+
   const requestOrigin = resolveEventOrigin(event)
+  let userConfig: UserAuthConfig | undefined
+  if (!import.meta.dev && !betterAuthSecret && !env.BETTER_AUTH_SECRETS) {
+    userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+    if (userConfig.secrets === undefined)
+      throw new Error('[nuxt-better-auth] An auth secret is required in production. Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_SECRETS, or defineServerAuth({ secrets }).')
+  }
+
+  const siteUrl = getBaseURL(event)
   const hasExplicitSiteUrl = runtimeConfig.public.siteUrl && typeof runtimeConfig.public.siteUrl === 'string'
   const cacheKey = hasExplicitSiteUrl ? '__explicit__' : siteUrl
   const requestContext = event ? getRequestAuthContext(event) : undefined
@@ -284,11 +297,16 @@ export function serverAuth(event?: H3Event): AuthInstance {
   if (requestContext?.[requestAuthKey])
     return requestContext[requestAuthKey]
 
-  const database = createDatabase(event)
-  const userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+  userConfig ??= createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+
+  const database = (createDatabase as (event?: ServerEvent) => BetterAuthOptions['database'])(event)
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins)
 
   const hubSecondaryStorage = (runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' })?.hubSecondaryStorage
+  if (hubSecondaryStorage === true && !_unsupportedHubSecondaryStorageWarned) {
+    _unsupportedHubSecondaryStorageWarned = true
+    console.warn('[nuxt-better-auth] Runtime hubSecondaryStorage: true is unsupported with Better Auth 1.7 and will be ignored. The module will preserve secondaryStorage from defineServerAuth(). Remove NUXT_AUTH_HUB_SECONDARY_STORAGE or set it to false.')
+  }
   const customSecondaryStorage = resolveCustomSecondaryStorageRequirement(hubSecondaryStorage, userConfig.secondaryStorage != null, Boolean(import.meta.dev))
   if (customSecondaryStorage?.shouldThrow)
     throw new Error(customSecondaryStorage.message)
@@ -296,6 +314,17 @@ export function serverAuth(event?: H3Event): AuthInstance {
     _customSecondaryStorageMisconfigWarned = true
     console.warn(customSecondaryStorage.message)
   }
+
+  const useMemoryRateLimit = userConfig.rateLimit?.storage === 'secondary-storage'
+    && !userConfig.rateLimit.customStorage
+    && !userConfig.secondaryStorage
+  if (useMemoryRateLimit && !_secondaryStorageRateLimitFallbackWarned) {
+    _secondaryStorageRateLimitFallbackWarned = true
+    console.warn('[nuxt-better-auth] rateLimit.storage: "secondary-storage" requires secondaryStorage. Falling back to process-local memory. Set rateLimit.storage to "database" or provide rateLimit.customStorage for shared limits.')
+  }
+  const rateLimit = useMemoryRateLimit
+    ? { ...userConfig.rateLimit, storage: 'memory' as const }
+    : userConfig.rateLimit
 
   if (!database) {
     const cached = _authCache.get(cacheKey)
@@ -308,9 +337,9 @@ export function serverAuth(event?: H3Event): AuthInstance {
 
   const authOptions: ResolvedAuthOptions = {
     ...userConfig,
+    ...(rateLimit ? { rateLimit } : {}),
     ...(database ? { database } : {}),
-    ...(hubSecondaryStorage === true ? { secondaryStorage: createSecondaryStorage() } : {}),
-    secret: runtimeConfig.betterAuthSecret,
+    secret: betterAuthSecret,
     baseURL: siteUrl,
     trustedOrigins,
   }

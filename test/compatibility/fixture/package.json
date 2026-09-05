@@ -1,0 +1,9 @@
+{
+  "name": "nuxt-better-auth-compatibility",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "typecheck": "nuxt prepare && vue-tsc --noEmit -p .nuxt/tsconfig.server.json"
+  }
+}

@@ -1,3 +1,4 @@
+import { createAuthClient } from 'better-auth/vue'
 import { createPinia, defineStore, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isReactive, isRef, ref, watch } from 'vue'
@@ -19,9 +20,6 @@ const runtimeConfig = {
   public: {
     siteUrl: 'http://localhost:3000',
     auth: {
-      session: {
-        skipHydratedSsrGetSession: false,
-      },
       redirects: {} as Record<string, unknown>,
     },
   },
@@ -56,11 +54,8 @@ const sessionAtom = ref<SessionState>({
 const mockClient: Record<string, any> = {
   useSession: vi.fn(() => sessionAtom),
   getSession: vi.fn(async () => ({ data: null })),
-  $store: {
-    listen: vi.fn(),
-  },
   signOut: vi.fn(async () => {}),
-  signIn: { social: vi.fn(async () => ({})), email: vi.fn(async () => ({})) },
+  signIn: { social: vi.fn(async () => ({})), oauth2: vi.fn(async () => ({})), email: vi.fn(async () => ({})) },
   signUp: { email: vi.fn(async () => ({})) },
 }
 let activeClient: Record<string, any> = mockClient
@@ -153,7 +148,6 @@ describe('useUserSession hydration bootstrap', () => {
     requestURL.searchParams = new URLSearchParams()
     requestURL.origin = 'http://localhost:3000'
     runtimeConfig.public.siteUrl = 'http://localhost:3000'
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = false
     runtimeConfig.public.auth.redirects = {}
     navigateTo.mockClear()
     $fetch.mockReset()
@@ -170,11 +164,12 @@ describe('useUserSession hydration bootstrap', () => {
     mockClient.useSession.mockReset()
     mockClient.useSession.mockImplementation(() => sessionAtom)
     mockClient.getSession.mockReset()
-    mockClient.$store.listen.mockClear()
     mockClient.signOut.mockClear()
     mockClient.updateUser = undefined
     mockClient.signIn.social.mockReset()
     mockClient.signIn.social.mockResolvedValue({})
+    mockClient.signIn.oauth2.mockReset()
+    mockClient.signIn.oauth2.mockResolvedValue({})
     mockClient.signIn.email.mockReset()
     mockClient.signIn.email.mockResolvedValue({})
     mockClient.signUp.email.mockReset()
@@ -188,39 +183,21 @@ describe('useUserSession hydration bootstrap', () => {
     delete (globalThis as { __NUXT_BETTER_AUTH_TEST_FLAGS__?: { client: boolean, server: boolean } }).__NUXT_BETTER_AUTH_TEST_FLAGS__
   })
 
-  it('bootstraps client session by default even when SSR payload is hydrated', async () => {
+  it('subscribes without synchronously bridging the initial client snapshot', async () => {
     payload.serverRendered = true
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
-    expect(auth.ready.value).toBe(true)
+    expect(auth.ready.value).toBe(false)
+    expect(auth.session.value).toEqual({ id: 'session-1' })
+    expect(auth.user.value).toEqual({ id: 'user-1' })
+    expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
-  it('skips initial client session bootstrap when option is enabled and SSR payload is hydrated', async () => {
+  it('bootstraps client session when SSR payload is not hydrated', async () => {
     payload.serverRendered = true
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
-    seedHydratedState()
-
-    let _signalCb: (() => void | Promise<void>) | undefined
-    mockClient.$store.listen.mockImplementation((_signal: string, cb: () => void | Promise<void>) => {
-      _signalCb = cb
-      return () => {
-        _signalCb = undefined
-      }
-    })
-
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
-
-    expect(auth.ready.value).toBe(true)
-    expect(_signalCb).toBeDefined()
-  })
-
-  it('bootstraps client session when SSR payload is not hydrated (even with option enabled)', async () => {
-    payload.serverRendered = true
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
 
     const useUserSession = await loadUseUserSession()
     useUserSession()
@@ -228,10 +205,18 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
+  it('installs the client session bridge once per Nuxt app', async () => {
+    const useUserSession = await loadUseUserSession()
+
+    for (let index = 0; index < 100; index++)
+      useUserSession()
+
+    expect(mockClient.useSession).toHaveBeenCalledOnce()
+  })
+
   it('bootstraps client session for prerendered/cached payloads', async () => {
     payload.serverRendered = true
     payload.prerenderedAt = Date.now()
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
@@ -298,7 +283,6 @@ describe('useUserSession hydration bootstrap', () => {
 
   it('bootstraps client session on CSR navigation', async () => {
     payload.serverRendered = false
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
@@ -311,6 +295,7 @@ describe('useUserSession hydration bootstrap', () => {
     payload.serverRendered = true
     nuxtApp.isHydrating = true
     seedHydratedState()
+    sessionAtom.value.isPending = true
 
     mockClient.getSession.mockResolvedValueOnce({
       data: {
@@ -324,8 +309,14 @@ describe('useUserSession hydration bootstrap', () => {
     await flushPromises()
 
     expect(mockClient.getSession).not.toHaveBeenCalled()
+    expect(nuxtHooks.get('app:mounted')).toBeUndefined()
     expect(auth.session.value).toEqual({ id: 'session-1' })
     expect(auth.user.value).toEqual({ id: 'user-1' })
+
+    sessionAtom.value = { ...sessionAtom.value, isPending: false }
+    await flushPromises()
+
+    expect((nuxtHooks.get('app:mounted') || [])).toHaveLength(1)
 
     nuxtApp.isHydrating = false
     await triggerNuxtHook('app:mounted')
@@ -623,16 +614,33 @@ describe('useUserSession hydration bootstrap', () => {
     expect(navigateTo).not.toHaveBeenCalled()
   })
 
-  it('signIn.social injects callbackURL from auth.redirects.authenticated when missing', async () => {
+  it.each([
+    { method: 'social', data: { provider: 'github' }, providerURL: 'https://github.com/login/oauth/authorize' },
+    { method: 'oauth2', data: { providerId: 'seznam' }, providerURL: 'https://login.szn.cz/oauth/authorize' },
+  ])('signIn.$method injects callbackURL and skips session sync', async ({ method, data, providerURL }) => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
-    mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
+    mockClient.getSession.mockResolvedValueOnce({
+      data: {
+        session: { id: 'session-1', ipAddress: '127.0.0.1' },
+        user: { id: 'user-1', email: 'user@example.com' },
+      },
+    })
+    mockClient.signIn[method].mockImplementationOnce(async (_data, opts) => {
+      await opts?.onSuccess?.('ctx')
+      return { url: providerURL, redirect: true }
+    })
 
     const { useAuthActionNamespaces } = await loadAuthComposables()
     const auth = useAuthActionNamespaces()
 
-    await auth.signIn.social({ provider: 'github' } as never)
+    if (method === 'social') {
+      await auth.signIn.social(data)
+    }
+    else {
+      await auth.signIn.oauth2(data)
+    }
 
-    expect(mockClient.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app' }, undefined)
+    expect(mockClient.signIn[method]).toHaveBeenCalledWith({ ...data, callbackURL: '/app' }, undefined)
     expect(mockClient.getSession).not.toHaveBeenCalled()
     expect(navigateTo).not.toHaveBeenCalled()
   })
@@ -691,7 +699,10 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.getSession).not.toHaveBeenCalled()
   })
 
-  it('signIn.social with disableRedirect wraps explicit onSuccess with session sync', async () => {
+  it.each([
+    { method: 'social', data: { provider: 'github', disableRedirect: true } },
+    { method: 'oauth2', data: { providerId: 'seznam', disableRedirect: true } },
+  ])('signIn.$method with disableRedirect syncs session before onSuccess', async ({ method, data }) => {
     let sessionAuth!: ReturnType<Awaited<ReturnType<typeof loadUseUserSession>>>
     let sessionAtCallback: unknown
     const onSuccess = vi.fn(() => {
@@ -703,7 +714,7 @@ describe('useUserSession hydration bootstrap', () => {
         user: { id: 'user-1', email: 'user@example.com' },
       },
     })
-    mockClient.signIn.social.mockImplementation(async (_data, opts) => {
+    mockClient.signIn[method].mockImplementation(async (_data, opts) => {
       await opts?.onSuccess?.('ctx')
     })
 
@@ -711,7 +722,12 @@ describe('useUserSession hydration bootstrap', () => {
     sessionAuth = useUserSession()
     const auth = useAuthActionNamespaces()
 
-    await auth.signIn.social({ provider: 'github', disableRedirect: true } as never, { onSuccess } as never)
+    if (method === 'social') {
+      await auth.signIn.social(data, { onSuccess })
+    }
+    else {
+      await auth.signIn.oauth2(data, { onSuccess })
+    }
 
     expect(onSuccess).toHaveBeenCalledOnce()
     expect(sessionAtCallback).toEqual({ id: 'session-1', ipAddress: '127.0.0.1' })
@@ -836,36 +852,89 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.user.value!.name).toBe('New')
   })
 
-  it('syncs session on $sessionSignal when option is enabled and SSR payload is hydrated', async () => {
+  it('syncs session after Better Auth refreshes hydrated SSR state', async () => {
     payload.serverRendered = true
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
-    let signalCb: (() => void | Promise<void>) | undefined
-    mockClient.$store.listen.mockImplementation((_signal: string, cb: () => void | Promise<void>) => {
-      signalCb = cb
-      return () => {
-        signalCb = undefined
-      }
-    })
-
-    mockClient.getSession.mockResolvedValueOnce({
+    const refreshedSession = {
       data: {
         session: { id: 'session-3', token: 'secret', ipAddress: '127.0.0.1' },
         user: { id: 'user-3', email: 'user3@example.com' },
       },
-    })
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
 
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
+    expect(auth.ready.value).toBe(false)
+
+    sessionAtom.value = refreshedSession
+    await flushPromises()
+
     expect(auth.ready.value).toBe(true)
-
-    await signalCb?.()
-
-    expect(mockClient.getSession).toHaveBeenCalledOnce()
     expect(auth.session.value).toEqual({ id: 'session-3', ipAddress: '127.0.0.1' })
     expect(auth.user.value).toEqual({ id: 'user-3', email: 'user3@example.com' })
+  })
+
+  it('does not re-sync session for nested mutations within the current Better Auth snapshot', async () => {
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    sessionAtom.value = {
+      data: {
+        session: { id: 'session-1', metadata: { role: 'member' } },
+        user: { id: 'user-1', email: 'user@example.com' },
+      },
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+    await flushPromises()
+    const bridgedSession = auth.session.value
+
+    const metadata = sessionAtom.value.data!.session.metadata as { role: string }
+    metadata.role = 'admin'
+    await flushPromises()
+
+    expect(auth.session.value).toBe(bridgedSession)
+  })
+
+  it.each([401, 500])('preserves session state when Better Auth returns HTTP %i during logout', async (status) => {
+    const client = createAuthClient({
+      baseURL: 'https://auth.example.test',
+      fetchOptions: {
+        customFetchImpl: async () => Response.json({ message: 'Logout unavailable' }, { status }),
+      },
+    })
+    mockClient.signOut.mockImplementationOnce(() => client.signOut())
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    seedHydratedState()
+    const auth = (await loadUseUserSession())()
+    const onSuccess = vi.fn()
+
+    await expect(auth.signOut({ onSuccess })).rejects.toThrow('Logout unavailable')
+
+    expect(auth.loggedIn.value).toBe(true)
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(navigateTo).not.toHaveBeenCalled()
+
+    await auth.signOut({ onSuccess })
+    expect(auth.loggedIn.value).toBe(false)
+    expect(onSuccess).toHaveBeenCalledOnce()
+  })
+
+  it('preserves session state when logout rejects', async () => {
+    mockClient.signOut.mockRejectedValueOnce(new Error('Network unavailable'))
+    seedHydratedState()
+    const auth = (await loadUseUserSession())()
+    const onSuccess = vi.fn()
+
+    await expect(auth.signOut({ onSuccess })).rejects.toThrow('Network unavailable')
+    expect(auth.loggedIn.value).toBe(true)
+    expect(onSuccess).not.toHaveBeenCalled()
   })
 
   it('signOut navigates to redirects.logout when configured (and no onSuccess)', async () => {

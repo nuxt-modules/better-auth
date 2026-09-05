@@ -18,6 +18,7 @@ interface SchemaContext {
 type HubSecondaryStorageMode = BetterAuthModuleOptions['hubSecondaryStorage']
 
 const NODE_MODULES_SEGMENT_RE = /[\\/]/
+const CONFIG_EXTENSION_RE = /\.[cm]?[jt]s$/
 
 export function resolveSchemaSecondaryStorageInjection(
   hubSecondaryStorage: HubSecondaryStorageMode,
@@ -65,15 +66,33 @@ export function resolveHubSchemaPath(
   return null
 }
 
+export function registerNuxtHubSchemaHook(
+  nuxt: Nuxt,
+  finishSetup: () => Promise<boolean>,
+): void {
+  const nuxtWithHubHooks = nuxt as Nuxt & { hook: (name: string, cb: (arg: { paths: string[], dialect: string }) => Promise<void>) => void }
+  nuxtWithHubHooks.hook('hub:db:schema:extend', async ({ paths, dialect }) => {
+    const hasHubSchema = await finishSetup()
+    if (!hasHubSchema)
+      return
+
+    const schemaPath = resolveHubSchemaPath(nuxt.options.buildDir, nuxt.options.rootDir, dialect)
+    if (schemaPath && !paths.includes(schemaPath))
+      paths.unshift(schemaPath)
+  })
+}
+
 async function loadAuthOptions(context: SchemaContext) {
   const isProduction = !context.nuxt.options.dev
-  const configFile = `${context.serverConfigPath}.ts`
+  const configFile = CONFIG_EXTENSION_RE.test(context.serverConfigPath) ? context.serverConfigPath : `${context.serverConfigPath}.ts`
   const alias = Object.fromEntries(
     Object.entries(context.nuxt.options.alias)
       .filter(([, value]) => typeof value === 'string')
       .map(([key, value]) => [key, value as string]),
   )
-  const userConfig = await loadUserAuthConfig(configFile, isProduction, alias, context.nuxt.options.runtimeConfig)
+  const userConfig = await loadUserAuthConfig(configFile, isProduction, alias, context.nuxt.options.runtimeConfig, context.nuxt.options.rootDir)
+  if (!userConfig)
+    return null
 
   const extendedConfig: { plugins?: BetterAuthPlugin[] } = {}
   await context.nuxt.callHook('better-auth:config:extend', extendedConfig)
@@ -99,7 +118,14 @@ export async function setupBetterAuthSchema(
   const context: SchemaContext = { nuxt, serverConfigPath }
 
   try {
-    const { userConfig, plugins } = await loadAuthOptions(context)
+    const authConfig = await loadAuthOptions(context)
+    // A config that failed to load carries none of the user's additionalFields or
+    // plugin columns. Regenerating from it would overwrite a correct schema file
+    // with a core-tables-only one, so leave whatever is already on disk alone.
+    if (!authConfig)
+      return
+
+    const { userConfig, plugins } = authConfig
     const userHasSecondaryStorage = userConfig.secondaryStorage != null
     const secondaryStorageResolution = resolveSchemaSecondaryStorageInjection(hubSecondaryStorage, userHasSecondaryStorage, !nuxt.options.dev)
     if (secondaryStorageResolution.error)
@@ -111,7 +137,13 @@ export async function setupBetterAuthSchema(
       ...userConfig,
       plugins,
       secondaryStorage: secondaryStorageResolution.inject
-        ? { get: async (_key: string) => null, set: async (_key: string, _value: string, _ttl?: number) => {}, delete: async (_key: string) => {} }
+        ? {
+            delete: async (_key: string) => {},
+            get: async (_key: string) => null,
+            getAndDelete: async (_key: string) => null,
+            increment: async (_key: string, _ttl: number) => 1,
+            set: async (_key: string, _value: string, _ttl?: number) => {},
+          }
         : undefined,
     }
 
@@ -138,13 +170,6 @@ export async function setupBetterAuthSchema(
     addTemplate({ filename: `better-auth/schema.${dialect}.mjs`, getContents: () => schemaCode, write: true })
 
     consola.info(`Generated ${dialect} schema (.ts + .mjs)`)
-
-    const nuxtWithHubHooks = nuxt as Nuxt & { hook: (name: string, cb: (arg: { paths: string[], dialect: string }) => void) => void }
-    nuxtWithHubHooks.hook('hub:db:schema:extend', ({ paths, dialect: hookDialect }) => {
-      const schemaPath = resolveHubSchemaPath(nuxt.options.buildDir, nuxt.options.rootDir, hookDialect)
-      if (schemaPath)
-        paths.unshift(schemaPath)
-    })
   }
   catch (error) {
     const isProduction = !nuxt.options.dev

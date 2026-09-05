@@ -3,6 +3,7 @@ import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
 import { defu } from 'defu'
 import { createRouter, toRouteMatcher } from 'radix3'
 import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useNuxtApp, useRequestHeaders, useRuntimeConfig } from '#imports'
+import { shouldSkipAuthRouteRules } from '../../internal/auth-route-rules'
 import { matchesUser } from '../../utils/match-user'
 import { useUserSession } from '../composables/useUserSession'
 
@@ -22,6 +23,15 @@ let authRouteRulesPromise: Promise<Record<string, AuthRouteRules>> | null = null
 let routeRulesMatcherPromise: Promise<ReturnType<typeof toRouteMatcher> | null> | null = null
 
 export default defineNuxtRouteMiddleware(async (to) => {
+  if (shouldSkipAuthRouteRules(to.path))
+    return
+
+  // Let Nuxt render its own 404 for URLs that match no page. Without this, a broad
+  // rule such as `'/**': { auth: 'user' }` redirects unauthenticated visitors to the
+  // login page instead, so a missing route never surfaces as a 404.
+  if (to.matched?.length === 0)
+    return
+
   const nuxtApp = useNuxtApp()
 
   // Runtime fallback: resolve auth from module-known route rules if not set at build-time.

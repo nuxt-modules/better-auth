@@ -2,14 +2,6 @@
   "name": "better-auth-playground",
   "type": "module",
   "private": true,
-  "agentskills": {
-    "skills": [
-      {
-        "name": "nuxt-better-auth",
-        "path": "../skills/nuxt-better-auth"
-      }
-    ]
-  },
   "scripts": {
     "dev": "nuxi dev",
     "build": "nuxi build",
@@ -18,23 +10,21 @@
     "db:migrate": "nuxt db migrate"
   },
   "dependencies": {
-    "@better-auth/passkey": "1.6.20",
-    "@nuxt/fonts": "^0.14.0",
-    "@nuxt/icon": "^2.2.3",
-    "@nuxt/ui": "^4.9.0",
-    "@nuxthub/core": "^0.10.7",
-    "@nuxtjs/i18n": "^10.4.0",
-    "better-auth": "1.6.20",
-    "nuxt": "^4.4.8",
+    "@better-auth/passkey": "1.7.1",
+    "@nuxt/ui": "^4.10.0",
+    "@nuxthub/core": "^0.10.8",
+    "@nuxtjs/i18n": "^10.6.0",
+    "better-auth": "1.7.1",
+    "nuxt": "^4.5.2",
     "nuxt-qrcode": "^0.4.10",
-    "resend": "^6.14.0"
+    "resend": "6.18.0"
   },
   "devDependencies": {
-    "@better-auth/cli": "1.5.0-beta.13",
     "@libsql/client": "^0.17.4",
+    "auth": "1.7.1",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "nitro-cloudflare-dev": "^0.2.2",
-    "wrangler": "^4.103.0"
+    "wrangler": "^4.124.0"
   }
 }

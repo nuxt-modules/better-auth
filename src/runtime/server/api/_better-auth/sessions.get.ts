@@ -1,6 +1,6 @@
 import type { Session } from 'better-auth/types'
-import { defineEventHandler, getQuery } from 'h3'
 import { paginationQuerySchema, sanitizeSearchPattern } from './_schema'
+import { defineEventHandler, getQuery } from '../../internal/nitro-compat'
 
 type SafeSession = Pick<Session, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'expiresAt' | 'ipAddress' | 'userAgent'>
 

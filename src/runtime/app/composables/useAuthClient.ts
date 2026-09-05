@@ -34,7 +34,8 @@ export function useRawAuthClient(): AppAuthClient | null {
 
   const runtimeConfig = useRuntimeConfig()
   const requestURL = useRequestURL()
-  const siteUrl = typeof runtimeConfig.public.siteUrl === 'string' ? runtimeConfig.public.siteUrl : requestURL.origin
+  const configuredSiteUrl = runtimeConfig.public.siteUrl
+  const siteUrl = typeof configuredSiteUrl === 'string' && configuredSiteUrl ? configuredSiteUrl : requestURL.origin
   return getClient(siteUrl)
 }
 

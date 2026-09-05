@@ -19,25 +19,25 @@ const packageManagers = [
     label: 'pnpm',
     value: 'pnpm',
     icon: 'i-simple-icons-pnpm',
-    command: 'pnpm dlx nuxi module add @onmax/nuxt-better-auth',
+    command: 'pnpm dlx nuxi module add @nuxtjs/better-auth',
   },
   {
     label: 'npm',
     value: 'npm',
     icon: 'i-simple-icons-npm',
-    command: 'npx nuxi module add @onmax/nuxt-better-auth',
+    command: 'npx nuxi module add @nuxtjs/better-auth',
   },
   {
     label: 'bun',
     value: 'bun',
     icon: 'i-simple-icons-bun',
-    command: 'bunx nuxi module add @onmax/nuxt-better-auth',
+    command: 'bunx nuxi module add @nuxtjs/better-auth',
   },
   {
     label: 'yarn',
     value: 'yarn',
     icon: 'i-simple-icons-yarn',
-    command: 'yarn dlx nuxi module add @onmax/nuxt-better-auth',
+    command: 'yarn dlx nuxi module add @nuxtjs/better-auth',
   },
 ] as const
 
@@ -48,11 +48,9 @@ const activePackageManager = ref<PackageManager>('pnpm')
 const isMobile = useMediaQuery('(max-width: 639px)')
 const requestUrl = useRequestURL()
 const appBaseURL = useRuntimeConfig().app.baseURL || '/'
-const promptOpen = ref(false)
 const copied = ref<string | null>(null)
 const commandMeasure = ref<HTMLElement | null>(null)
 const commandWidth = ref<number | null>(null)
-const resetPromptAfterLeave = ref(false)
 
 const selectedPackageManager = computed(() =>
   isMobile.value
@@ -60,23 +58,19 @@ const selectedPackageManager = computed(() =>
     : packageManagers.find(manager => manager.value === activePackageManager.value) ?? packageManagers[0],
 )
 
-const activeCommand = computed(() => selectedPackageManager.value.command)
-const rawInstallationDocsUrl = computed(() => {
-  const normalizedBaseURL = appBaseURL === '/' ? '' : appBaseURL.replace(/\/$/, '')
-
-  return new URL(`${normalizedBaseURL}/raw/getting-started/installation.md`, requestUrl.origin).toString()
-})
-
-const agentPrompt = computed(() => `Install @onmax/nuxt-better-auth in my Nuxt 4 app.
-
-- Read the raw installation documentation first: ${rawInstallationDocsUrl.value}
-- Run \`${activeCommand.value}\`
-- Set \`BETTER_AUTH_SECRET\` in \`.env\` (at least 32 chars, high entropy). Optionally prefix with \`NUXT_\` for runtime config
-- Optionally set \`NUXT_PUBLIC_SITE_URL\` for non-auto-detected platforms
-- Create \`server/auth.config.ts\` using \`defineServerAuth\` from \`@onmax/nuxt-better-auth/config\`
-- Create \`app/auth.config.ts\` using \`defineClientAuth\` from \`@onmax/nuxt-better-auth/config\`
-- The module auto-injects \`secret\` and \`baseURL\` — do not configure them manually
-- In \`defineServerAuth\`, use the app config callback's \`requestOrigin\` when Better Auth needs the current request host, such as \`trustedOrigins\``)
+const skillsUrl = computed(() => new URL(appBaseURL, requestUrl.origin).toString())
+const skillsCommand = computed(() => `npx skills add ${skillsUrl.value}`)
+const activeCommand = computed(() =>
+  activeCommandTab.value === 'agents'
+    ? skillsCommand.value
+    : selectedPackageManager.value.command,
+)
+const activeCopyKey = computed(() => activeCommandTab.value === 'agents' ? 'skills' : 'command')
+const copyLabel = computed(() =>
+  copied.value === activeCopyKey.value
+    ? activeCommandTab.value === 'agents' ? 'Copied skills command' : 'Copied command'
+    : activeCommandTab.value === 'agents' ? 'Copy skills command' : 'Copy command',
+)
 
 async function copyValue(value: string, key: string) {
   copied.value = key
@@ -124,21 +118,6 @@ watch(activeCommand, async () => {
 
 watch(activeCommandTab, () => {
   copied.value = null
-  if (activeCommandTab.value === 'humans')
-    resetPromptAfterLeave.value = true
-})
-
-function handleInstallMainAfterLeave() {
-  if (!resetPromptAfterLeave.value)
-    return
-
-  promptOpen.value = false
-  resetPromptAfterLeave.value = false
-}
-
-watch(promptOpen, (open) => {
-  if (open)
-    resetPromptAfterLeave.value = false
 })
 </script>
 
@@ -212,16 +191,15 @@ watch(promptOpen, (open) => {
       </Transition>
     </div>
 
-    <Transition name="install-main" mode="out-in" @after-leave="handleInstallMainAfterLeave">
+    <Transition name="install-main" mode="out-in">
       <UButton
-        v-if="activeCommandTab === 'humans'"
-        key="humans-command"
+        :key="activeCommandTab"
         type="button"
         color="neutral"
         variant="ghost"
         class="group h-auto w-full justify-start rounded-sm border border-stone-950/10 bg-white/70 px-3 py-2 text-left hover:bg-white active:bg-white dark:border-white/10 dark:bg-zinc-950 dark:hover:bg-white/[0.04] dark:active:bg-white/[0.04]"
-        :aria-label="copied === 'command' ? 'Copied command' : 'Copy command'"
-        @click="copyValue(activeCommand, 'command')"
+        :aria-label="copyLabel"
+        @click="copyValue(activeCommand, activeCopyKey)"
       >
         <span class="inline-flex size-6 shrink-0 items-center justify-center rounded-[3px] bg-stone-100 text-stone-500 ring-1 ring-stone-950/10 select-none dark:bg-white/[0.06] dark:text-stone-400 dark:ring-white/10">
           <UIcon name="i-lucide-terminal" class="size-3.5" />
@@ -239,59 +217,13 @@ watch(promptOpen, (open) => {
         </span>
         <span class="ml-auto inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-stone-500 group-hover:bg-stone-100/80 group-hover:text-stone-700 dark:text-stone-500 dark:group-hover:bg-white/[0.06] dark:group-hover:text-stone-300">
           <Transition name="copy-icon" mode="out-in">
-            <svg v-if="copied === 'command'" key="check" class="size-4 text-emerald-500" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <svg v-if="copied === activeCopyKey" key="check" class="size-4 text-emerald-500" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
             <UIcon v-else key="copy" name="i-lucide-copy" class="size-4" />
           </Transition>
         </span>
       </UButton>
-
-      <div v-else key="agents-prompt" class="overflow-hidden rounded-sm border border-stone-950/10 bg-white/70 text-left dark:border-white/10 dark:bg-zinc-950">
-        <UCollapsible
-          v-model:open="promptOpen"
-          :ui="{ content: 'overflow-hidden data-[state=open]:animate-[collapsible-down_150ms_ease-out] data-[state=closed]:animate-[collapsible-up_150ms_ease-out]' }"
-        >
-          <template #default="{ open }">
-            <div class="flex min-h-11 items-center gap-2 px-3 py-2">
-              <UButton
-                type="button"
-                color="neutral"
-                variant="ghost"
-                class="min-w-0 flex-1 justify-start rounded-sm p-0 text-left text-sm text-stone-700 hover:bg-transparent hover:text-stone-800 active:bg-transparent dark:text-stone-300 dark:hover:text-stone-100"
-                :aria-expanded="open"
-              >
-                <UIcon :name="open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" class="size-4 shrink-0" />
-                <UIcon name="i-lucide-sparkles" class="size-4 shrink-0 text-stone-500 dark:text-stone-500" />
-                <span class="min-w-0 truncate font-medium">AI install prompt</span>
-              </UButton>
-
-              <UButton
-                type="button"
-                color="neutral"
-                variant="ghost"
-                class="h-7 shrink-0 rounded-sm px-2 text-stone-500 hover:bg-stone-100/80 hover:text-stone-700 active:bg-stone-100/80 dark:text-stone-500 dark:hover:bg-white/[0.06] dark:hover:text-stone-300 dark:active:bg-white/[0.06]"
-                :aria-label="copied === 'prompt' ? 'Copied prompt' : 'Copy prompt'"
-                @click.stop="copyValue(agentPrompt, 'prompt')"
-              >
-                <Transition name="copy-icon" mode="out-in">
-                  <span v-if="copied === 'prompt'" key="check" class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                    <svg class="size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    <span class="text-xs font-medium">Copied</span>
-                  </span>
-                  <UIcon v-else key="copy" name="i-lucide-copy" class="size-4" />
-                </Transition>
-              </UButton>
-            </div>
-          </template>
-
-          <template #content>
-            <pre class="max-h-72 overflow-auto border-t border-stone-950/10 bg-stone-50/70 px-3 py-3 text-left text-xs leading-5 text-stone-800 dark:border-white/10 dark:bg-black/10 dark:text-stone-200"><code>{{ agentPrompt }}</code></pre>
-          </template>
-        </UCollapsible>
-      </div>
     </Transition>
   </div>
 </template>

@@ -24,6 +24,7 @@ export default defineNitroPlugin(async () => {
 
   await db.run(`CREATE TABLE IF NOT EXISTS account (
     id TEXT PRIMARY KEY NOT NULL,
+    issuer TEXT NOT NULL,
     accountId TEXT NOT NULL,
     providerId TEXT NOT NULL,
     userId TEXT NOT NULL REFERENCES user(id),

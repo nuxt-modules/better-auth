@@ -3,6 +3,7 @@
   defineClientAuth: function
   defineServerAuth: function
 ./composables:
+  runWithSessionRefresh: function
   useAction: function
   useAuthAsyncData: function
   useAuthClient: function

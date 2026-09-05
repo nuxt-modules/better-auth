@@ -4,10 +4,11 @@
     "noEmit": true
   },
   "include": [
+    "./.nuxt/types/nuxt-better-auth.d.ts",
     "./.nuxt/types/nuxt-better-auth-client.d.ts",
     "./.nuxt/types/nuxt-better-auth-infer.d.ts",
     "./.nuxt/types/nuxt-better-auth-social-providers.d.ts",
-    "./.nuxt/types/nuxt-better-auth-nitro.d.ts",
+    "./.nuxt/types/nuxt-better-auth-endpoints.d.ts",
     "./typecheck-target.ts"
   ]
 }

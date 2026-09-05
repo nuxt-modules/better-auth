@@ -10,13 +10,28 @@ describe('requireUserSession typing regression #130', () => {
     const testDir = mkdtempSync(join(tmpdir(), 'nuxt-better-auth-session-types-'))
     try {
       const runtimeDir = join(testDir, 'runtime')
+      const serverInternalDir = join(runtimeDir, 'server', 'internal')
       const serverUtilsDir = join(runtimeDir, 'server', 'utils')
       const runtimeUtilsDir = join(runtimeDir, 'utils')
 
+      mkdirSync(serverInternalDir, { recursive: true })
       mkdirSync(serverUtilsDir, { recursive: true })
       mkdirSync(runtimeUtilsDir, { recursive: true })
 
       copyFileSync(join(import.meta.dirname, '../src/runtime/server/utils/session.ts'), join(serverUtilsDir, 'session.ts'))
+
+      writeFileSync(join(serverInternalDir, 'nitro-compat.ts'), `export interface ServerEvent {
+  headers: Headers
+}
+
+export function createAuthError(status: number, statusText: string): Error {
+  return Object.assign(new Error(statusText), { status, statusCode: status, statusText, statusMessage: statusText })
+}
+
+export function splitCookiesString(header: string): string[] {
+  return [header]
+}
+`)
 
       writeFileSync(join(serverUtilsDir, 'auth.ts'), `export function serverAuth(_event?: unknown) {
   return {
@@ -73,19 +88,20 @@ export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
   export interface H3Event {
     headers: Headers
   }
-
-  export function createError(input: { statusCode: number, statusMessage: string }): Error
 }
 `)
 
       writeFileSync(join(testDir, 'check.ts'), `import type { H3Event } from 'h3'
-import { requireUserSession } from './runtime/server/utils/session'
+import { requireUserSession, setRequestSession } from './runtime/server/utils/session'
 
 export async function check(event: H3Event) {
   const session = await requireUserSession(event, {
     user: { address: 'NQ12...' },
     rule: ({ user }) => Boolean(user.address),
   })
+
+  setRequestSession(event, session)
+  setRequestSession(event, null)
 
   return session.user.address
 }
@@ -108,6 +124,7 @@ export async function check(event: H3Event) {
   },
   "files": [
     "./runtime/server/utils/session.ts",
+    "./runtime/server/internal/nitro-compat.ts",
     "./runtime/server/utils/auth.ts",
     "./runtime/utils/match-user.ts",
     "./runtime/types.ts",
@@ -117,7 +134,7 @@ export async function check(event: H3Event) {
 }
 `)
 
-      const typecheck = spawnSync('pnpm', ['exec', 'tsc', '--noEmit', '--pretty', 'false', '-p', tsconfigPath], {
+      const typecheck = spawnSync('corepack', ['pnpm', 'exec', 'tsc', '--noEmit', '--pretty', 'false', '-p', tsconfigPath], {
         cwd: import.meta.dirname,
         encoding: 'utf8',
       })

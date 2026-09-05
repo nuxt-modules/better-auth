@@ -1,6 +1,7 @@
-import type { NitroFetchOptions } from 'nitropack/types'
 import type { AuthApiEndpointMethod, AuthApiEndpointPath, AuthApiEndpointResponse } from '#nuxt-better-auth'
 import { useRequestFetch } from '#imports'
+
+type RequestFetchOptions = NonNullable<Parameters<ReturnType<typeof useRequestFetch>>[1]>
 
 type AuthRequestFetchExtractedMethod<Options> = Options extends undefined
   ? 'get'
@@ -8,17 +9,17 @@ type AuthRequestFetchExtractedMethod<Options> = Options extends undefined
     ? NormalizedMethod
     : 'get'
 
-type AuthRequestFetchMethodFromOptions<Path extends AuthApiEndpointPath, Options> = NitroFetchOptions<Path> extends Options
+type AuthRequestFetchMethodFromOptions<Options> = RequestFetchOptions extends Options
   ? 'get'
   : AuthRequestFetchExtractedMethod<Options>
 
-type AuthRequestFetchResolvedMethod<Path extends AuthApiEndpointPath, Options> = Extract<AuthRequestFetchMethodFromOptions<Path, Options>, AuthApiEndpointMethod<Path>> extends infer Method extends string
+type AuthRequestFetchResolvedMethod<Path extends AuthApiEndpointPath, Options> = Extract<AuthRequestFetchMethodFromOptions<Options>, AuthApiEndpointMethod<Path>> extends infer Method extends string
   ? Method
   : never
 
 type AuthRequestFetch = <
   Path extends AuthApiEndpointPath,
-  Options extends NitroFetchOptions<Path> = NitroFetchOptions<Path>,
+  Options extends RequestFetchOptions = RequestFetchOptions,
 >(
   request: Path,
   opts?: Options,

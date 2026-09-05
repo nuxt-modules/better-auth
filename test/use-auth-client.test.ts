@@ -59,4 +59,14 @@ describe('useAuthClient', () => {
     expect(isReactive(client!.signIn.email)).toBe(false)
     await expect(client!.signIn.email({ email: 'user@example.com', password: 'password' })).resolves.toEqual({ ok: true })
   })
+
+  it('falls back to the request origin when runtime siteUrl is empty', async () => {
+    setRuntimeFlags({ client: true, server: false })
+    runtimeConfig.public.siteUrl = ''
+
+    const useAuthClient = await loadUseAuthClient()
+    useAuthClient()
+
+    expect(createAppAuthClient).toHaveBeenLastCalledWith(requestURL.origin)
+  })
 })

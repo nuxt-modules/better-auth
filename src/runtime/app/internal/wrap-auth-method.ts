@@ -2,6 +2,17 @@ import type { ComputedRef } from 'vue'
 import { nextTick } from '#imports'
 import { isRecord } from './utils'
 
+export async function refreshSessionAfterAuthAction(
+  fetchSession: (options?: { force?: boolean }) => Promise<void>,
+  loggedIn: ComputedRef<boolean>,
+  waitForSession: () => Promise<void>,
+) {
+  await fetchSession({ force: true })
+  if (!loggedIn.value)
+    await waitForSession()
+  await nextTick()
+}
+
 export function wrapOnSuccess(
   fetchSession: (options?: { force?: boolean }) => Promise<void>,
   loggedIn: ComputedRef<boolean>,
@@ -9,10 +20,7 @@ export function wrapOnSuccess(
   cb: (ctx: unknown) => void | Promise<void>,
 ) {
   return async (ctx: unknown) => {
-    await fetchSession({ force: true })
-    if (!loggedIn.value)
-      await waitForSession()
-    await nextTick()
+    await refreshSessionAfterAuthAction(fetchSession, loggedIn, waitForSession)
     await cb(ctx)
   }
 }

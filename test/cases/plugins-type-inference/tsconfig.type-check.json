@@ -9,8 +9,7 @@
     "moduleResolution": "bundler",
     "paths": {
       "#auth/client": ["./app/auth.config"],
-      "#auth/server": ["./server/auth.config"],
-      "#nuxt-better-auth": ["../../../src/runtime/types/augment"]
+      "#auth/server": ["./server/auth.config"]
     },
     "types": [],
     "strict": true,
@@ -19,8 +18,11 @@
   },
   "files": [
     "./virtual-modules.d.ts",
+    "./.nuxt/types/nuxt-better-auth.d.ts",
+    "./.nuxt/types/nuxt-better-auth-h3.d.ts",
     "./.nuxt/types/nuxt-better-auth-infer.d.ts",
     "./.nuxt/types/nuxt-better-auth-social-providers.d.ts",
+    "./.nuxt/types/nuxt-better-auth-endpoints.d.ts",
     "./.nuxt/types/nuxt-better-auth-nitro.d.ts",
     "./typecheck-target.ts"
   ]

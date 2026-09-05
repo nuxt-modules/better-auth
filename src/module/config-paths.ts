@@ -2,7 +2,7 @@ import type { Nuxt } from '@nuxt/schema'
 import type { BetterAuthModuleOptions } from '../runtime/config'
 import { existsSync } from 'node:fs'
 import { getLayerDirectories } from '@nuxt/kit'
-import { isAbsolute, join, relative } from 'pathe'
+import { isAbsolute, join, relative, resolve } from 'pathe'
 
 export type ModuleConfigKind = 'server' | 'client'
 
@@ -31,6 +31,10 @@ const DEFAULT_CONFIG_FILES = {
 const OPTION_KEY_BY_KIND = {
   server: 'serverConfig',
   client: 'clientConfig',
+} satisfies Record<ModuleConfigKind, keyof BetterAuthModuleOptions>
+const PLUGIN_OPTION_KEY_BY_KIND = {
+  server: 'serverPluginSources',
+  client: 'clientPluginSources',
 } satisfies Record<ModuleConfigKind, keyof BetterAuthModuleOptions>
 
 function stripConfigExtension(path: string): string {
@@ -171,4 +175,20 @@ export function resolveAuthConfigDescriptors(
     server: resolveAuthConfigDescriptor(nuxt, 'server', files.server, dependencies),
     client: resolveAuthConfigDescriptor(nuxt, 'client', files.client, dependencies),
   }
+}
+
+export function resolveAuthPluginSources(nuxt: Nuxt): Record<ModuleConfigKind, string[]> {
+  const resolved = { server: [], client: [] } as Record<ModuleConfigKind, string[]>
+
+  for (const { directory, layer } of getLayerDirectoriesWithConfigs(nuxt)) {
+    for (const kind of ['server', 'client'] as const) {
+      const sources = layer?.config?.auth?.[PLUGIN_OPTION_KEY_BY_KIND[kind]]
+      if (!Array.isArray(sources))
+        continue
+
+      resolved[kind].push(...sources.map(source => isAbsolute(source) ? source : resolve(directory.root, source)))
+    }
+  }
+
+  return resolved
 }

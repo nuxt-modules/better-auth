@@ -1,4 +1,3 @@
-import type { NitroRouteRules } from 'nitropack/types'
 import type { AuthSocialProviderRegistry, AuthUser, UserMatch } from '#nuxt-better-auth'
 
 // Re-export augmentable types
@@ -26,4 +25,4 @@ export type AuthMeta = false | AuthMode | {
 }
 
 // Route rules with auth
-export type AuthRouteRules = NitroRouteRules & { auth?: AuthMeta }
+export type AuthRouteRules = Record<string, unknown> & { auth?: AuthMeta }

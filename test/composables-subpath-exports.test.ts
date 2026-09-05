@@ -10,7 +10,7 @@ const env = {
 }
 
 describe('public composables subpath export', () => {
-  it('typechecks consumer imports from @onmax/nuxt-better-auth/composables', () => {
+  it('typechecks consumer imports from @nuxtjs/better-auth/composables', () => {
     if (!existsSync(fileURLToPath(new URL('../dist/runtime/composables.js', import.meta.url)))) {
       const build = spawnSync('pnpm', ['exec', 'nuxt-module-build', 'build'], {
         cwd: fileURLToPath(new URL('..', import.meta.url)),

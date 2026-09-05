@@ -11,8 +11,8 @@ import { getAuthRuntimeFlags, useRawAuthClient } from './useAuthClient'
 
 export interface SignOutOptions { onSuccess?: () => void | Promise<void> }
 
-let _sessionSignalListenerBound = false
 let _signOutPromise: Promise<void> | null = null
+const _sessionSyncApps = new WeakSet<object>()
 
 export interface UseUserSessionReturn {
   session: Ref<AuthSession | null>
@@ -43,28 +43,6 @@ function createServerOnlyActionNamespace(path: string) {
 const _signInServerOnly = createServerOnlyActionNamespace('signIn')
 const _signUpServerOnly = createServerOnlyActionNamespace('signUp')
 
-function ensureSessionSignalListener(client: AppAuthClient, onSignal: () => Promise<void>) {
-  if (_sessionSignalListenerBound)
-    return
-
-  const store = (client as unknown as { $store?: unknown }).$store
-  if (!isRecord(store))
-    return
-
-  const listen = (store as { listen?: unknown }).listen
-  if (typeof listen !== 'function')
-    return
-
-  _sessionSignalListenerBound = true
-  const listenFn = listen as (signal: string, cb: () => void | Promise<void>) => unknown
-  listenFn('$sessionSignal', async () => {
-    try {
-      await onSignal()
-    }
-    catch {}
-  })
-}
-
 export function useUserSession(): UseUserSessionReturn {
   const runtimeFlags = getAuthRuntimeFlags()
   const runtimeConfig = useRuntimeConfig()
@@ -88,22 +66,6 @@ export function useUserSession(): UseUserSessionReturn {
     return !session.value && !user.value
   })
 
-  const skipHydratedSsrGetSession = computed(() => {
-    const authConfig = runtimeConfig.public.auth as { session?: { skipHydratedSsrGetSession?: boolean } } | undefined
-    return Boolean(authConfig?.session?.skipHydratedSsrGetSession)
-  })
-  const shouldSkipInitialClientSessionFetch = computed(() => {
-    if (!skipHydratedSsrGetSession.value)
-      return false
-    if (!runtimeFlags.client)
-      return false
-    if (!nuxtApp.payload.serverRendered)
-      return false
-    if (isPrerenderedPayload.value)
-      return false
-    return Boolean(session.value && user.value)
-  })
-
   if (isPrerenderHydrationEmptySnapshot.value && authReady.value && !prerenderReadyResetQueued.value) {
     prerenderReadyResetQueued.value = true
     nuxtApp.hook('app:suspense:resolve', () => {
@@ -116,9 +78,6 @@ export function useUserSession(): UseUserSessionReturn {
       }
     })
   }
-
-  if (shouldSkipInitialClientSessionFetch.value && !authReady.value)
-    authReady.value = true
 
   function clearSession() {
     session.value = null
@@ -162,9 +121,33 @@ export function useUserSession(): UseUserSessionReturn {
     }
   }
 
+  function queueHydrationReconciliation() {
+    if (hydrationReconcileQueued.value)
+      return
+
+    hydrationReconcileQueued.value = true
+    nuxtApp.hook('app:mounted', async () => {
+      await fetchSession({ force: true })
+      hydrationReconcileQueued.value = false
+    })
+  }
+
   // On client, subscribe to better-auth's reactive session store
-  if (runtimeFlags.client && rawClient && !shouldSkipInitialClientSessionFetch.value) {
+  if (runtimeFlags.client && rawClient && !_sessionSyncApps.has(nuxtApp)) {
     const clientSession = rawClient.useSession()
+    const initialClientSession = clientSession.value
+
+    const shouldReconcileInitialHydration
+      = nuxtApp.isHydrating
+        && nuxtApp.payload.serverRendered
+        && Boolean(session.value && user.value)
+        && !initialClientSession?.data?.session
+        && !initialClientSession?.data?.user
+        && !initialClientSession?.isPending
+        && !initialClientSession?.isRefetching
+
+    if (shouldReconcileInitialHydration)
+      queueHydrationReconciliation()
 
     watch(
       () => clientSession.value,
@@ -190,13 +173,7 @@ export function useUserSession(): UseUserSessionReturn {
               && !newSession?.data?.user
 
           if (isHydrationEmptySnapshot) {
-            if (!hydrationReconcileQueued.value) {
-              hydrationReconcileQueued.value = true
-              nuxtApp.hook('app:mounted', async () => {
-                await fetchSession({ force: true })
-                hydrationReconcileQueued.value = false
-              })
-            }
+            queueHydrationReconciliation()
             return
           }
 
@@ -205,8 +182,9 @@ export function useUserSession(): UseUserSessionReturn {
         if (!authReady.value && !newSession?.isPending && !newSession?.isRefetching)
           authReady.value = true
       },
-      { immediate: true, deep: true },
     )
+
+    _sessionSyncApps.add(nuxtApp)
   }
 
   function waitForSession(): Promise<void> {
@@ -228,10 +206,6 @@ export function useUserSession(): UseUserSessionReturn {
     })
   }
 
-  if (runtimeFlags.client && rawClient && shouldSkipInitialClientSessionFetch.value) {
-    ensureSessionSignalListener(rawClient, () => fetchSession({ force: true }))
-  }
-
   async function signOut(options?: SignOutOptions) {
     if (!rawClient)
       throw new Error('signOut can only be called on client-side')
@@ -242,7 +216,9 @@ export function useUserSession(): UseUserSessionReturn {
     }
 
     _signOutPromise = (async () => {
-      await rawClient.signOut()
+      const result = await rawClient.signOut()
+      if (isRecord(result) && result.error)
+        throw new Error(normalizeAuthActionError(result.error).message)
       clearSession()
 
       if (options?.onSuccess) {
@@ -295,17 +271,16 @@ export function useAuthActionNamespaces() {
         const method = targetRecord[prop]
         if (typeof method !== 'function')
           return method
-        const shouldSkipSessionSync = prop === 'social'
-          ? (data: unknown) => {
-              const socialData = isRecord(data) ? data : undefined
-              return socialData?.disableRedirect !== true
-            }
-          : undefined
-        const transformData = prop === 'social' ? (data: unknown) => withFallbackSocialCallbackURL(data, requestURL) : undefined
+        const isRedirectOAuthSignIn = prop === 'social' || prop === 'oauth2'
         return wrapAuthMethod(
           (...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args),
           wrapDeps,
-          { shouldSkipSessionSync, transformData },
+          isRedirectOAuthSignIn
+            ? {
+                shouldSkipSessionSync: (data: unknown) => !isRecord(data) || data.disableRedirect !== true,
+                transformData: (data: unknown) => withFallbackSocialCallbackURL(data, requestURL),
+              }
+            : {},
         )
       })
     : _signInServerOnly as SignIn

@@ -1,17 +1,34 @@
 import type { DbDialect } from './hub'
 
-export function buildSecondaryStorageCode(useHubKV: boolean): string {
-  if (!useHubKV)
-    return 'export function createSecondaryStorage() { return undefined }'
-
-  return `import { kv } from '@nuxthub/kv'
-export function createSecondaryStorage() {
+function buildImports(sources: string[]): { imports: string, names: string } {
   return {
-    get: async (key) => kv.get(\`_auth:\${key}\`),
-    set: async (key, value, ttl) => kv.set(\`_auth:\${key}\`, value, { ttl }),
-    delete: async (key) => kv.del(\`_auth:\${key}\`),
+    imports: sources.map((source, index) => `import plugin${index} from ${JSON.stringify(source)}`).join('\n'),
+    names: sources.map((_, index) => `plugin${index}`).join(', '),
   }
-}`
+}
+
+export function buildExtendedServerAuthCode(configPath: string, sources: string[]): string {
+  const plugins = buildImports(sources)
+  return `import createAppAuth from ${JSON.stringify(configPath)}
+import { extendServerAuth } from '@nuxtjs/better-auth/config'
+${plugins.imports}
+
+export default extendServerAuth(createAppAuth, [${plugins.names}])
+`
+}
+
+export function buildExtendedClientAuthCode(configPath: string, sources: string[]): string {
+  const plugins = buildImports(sources)
+  return `import createAppAuthClient from ${JSON.stringify(configPath)}
+import { extendClientAuth } from '@nuxtjs/better-auth/config'
+${plugins.imports}
+
+export default extendClientAuth(createAppAuthClient, [${plugins.names}])
+`
+}
+
+export function buildSecondaryStorageCode(): string {
+  return 'export function createSecondaryStorage() { return undefined }'
 }
 
 interface BuildDatabaseCodeInput {
@@ -146,12 +163,24 @@ export const db = undefined`
 }
 
 export function buildSchemaExportCode(hasHubDb: boolean, hubDialect: DbDialect): string {
-  if (!hasHubDb)
-    return 'export const schema = undefined\n'
+  if (!hasHubDb) {
+    return `export const user = undefined
+export const session = undefined
+export const account = undefined
+export const verification = undefined
+export const schema = undefined
+`
+  }
 
   return `export * from './schema.${hubDialect}.mjs'
-import * as schema from './schema.${hubDialect}.mjs'
-export { schema }
+import * as generatedSchema from './schema.${hubDialect}.mjs'
+
+const getGeneratedTable = name => generatedSchema[name] ?? generatedSchema[\`\${name}s\`]
+export const user = getGeneratedTable('user')
+export const session = getGeneratedTable('session')
+export const account = getGeneratedTable('account')
+export const verification = getGeneratedTable('verification')
+export const schema = { ...generatedSchema, user, session, account, verification }
 `
 }
 

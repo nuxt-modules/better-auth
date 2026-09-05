@@ -122,8 +122,7 @@ function getLang(filename: string) {
 </script>
 
 <template>
-  <AnnouncementBanner />
-  <section class="relative w-full flex overflow-x-hidden md:items-end md:justify-center bg-white/96 dark:bg-black/[0.96] antialiased min-h-[40rem] md:min-h-[50rem] lg:min-h-[40rem]">
+  <section class="relative w-full flex overflow-x-clip md:items-end md:justify-center bg-white/96 dark:bg-black/[0.96] antialiased min-h-[40rem] md:min-h-[50rem] lg:min-h-[40rem]">
     <!-- Spotlight Effect -->
     <LandingSpotlight />
 
@@ -171,7 +170,7 @@ function getLang(filename: string) {
                 Get Started
               </NuxtLink>
               <NuxtLink
-                to="https://github.com/onmax/nuxt-better-auth"
+                to="https://github.com/nuxt-modules/better-auth"
                 target="_blank"
                 class="group relative inline-block min-w-0 text-xs font-semibold leading-6 text-stone-950 no-underline dark:text-white"
               >
@@ -283,7 +282,7 @@ function getLang(filename: string) {
                         </UCollapsible>
 
                         <ScrollAreaRoot class="w-full min-w-0 overflow-hidden">
-                          <ScrollAreaViewport class="w-full min-w-0 overflow-x-auto overscroll-x-contain">
+                          <ScrollAreaViewport class="w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain">
                             <!-- All files rendered for SSR, animated with CSS -->
                             <div class="relative">
                               <div

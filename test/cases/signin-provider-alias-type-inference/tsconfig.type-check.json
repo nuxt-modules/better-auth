@@ -7,11 +7,6 @@
     ],
     "module": "preserve",
     "moduleResolution": "bundler",
-    "paths": {
-      "#nuxt-better-auth": [
-        "./.nuxt/types/nuxt-better-auth.d.ts"
-      ]
-    },
     "types": [],
     "strict": true,
     "noEmit": true,

@@ -3,7 +3,7 @@
 ## Happy path
 
 ```bash
-npx nuxi module add @onmax/nuxt-better-auth@alpha
+npx nuxi module add @nuxtjs/better-auth
 ```
 
 Required files:
@@ -12,13 +12,13 @@ Required files:
 - `app/auth.config.ts` or the equivalent file inside your `srcDir`
 - `.env` with `NUXT_BETTER_AUTH_SECRET`
 
-## Required environment variables
+## Environment variables
 
 ```ini
 NUXT_BETTER_AUTH_SECRET=replace-with-a-random-32-character-secret
 ```
 
-Optional but commonly required in production:
+Set the public site URL when the deployment platform cannot detect it:
 
 ```ini
 NUXT_PUBLIC_SITE_URL=https://your-domain.com
@@ -26,18 +26,24 @@ NUXT_PUBLIC_SITE_URL=https://your-domain.com
 
 `BETTER_AUTH_SECRET` is still accepted as a fallback. Prefer `NUXT_BETTER_AUTH_SECRET`.
 
+For non-destructive secret rotation, keep the current and previous secrets in Better Auth's versioned variable:
+
+```ini
+BETTER_AUTH_SECRETS=2:current-secret-must-be-at-least-32-characters,1:previous-secret-must-be-at-least-32-characters
+```
+
 ## Minimal module setup
 
 ```ts
 export default defineNuxtConfig({
-  modules: ['@onmax/nuxt-better-auth'],
+  modules: ['@nuxtjs/better-auth'],
 })
 ```
 
 ## Minimal server config
 
 ```ts
-import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
+import { defineServerAuth } from '@nuxtjs/better-auth/config'
 
 export default defineServerAuth({
   emailAndPassword: {
@@ -49,37 +55,39 @@ export default defineServerAuth({
 ## Minimal client config
 
 ```ts
-import { defineClientAuth } from '@onmax/nuxt-better-auth/config'
+import { defineClientAuth } from '@nuxtjs/better-auth/config'
 
 export default defineClientAuth({})
 ```
 
-## Important rules
+## Module-owned values
 
 - Do not set `secret` manually in `defineServerAuth()`. The module injects it.
 - Do not set `baseURL` manually in full mode. The module resolves it.
 - Use `auth.clientOnly = true` only when Better Auth runs on an external backend.
 - For database-backed auth with the shortest setup, prefer NuxtHub.
-  modules: ['@nuxthub/core', '@onmax/nuxt-better-auth'],
-  hub: { database: true },
-  auth: {
-    hubSecondaryStorage: true  // Enable KV for session caching
-  }
+
+## NuxtHub setup
+
+```ts
+export default defineNuxtConfig({
+  modules: ['@nuxthub/core', '@nuxtjs/better-auth'],
+  hub: { db: 'sqlite' },
 })
 ```
 
 See [references/database.md](database.md) for schema setup.
 
-## Client-Only Mode
+## Client-only mode
 
-For external auth backends (microservices, separate servers):
+For external auth backends:
 
 ```ts
-// nuxt.config.ts
 export default defineNuxtConfig({
+  modules: ['@nuxtjs/better-auth'],
   auth: {
-    clientOnly: true,  // No local auth server
-  }
+    clientOnly: true,
+  },
 })
 ```
 

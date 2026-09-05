@@ -1,5 +1,4 @@
-import { defineEventHandler } from 'h3'
-import { useRuntimeConfig } from '#imports'
+import { defineEventHandler, useRuntimeConfig } from '../../internal/nitro-compat'
 import { serverAuth } from '../../utils/auth'
 
 export default defineEventHandler(async (event) => {
@@ -36,7 +35,7 @@ export default defineEventHandler(async (event) => {
           },
           preserveRedirect: publicAuth?.preserveRedirect ?? true,
           redirectQueryKey: publicAuth?.redirectQueryKey ?? 'redirect',
-          hubSecondaryStorage: privateAuth?.hubSecondaryStorage ?? false,
+          hubSecondaryStorage: privateAuth?.hubSecondaryStorage === true ? false : (privateAuth?.hubSecondaryStorage ?? false),
           useDatabase: publicAuth?.useDatabase ?? false,
           databaseProvider: publicAuth?.databaseProvider ?? 'none',
         },

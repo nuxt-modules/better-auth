@@ -3,6 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "#better-auth/nitro-compat": ["./internal/nitro2"],
       "#nuxt-better-auth": ["../types/augment"]
     }
   },

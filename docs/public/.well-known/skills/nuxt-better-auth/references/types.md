@@ -15,11 +15,11 @@ import type {
 
 ## Key guarantees
 
-- `AuthUser` and `AuthSession` are inferred from your Better Auth config
-- plugin fields flow into `useUserSession()`, `requireUserSession()`, and auth route matching
-- `AuthSocialProviderId` is inferred from configured social providers
+- `AuthUser` and `AuthSession` are inferred from your Better Auth config.
+- plugin fields flow into `useUserSession()`, `getUserSession()`, `getRequestSession()`, `requireUserSession()`, and auth route matching.
+- `AuthSocialProviderId` is inferred from configured social providers.
 
-## When to augment manually
+## Manual augmentation
 
 Only add manual module augmentation if inference is not enough or you need to declare project-specific fields in advance.
 
@@ -32,27 +32,13 @@ declare module '#nuxt-better-auth' {
   }
 }
 ```
-    }
-  }
-})
-```
 
-Types automatically include these fields:
+## Type-safe user matching
 
 ```ts
-// AuthUser now includes:
-interface AuthUser {
-  // ... base fields
-  plan: string
-  credits: number
-}
-```
-
-## Type-Safe User Matching
-
-```ts
-// Fully typed
 await requireUserSession(event, {
-  user: { role: 'admin' }  // TypeScript knows valid fields
+  user: { role: 'admin' },
 })
 ```
+
+The same user matcher shape works in route rules and page meta.

@@ -69,6 +69,7 @@ describe('nuxthub prerender @nuxthub/db imports', () => {
     const prerenderOutput = readGeneratedPrerenderOutput()
     const nitroEntry = readNitroEntry(outputDir!)
     const authDatabase = readGeneratedAuthDatabase()
+    const authSchema = readFileSync(join(fixtureDir, '.nuxt/better-auth/schema.postgresql.ts'), 'utf8')
 
     expect(nitroEntry).toMatch(/import\s+\{\s*db\s*\}\s+from\s+['"][^'"]*@nuxthub\/db(?:\/db\.mjs)?['"]/)
     // The bug emits a broken relative path like `../../../../../../../../@nuxthub/db/db.mjs`
@@ -80,5 +81,8 @@ describe('nuxthub prerender @nuxthub/db imports', () => {
     expect(authDatabase).toContain('event?.context?.cloudflare')
     expect(authDatabase).toContain('cloudflareEnv?.POSTGRES')
     expect(authDatabase).toContain('cloudflareContext.context.waitUntil(cleanup)')
+    expect(authSchema).toContain('const authSchema = pgSchema("auth")')
+    expect(authSchema).toContain('export const user = authSchema.table("user"')
+    expect(authSchema).not.toContain('pgTable')
   }, 120_000)
 })

@@ -1,9 +1,11 @@
 import type { BetterAuthOptions } from 'better-auth'
-import type { Casing } from 'drizzle-orm/utils'
-import { generateDrizzleSchema as _generateDrizzleSchema } from '@better-auth/cli/api'
+import { existsSync } from 'node:fs'
+import { generateDrizzleSchema as _generateDrizzleSchema } from 'auth/api'
 import { consola } from 'consola'
+import { join } from 'pathe'
+import type { SchemaCasing } from './runtime/config'
 
-export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: Casing }
+export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: SchemaCasing, schemaName?: string }
 
 type Dialect = 'sqlite' | 'postgresql' | 'mysql'
 type Provider = 'sqlite' | 'pg' | 'mysql'
@@ -12,7 +14,7 @@ type DrizzleSchemaInput = Parameters<typeof _generateDrizzleSchema>[0]
 // Minimal interface matching what _generateDrizzleSchema actually uses from adapter
 interface SchemaGeneratorAdapter {
   id: 'drizzle'
-  options: { provider: Provider, camelCase: boolean, adapterConfig: { usePlural: boolean } }
+  options: { provider: Provider, camelCase: boolean, schemaName?: string, adapterConfig: { usePlural: boolean } }
 }
 
 function dialectToProvider(dialect: Dialect): Provider {
@@ -38,6 +40,7 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
     options: {
       provider,
       camelCase: schemaOptions?.casing !== 'snake_case',
+      schemaName: schemaOptions?.schemaName,
       adapterConfig: { usePlural: schemaOptions?.usePlural ?? false },
     },
   }
@@ -59,17 +62,40 @@ interface SchemaGeneratorGlobals {
   defineServerAuth?: RuntimeDefineServerAuthFn
 }
 
+function loadLocalEnv(rootDir?: string): void {
+  if (!rootDir)
+    return
+
+  const envPath = join(rootDir, '.env.local')
+  if (!existsSync(envPath))
+    return
+
+  process.loadEnvFile(envPath)
+}
+
 declare global {
   // eslint-disable-next-line vars-on-top
   var __nuxtBetterAuthDefineServerAuth: RuntimeDefineServerAuthFn | undefined
 }
 
+const NO_DEFAULT_EXPORT_MESSAGE = '[@nuxtjs/better-auth] auth.config.ts does not export default. Expected: export default defineServerAuth(...)'
+const SCHEMA_NOT_REGENERATED_MESSAGE = 'The schema was not regenerated and any existing generated schema file was left unchanged.'
+
+/**
+ * Loads the user's `auth.config.ts`.
+ *
+ * Returns `null` when the config could not be loaded and `throwOnError` is
+ * false. `null` is distinct from an empty-but-valid config (`{}`): callers must
+ * treat it as "no config available" and leave anything derived from a previous
+ * successful load alone, rather than regenerating it from nothing.
+ */
 export async function loadUserAuthConfig(
   configPath: string,
   throwOnError = false,
   alias?: Record<string, string>,
   runtimeConfig: unknown = {},
-): Promise<Partial<BetterAuthOptions>> {
+  rootDir?: string,
+): Promise<Partial<BetterAuthOptions> | null> {
   const { createJiti } = await import('jiti')
   const { defineServerAuth: runtimeDefineServerAuth } = await import('./runtime/config')
   const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false, alias })
@@ -85,23 +111,25 @@ export async function loadUserAuthConfig(
   schemaGlobals.__nuxtBetterAuthDefineServerAuth!._count++
 
   try {
+    loadLocalEnv(rootDir)
     const mod = await jiti.import(configPath) as { default?: unknown }
     const configFn = mod.default
     if (typeof configFn === 'function') {
       return configFn({ runtimeConfig, db: null })
     }
-    consola.warn('[@onmax/nuxt-better-auth] auth.config.ts does not export default. Expected: export default defineServerAuth(...)')
     if (throwOnError) {
+      consola.warn(NO_DEFAULT_EXPORT_MESSAGE)
       throw new Error('auth.config.ts must export default defineServerAuth(...)')
     }
-    return {}
+    consola.error(`${NO_DEFAULT_EXPORT_MESSAGE}. ${SCHEMA_NOT_REGENERATED_MESSAGE}`)
+    return null
   }
   catch (error) {
     if (throwOnError) {
       throw new Error(`Failed to load auth config: ${error instanceof Error ? error.message : error}`)
     }
-    consola.error('[@onmax/nuxt-better-auth] Failed to load auth config for schema generation. Schema may be incomplete:', error)
-    return {}
+    consola.error(`[@nuxtjs/better-auth] Failed to load auth config for schema generation. ${SCHEMA_NOT_REGENERATED_MESSAGE}`, error)
+    return null
   }
   finally {
     const sharedDefineServerAuth = schemaGlobals.__nuxtBetterAuthDefineServerAuth

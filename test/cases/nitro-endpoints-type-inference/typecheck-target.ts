@@ -1,38 +1,16 @@
 import type { Base$Fetch } from 'nitropack/types'
-import type { AuthApiEndpointPath, AuthApiEndpointResponse } from '#nuxt-better-auth'
+import type { AuthApiEndpointPath } from '#nuxt-better-auth'
 
 declare const requestFetch: Base$Fetch
 
 type CustomerStatePath = Extract<AuthApiEndpointPath, '/api/auth/customer/state'>
 const customerStatePath: CustomerStatePath = '/api/auth/customer/state'
 
-async function assertEndpointInference() {
+async function assertNoGlobalEndpointInference() {
   const customerState = await requestFetch('/api/auth/customer/state')
+  // @ts-expect-error use useAuthRequestFetch for typed auth endpoint payloads
   customerState.activeSubscriptions[0]?.toUpperCase()
-  customerState.hasBillingIssue.valueOf()
-  // @ts-expect-error no unknown key
-  void customerState.missingField
-
-  const customerViaHelper: AuthApiEndpointResponse<'/api/auth/customer/state'> = customerState
-  void customerViaHelper
-
-  const customerSessionGet = await requestFetch('/api/auth/customer/session')
-  const customerSessionPost = await requestFetch('/api/auth/customer/session', { method: 'POST' })
-  customerSessionGet.ok.valueOf()
-  customerSessionPost.ok.valueOf()
-
-  const session = await requestFetch('/api/auth/get-session')
-  if (session) {
-    void session.user.id
-    void session.session.expiresAt
-  }
-  // @ts-expect-error get-session can be null
-  const shouldFailNullability: { user: { id: string } } = session
-  void shouldFailNullability
-
-  const sessionViaHelper: AuthApiEndpointResponse<'/api/auth/get-session', 'get'> = session
-  void sessionViaHelper
 }
 
 void customerStatePath
-void assertEndpointInference
+void assertNoGlobalEndpointInference

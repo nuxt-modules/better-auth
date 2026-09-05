@@ -3,14 +3,19 @@ import type { AuthSocialProviderId } from '../../../../src/runtime/types'
 
 export function assertSharedAuthTypes(user: AuthUser, session: AuthSession) {
   const role: string | null | undefined = user.role
+  const banned: boolean | null | undefined = user.banned
+  const banReason: string | null | undefined = user.banReason
+  const banExpires: Date | null | undefined = user.banExpires
   const internalCode: string | null | undefined = user.internalCode
-  const workspaceId: string | null | undefined = session.workspaceId
   const provider: AuthSocialProviderId = 'github'
 
   return {
+    banned,
+    banExpires,
+    banReason,
     internalCode,
     provider,
     role,
-    workspaceId,
+    session,
   }
 }

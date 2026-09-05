@@ -1,8 +1,8 @@
 {
-  "name": "@onmax/nuxt-better-auth",
+  "name": "@nuxtjs/better-auth",
   "type": "module",
-  "version": "0.0.2",
-  "packageManager": "pnpm@11.1.0",
+  "version": "0.2.5",
+  "packageManager": "pnpm@11.22.0",
   "description": "Nuxt module for Better Auth integration with NuxtHub, route protection, session management, and role-based access",
   "author": "onmax",
   "license": "MIT",
@@ -42,6 +42,9 @@
   "files": [
     "dist"
   ],
+  "engines": {
+    "node": "^22.19.0 || ^24.11.0 || >=26.0.0"
+  },
   "scripts": {
     "prepack": "nuxt-module-build build",
     "build": "pnpm build:docs",
@@ -51,7 +54,6 @@
     "dev:docs": "nuxi dev docs",
     "build:docs": "nuxi build docs",
     "deploy": "wrangler deploy",
-    "release": "bumpp --push --no-push-all",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "vue-tsc --noEmit",
@@ -62,7 +64,7 @@
   },
   "peerDependencies": {
     "@nuxthub/core": ">=0.10.5",
-    "better-auth": ">=1.0.0"
+    "better-auth": ">=1.7.1 <2"
   },
   "peerDependenciesMeta": {
     "@nuxthub/core": {
@@ -70,52 +72,48 @@
     }
   },
   "dependencies": {
-    "@better-auth/cli": "1.5.0-beta.13",
-    "@nuxt/kit": "^4.4.8",
-    "@nuxt/ui": "^4.9.0",
+    "@nuxt/devtools-kit": "^3.4.1",
+    "@nuxt/kit": "^4.5.2",
+    "auth": "1.7.1",
+    "consola": "^3.4.2",
     "defu": "^6.1.7",
-    "h3": "1.15.11",
+    "h3": "^1.15.11",
     "jiti": "^2.7.0",
     "pathe": "^2.0.3",
     "radix3": "^1.1.2",
-    "std-env": "^4.1.0",
-    "ufo": "^1.6.4"
+    "std-env": "^4.2.0",
+    "ufo": "^1.6.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^9.0.0",
+    "@antfu/eslint-config": "^9.3.0",
     "@libsql/client": "^0.17.4",
     "@libsql/linux-x64-gnu": "0.5.29",
-    "@nuxt/devtools": "4.0.0-alpha.7",
-    "@nuxt/devtools-kit": "4.0.0-alpha.7",
-    "@nuxt/module-builder": "^1.0.2",
-    "@nuxt/schema": "^4.4.8",
-    "@nuxt/test-utils": "^4.0.3",
-    "@nuxthub/core": "^0.10.7",
-    "@pinia/nuxt": "^0.11.3",
-    "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "latest",
-    "better-auth": "^1.6.20",
-    "better-call": "2.0.4",
+    "@nuxt/devtools": "^3.4.1",
+    "@nuxt/module-builder": "^1.0.3",
+    "@nuxt/schema": "^4.5.2",
+    "@nuxt/test-utils": "^4.1.0",
+    "@nuxthub/core": "^0.10.8",
+    "@pinia/nuxt": "^1.0.2",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^24.13.3",
+    "better-auth": "1.7.1",
+    "better-call": "1.4.0",
     "better-sqlite3": "^12.11.1",
-    "bumpp": "^11.1.0",
-    "changelogen": "^0.6.2",
-    "consola": "^3.4.2",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
-    "eslint": "^10.5.0",
+    "eslint": "^10.8.1",
     "nitropack": "2.13.4",
-    "npm-agentskills": "https://pkg.pr.new/onmax/npm-agentskills@394499e",
-    "nuxt": "^4.4.8",
-    "pinia": "^3.0.4",
+    "nuxt": "^4.5.2",
+    "pinia": "^4.0.3",
+    "pkg-pr-new": "0.0.88",
     "postgres": "^3.4.9",
-    "tinyexec": "^1.2.4",
-    "typescript": "~6.0.3",
+    "typescript": "~5.9.3",
     "unstorage": "^1.17.5",
-    "vitest": "^4.1.9",
-    "vitest-package-exports": "^1.2.0",
-    "vue": "3.5.38",
-    "vue-tsc": "^3.3.5",
-    "wrangler": "4.103.0",
+    "vitest": "^4.1.11",
+    "vue": "3.5.41",
+    "vue-tsc": "^3.3.10",
+    "wrangler": "4.124.0",
     "yaml": "^2.9.0"
   }
 }

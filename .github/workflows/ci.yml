@@ -6,13 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+permissions: {}
+
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -26,3 +30,35 @@ jobs:
           BETTER_AUTH_SECRET: ci-test-secret-12345678901234567890
       - run: pnpm build:docs
       - run: pnpm test
+
+  compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        nuxt:
+          - 4.5.0
+          # Keep merge proof on a reviewed snapshot; float nightlies only in non-gating surveillance.
+          - npm:nuxt-nightly@5.0.0-29765760.f83eac74
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install
+      - run: pnpm pack --pack-destination /tmp
+      - run: cp -R test/compatibility/fixture /tmp/nuxt-better-auth-compatibility
+      - name: Install compatibility dependencies
+        timeout-minutes: 5
+        working-directory: /tmp/nuxt-better-auth-compatibility
+        run: corepack pnpm@11.21.0 add --save-exact "nuxt@${{ matrix.nuxt }}" better-auth@1.5.5 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/nuxtjs-better-auth-*.tgz
+      - run: corepack pnpm@11.21.0 typecheck
+        working-directory: /tmp/nuxt-better-auth-compatibility
+      - run: corepack pnpm@11.21.0 build
+        working-directory: /tmp/nuxt-better-auth-compatibility
+      - run: node test/compatibility/check.mjs /tmp/nuxt-better-auth-compatibility

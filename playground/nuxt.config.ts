@@ -12,7 +12,6 @@ export default defineNuxtConfig({
       },
       preserveRedirect: true,
     }],
-    ['npm-agentskills/nuxt', { targets: ['claude'] }],
   ],
 
   css: ['~/assets/css/main.css'],

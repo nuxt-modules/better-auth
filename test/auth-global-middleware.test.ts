@@ -133,6 +133,19 @@ describe('auth.global middleware', () => {
     expect(navigateTo).toHaveBeenCalledTimes(1)
   })
 
+  it('ignores internal module routes even when broad route rules set page meta', async () => {
+    const middleware = await loadMiddleware()
+    await middleware({
+      path: '/__better-auth-devtools',
+      fullPath: '/__better-auth-devtools',
+      meta: { auth: 'user' },
+    })
+
+    expect(getRouteRules).not.toHaveBeenCalled()
+    expect(fetchSession).not.toHaveBeenCalled()
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
   it('forces a fresh session check during prerender hydration for protected routes', async () => {
     payload.prerenderedAt = Date.now()
     nuxtApp.isHydrating = true

@@ -4,7 +4,8 @@ import type { Ref } from 'vue'
 type AsyncFn = (...args: unknown[]) => Promise<unknown>
 interface PasskeyRecord { id: string, name?: string | null }
 
-const { user, client } = useUserSession()
+const { user } = useUserSession()
+const client = useAuthClient()
 const { t } = useI18n()
 const toast = useToast()
 
@@ -43,7 +44,7 @@ async function enable2FA() {
     }
     else {
       const res = await authClient?.twoFactor.enable({ password: twoFaPassword.value })
-      if (res?.data?.totpURI) {
+      if (res?.data?.method === 'totp') {
         twoFaUri.value = res.data.totpURI
       }
       else {
