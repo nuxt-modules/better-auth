@@ -47,6 +47,10 @@ export default defineConfig({
     globalSetup: ['./test/setup/build-package.ts'],
     projects: [
       {
+        define: {
+          'import.meta.dev': 'false',
+          'import.meta.prerender': 'false',
+        },
         resolve: {
           alias: nitroCompatibilityAlias,
         },
@@ -54,6 +58,20 @@ export default defineConfig({
           name: 'unit',
           include: ['test/**/*.test.ts'],
           exclude: [...configDefaults.exclude, ...typeTests, ...integrationTests],
+        },
+      },
+      {
+        // Exercise the same auth implementation with Nuxt's development flags.
+        define: {
+          'import.meta.dev': 'true',
+          'import.meta.prerender': 'false',
+        },
+        resolve: {
+          alias: nitroCompatibilityAlias,
+        },
+        test: {
+          name: 'unit-dev',
+          include: ['test/get-base-url.test.ts'],
         },
       },
       {
