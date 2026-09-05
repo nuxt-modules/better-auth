@@ -1,5 +1,5 @@
 import type { NitroRouteRules } from 'nitropack/types'
-import type { AuthSession, AuthUser } from '#nuxt-better-auth'
+import type { AuthSession, AuthUser, ClientAuthSession, UserSessionComposable } from '#nuxt-better-auth'
 import type { AuthSocialProviderId } from '../../../src/runtime/types'
 
 declare const serverAuth: typeof import('../../../src/runtime/server/utils/auth').serverAuth
@@ -7,6 +7,10 @@ declare const serverAuth: typeof import('../../../src/runtime/server/utils/auth'
 declare module '#nuxt-better-auth' {
   interface AuthUser {
     foo: string
+  }
+
+  interface AuthSession {
+    deviceLabel?: string
   }
 }
 
@@ -51,3 +55,22 @@ void auth
 void signInUsername
 void session
 void provider
+
+// Server helpers retain the token, while client state omits it after sanitization.
+const serverToken: string = session.token
+const clientSession: ClientAuthSession = {
+  id: 'session-1',
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  userId: '1',
+  expiresAt: new Date(),
+  deviceLabel: 'Laptop',
+}
+declare const composable: UserSessionComposable
+composable.session.value = clientSession
+// @ts-expect-error Tokens are removed from state before it reaches the client.
+void composable.session.value?.token
+// @ts-expect-error A client session cannot satisfy the full server session contract.
+const fullSession: AuthSession = clientSession
+void serverToken
+void fullSession

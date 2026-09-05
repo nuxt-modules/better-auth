@@ -34,6 +34,14 @@ describe('type inference regressions #107, #192, and #382', () => {
     expect(output).not.toContain(`Property 'signInUsername' does not exist on type`)
     expect(output).not.toContain(`'signInUsername' does not exist on type`)
 
+    const appTypecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', '.nuxt/tsconfig.app.json'], {
+      cwd: fixtureDir,
+      env,
+      encoding: 'utf8',
+      timeout: 60_000,
+    })
+    expect(appTypecheck.status, `app vue-tsc failed:\n${appTypecheck.stdout}\n${appTypecheck.stderr}`).toBe(0)
+
     const sharedTypecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', '.nuxt/tsconfig.shared.json'], {
       cwd: fixtureDir,
       env,

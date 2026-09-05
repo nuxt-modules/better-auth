@@ -99,7 +99,7 @@
     "@types/node": "^24.13.3",
     "better-auth": "1.7.1",
     "better-call": "1.4.0",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^12.11.1",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "eslint": "^10.8.1",

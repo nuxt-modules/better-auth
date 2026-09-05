@@ -1,5 +1,6 @@
 import type { UseUserSessionStateReturn } from '@nuxtjs/better-auth/composables'
-import { runWithSessionRefresh, useAuthAsyncData, useAuthClient, useAuthRequestFetch, useSignIn, useSignUp, useUserSession, useUserSessionState } from '@nuxtjs/better-auth/composables'
+import { useSignOut as autoUseSignOut } from '#imports'
+import { runWithSessionRefresh, useAuthAsyncData, useAuthClient, useAuthRequestFetch, useSignIn, useSignOut, useSignUp, useUserSession, useUserSessionState } from '@nuxtjs/better-auth/composables'
 
 const auth = useUserSession()
 auth.loggedIn.value satisfies boolean
@@ -18,6 +19,13 @@ signIn.execute({ email: 'user@example.com', password: 'password' })
 
 const signUp = useSignUp('email')
 signUp.execute({ email: 'user@example.com', password: 'password', name: 'User' } as any)
+
+const signOut = useSignOut()
+autoUseSignOut satisfies typeof useSignOut
+signOut.execute() satisfies Promise<void>
+signOut.execute({ onSuccess: async () => {} }) satisfies Promise<void>
+signOut.status.value satisfies 'idle' | 'pending' | 'success' | 'error'
+signOut.error.value?.message satisfies string | undefined
 
 const requestFetch = useAuthRequestFetch()
 requestFetch('/api/auth/get-session')
