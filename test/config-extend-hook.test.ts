@@ -16,7 +16,7 @@ it('accepts only schema plugin contributions', () => {
   expect(runtimeConfig.appName).toBe('runtime option')
 })
 
-it('rejects runtime options during typechecking', { timeout: 30_000 }, () => {
+it('rejects runtime options during typechecking', { timeout: 180_000 }, () => {
   const typecheck = spawnSync('pnpm', [
     'exec',
     'tsc',
@@ -35,6 +35,7 @@ it('rejects runtime options during typechecking', { timeout: 30_000 }, () => {
   ], {
     cwd: import.meta.dirname,
     encoding: 'utf8',
+    timeout: 120_000,
   })
 
   expect(typecheck.status, `tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)

@@ -11,7 +11,9 @@ export interface ClientAuthContext {
   siteUrl: string
 }
 
-export type ServerAuthConfig = Omit<BetterAuthOptions, 'secret' | 'baseURL'> & {
+export type ServerAuthConfig = Omit<BetterAuthOptions, 'secret' | 'baseURL' | 'basePath'> & {
+  /** The module registers its server handler at /api/auth. */
+  basePath?: '/api/auth'
   plugins?: readonly BetterAuthPlugin[]
 }
 export type ClientAuthConfig = Omit<BetterAuthClientOptions, 'baseURL'> & { baseURL?: string }
@@ -98,9 +100,14 @@ export interface AuthPrivateRuntimeConfig {
 }
 
 export function defineServerAuth<const R>(config: (ctx: ServerAuthContext) => R & ServerAuthConfig): (ctx: ServerAuthContext) => R
-export function defineServerAuth<const R>(config: R & ServerAuthConfig): (ctx: ServerAuthContext) => R
+export function defineServerAuth<const R>(config: R & ServerAuthConfig & (R extends (...args: never[]) => unknown ? never : unknown)): (ctx: ServerAuthContext) => R
 export function defineServerAuth(config: ServerAuthConfig | ((ctx: ServerAuthContext) => ServerAuthConfig)): (ctx: ServerAuthContext) => ServerAuthConfig {
-  return typeof config === 'function' ? config : () => config
+  return (ctx) => {
+    const resolved = typeof config === 'function' ? config(ctx) : config
+    if (resolved.basePath !== undefined && resolved.basePath !== '/api/auth')
+      throw new Error('[nuxt-better-auth] Server basePath must be /api/auth. Remove basePath from defineServerAuth() or set it to /api/auth. External clientOnly backends may use a custom client basePath.')
+    return resolved
+  }
 }
 
 export function extendServerAuth<const R extends ServerAuthConfig, const P extends readonly BetterAuthPlugin[]>(

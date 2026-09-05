@@ -1,5 +1,5 @@
 import type { ComputedRef, Ref } from 'vue'
-import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
+import type { AppAuthClient, AuthSession, AuthUser, AuthUserUpdateInput, ClientAuthSession } from '#nuxt-better-auth'
 import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
@@ -15,14 +15,14 @@ let _signOutPromise: Promise<void> | null = null
 const _sessionSyncApps = new WeakSet<object>()
 
 export interface UseUserSessionReturn {
-  session: Ref<AuthSession | null>
+  session: Ref<ClientAuthSession | null>
   user: Ref<AuthUser | null>
   loggedIn: ComputedRef<boolean>
   ready: ComputedRef<boolean>
   signOut: (options?: SignOutOptions) => Promise<void>
   waitForSession: () => Promise<void>
   fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>
-  updateUser: (updates: Partial<AuthUser>) => Promise<void>
+  updateUser: (updates: AuthUserUpdateInput) => Promise<void>
 }
 
 interface UpdateUserResponse { error?: unknown }
@@ -50,7 +50,7 @@ export function useUserSession(): UseUserSessionReturn {
   const rawClient = useRawAuthClient()
 
   // Shared state via useState for SSR hydration
-  const session = useState<AuthSession | null>('auth:session', () => null)
+  const session = useState<ClientAuthSession | null>('auth:session', () => null)
   const user = useState<AuthUser | null>('auth:user', () => null)
   const authReady = useState('auth:ready', () => false)
   const prerenderReadyResetQueued = useState('auth:prerender-ready-reset-queued', () => false)
@@ -91,7 +91,7 @@ export function useUserSession(): UseUserSessionReturn {
       return fetchSessionClient(rawClient, session, user, authReady, options)
   }
 
-  async function updateUser(updates: Partial<AuthUser>) {
+  async function updateUser(updates: AuthUserUpdateInput) {
     if (!user.value)
       return
 
@@ -102,7 +102,7 @@ export function useUserSession(): UseUserSessionReturn {
       return
 
     try {
-      const clientWithUpdateUser = rawClient as AppAuthClient & { updateUser: (updates: Partial<AuthUser>) => Promise<UpdateUserResponse> }
+      const clientWithUpdateUser = rawClient as AppAuthClient & { updateUser: (updates: AuthUserUpdateInput) => Promise<UpdateUserResponse> }
       const result = await clientWithUpdateUser.updateUser(updates)
       if (result?.error) {
         if (result.error instanceof Error)
@@ -216,7 +216,9 @@ export function useUserSession(): UseUserSessionReturn {
     }
 
     _signOutPromise = (async () => {
-      await rawClient.signOut()
+      const result = await rawClient.signOut()
+      if (isRecord(result) && result.error)
+        throw new Error(normalizeAuthActionError(result.error).message)
       clearSession()
 
       if (options?.onSuccess) {

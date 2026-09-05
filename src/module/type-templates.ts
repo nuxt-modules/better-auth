@@ -28,15 +28,6 @@ export function registerServerTypeTemplates(input: RegisterServerTypeTemplatesIn
     : { nuxt: true, nitro: true, node: true }
 
   addTypeTemplate({
-    filename: 'types/auth-secondary-storage.d.ts',
-    getContents: () => `
-declare module '#auth/secondary-storage' {
-  export function createSecondaryStorage(): undefined
-}
-`,
-  }, { nitro: true })
-
-  addTypeTemplate({
     filename: 'types/auth-database.d.ts',
     getContents: () => `
 declare module '#auth/database' {
@@ -72,7 +63,6 @@ declare module '#auth/schema' {
 /// <reference path="./nitro-imports.d.ts" />
 /// <reference path="./auth-database.d.ts" />
 /// <reference path="./auth-schema.d.ts" />
-/// <reference path="./auth-secondary-storage.d.ts" />
 ${hasHubDb ? '/// <reference path="../hub/db.d.ts" />' : ''}
 
 export {}
@@ -99,7 +89,7 @@ declare module '@nuxtjs/better-auth/config' {
     filename: 'types/nuxt-better-auth-infer.d.ts',
     getContents: () => `
 import type { BetterAuthOptions, BetterAuthPlugin, InferPluginTypes, UnionToIntersection } from 'better-auth'
-import type { InferFieldsOutput } from 'better-auth/db'
+import type { InferFieldsInputClient, InferFieldsOutput } from 'better-auth/db'
 import type createServerAuth from '${serverConfigPath}'
 
 type _RawConfig = ReturnType<typeof createServerAuth>
@@ -123,11 +113,24 @@ type _InferModelFieldsFromOptions<C, M extends 'user' | 'session'> = C extends {
   ? InferFieldsOutput<F>
   : {}
 
+type _UserFields = NonNullable<NonNullable<BetterAuthOptions['user']>['additionalFields']>
+
+type _InferUserInputFromPlugins<P> = P extends readonly (infer Plugin)[]
+  ? UnionToIntersection<Plugin extends { schema: { user: { fields: infer F extends _UserFields } } } ? InferFieldsInputClient<F> : {}>
+  : {}
+
+type _UserInputFallback = Partial<_InferUserInputFromPlugins<_RawPlugins> & (
+  _RawConfig extends { user: { additionalFields: infer F extends _UserFields } }
+    ? InferFieldsInputClient<F>
+    : {}
+)>
+
 type _UserFallback = _InferModelFieldsFromPlugins<_RawPlugins, 'user'> & _InferModelFieldsFromOptions<_RawConfig, 'user'>
 type _SessionFallback = _InferModelFieldsFromPlugins<_RawPlugins, 'session'> & _InferModelFieldsFromOptions<_RawConfig, 'session'>
 
 declare module '#nuxt-better-auth' {
   interface AuthUser extends _UserFallback {}
+  interface AuthUserUpdateInput extends _UserInputFallback {}
   interface AuthSession extends _SessionFallback {}
   type PluginTypes = InferPluginTypes<_Config>
 }
@@ -370,6 +373,8 @@ declare module '#nuxt-better-auth' {
     userAgent?: string | null
   }
 
+  export type ClientAuthSession = Omit<AuthSession, 'token'>
+
   export interface ServerAuthContext {
     runtimeConfig: Record<string, unknown>
     db: unknown
@@ -379,15 +384,20 @@ declare module '#nuxt-better-auth' {
   export interface AuthSocialProviderRegistry {}
   export type AuthSocialProviderId = AuthSocialProviderRegistry extends { ids: infer T } ? Extract<T, string> : never
 
+  export interface AuthUserUpdateInput {
+    name?: string
+    image?: string | null
+  }
+
   export interface UserSessionComposable {
     user: Ref<AuthUser | null>
-    session: Ref<AuthSession | null>
+    session: Ref<ClientAuthSession | null>
     loggedIn: ComputedRef<boolean>
     ready: ComputedRef<boolean>
     fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>
     waitForSession: () => Promise<void>
     signOut: (options?: { onSuccess?: () => void | Promise<void> }) => Promise<void>
-    updateUser: (updates: Partial<AuthUser>) => Promise<void>
+    updateUser: (updates: AuthUserUpdateInput) => Promise<void>
   }
 
   export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
@@ -423,8 +433,10 @@ export {}
     filename: 'types/nuxt-better-auth-client.d.ts',
     getContents: () => `
 import type createAppAuthClient from '${input.clientConfigPath}'
+type _ClientUserUpdateInput = Omit<NonNullable<Parameters<ReturnType<typeof createAppAuthClient>['updateUser']>[0]>, 'fetchOptions'>
 declare module '#nuxt-better-auth' {
   export type AppAuthClient = ReturnType<typeof createAppAuthClient>
+  interface AuthUserUpdateInput extends _ClientUserUpdateInput {}
 }
 `,
   })
