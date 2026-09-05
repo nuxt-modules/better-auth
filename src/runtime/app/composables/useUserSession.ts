@@ -1,5 +1,5 @@
 import type { ComputedRef, Ref } from 'vue'
-import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
+import type { AppAuthClient, AuthSession, AuthUser, AuthUserUpdateInput } from '#nuxt-better-auth'
 import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
@@ -22,7 +22,7 @@ export interface UseUserSessionReturn {
   signOut: (options?: SignOutOptions) => Promise<void>
   waitForSession: () => Promise<void>
   fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>
-  updateUser: (updates: Partial<AuthUser>) => Promise<void>
+  updateUser: (updates: AuthUserUpdateInput) => Promise<void>
 }
 
 interface UpdateUserResponse { error?: unknown }
@@ -91,7 +91,7 @@ export function useUserSession(): UseUserSessionReturn {
       return fetchSessionClient(rawClient, session, user, authReady, options)
   }
 
-  async function updateUser(updates: Partial<AuthUser>) {
+  async function updateUser(updates: AuthUserUpdateInput) {
     if (!user.value)
       return
 
@@ -102,7 +102,7 @@ export function useUserSession(): UseUserSessionReturn {
       return
 
     try {
-      const clientWithUpdateUser = rawClient as AppAuthClient & { updateUser: (updates: Partial<AuthUser>) => Promise<UpdateUserResponse> }
+      const clientWithUpdateUser = rawClient as AppAuthClient & { updateUser: (updates: AuthUserUpdateInput) => Promise<UpdateUserResponse> }
       const result = await clientWithUpdateUser.updateUser(updates)
       if (result?.error) {
         if (result.error instanceof Error)

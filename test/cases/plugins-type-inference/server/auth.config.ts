@@ -12,6 +12,7 @@ export default defineServerAuth(() => ({
   },
   user: {
     additionalFields: {
+      readOnlyCode: { type: 'string', required: false, input: false },
       internalCode: {
         type: 'string',
         required: false,
