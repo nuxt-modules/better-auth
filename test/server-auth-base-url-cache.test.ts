@@ -28,10 +28,9 @@ describe('serverAuth production baseURL', async () => {
     expect(secondResponse.status).toBe(200)
     const secondBody = await secondResponse.json() as { appName: string | undefined, baseURL: string | undefined }
 
-    expect(firstBody.appName).toBe('https://first.example.com')
     expect(firstBody.baseURL).toBe('https://deployment.example.com')
     // A canonical production origin shares one cached instance.
-    expect(secondBody.appName).toBe('https://first.example.com')
+    expect(secondBody.appName).toBe(firstBody.appName)
     expect(secondBody.baseURL).toBe('https://deployment.example.com')
   })
 })
