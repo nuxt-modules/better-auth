@@ -1,5 +1,3 @@
-import { defineBuildConfig } from 'unbuild'
-
-export default defineBuildConfig({
+export default {
   externals: ['consola', 'auth', 'auth/api'],
-})
+}
