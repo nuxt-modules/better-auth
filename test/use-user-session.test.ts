@@ -435,10 +435,23 @@ describe('useUserSession hydration bootstrap', () => {
     const auth = useUserSession()
     await auth.fetchSession()
 
-    expect($fetch).toHaveBeenCalledWith('/api/auth/get-session', { headers: { cookie: 'session=test' } })
+    expect($fetch).toHaveBeenCalledWith('/api/auth/get-session', { headers: { cookie: 'session=test' }, parseResponse: expect.any(Function) })
     expect(auth.session.value).toEqual({ id: 'session-server', ipAddress: '127.0.0.1' })
     expect(auth.user.value).toEqual({ id: 'user-server', email: 'server@example.com' })
     expect(auth.ready.value).toBe(true)
+  })
+
+  it('bypasses the cookie cache when forcing an SSR session refresh', async () => {
+    setRuntimeFlags({ client: false, server: true })
+    $fetch.mockImplementationOnce(async (_path: string, options: { query?: { disableCookieCache?: boolean } }) => ({
+      session: { id: 'session-server' },
+      user: { id: options.query?.disableCookieCache ? 'fresh-user' : 'cached-user' },
+    }))
+
+    const auth = (await loadUseUserSession())()
+    await auth.fetchSession({ force: true })
+
+    expect(auth.user.value?.id).toBe('fresh-user')
   })
 
   it('fetchSession clears SSR state on server when no session is returned', async () => {

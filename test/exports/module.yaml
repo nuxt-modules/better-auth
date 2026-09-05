@@ -17,3 +17,5 @@
 ./config:
   defineClientAuth: function
   defineServerAuth: function
+  extendClientAuth: function
+  extendServerAuth: function

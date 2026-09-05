@@ -10,11 +10,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@nuxt/kit', () => ({
   addComponentsDir: vi.fn(),
-  addImportsDir: vi.fn(),
+  addImports: vi.fn(),
   addPlugin: vi.fn(),
   addServerHandler: mocks.addServerHandler,
   addServerImports: vi.fn(),
-  addServerImportsDir: vi.fn(),
   addServerScanDir: vi.fn(),
   extendPages: mocks.extendPages,
   hasNuxtModule: mocks.hasNuxtModule,

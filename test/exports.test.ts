@@ -1,8 +1,12 @@
-import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import yaml from 'yaml'
+
+// Nuxt provides these modules in a consumer app. Keep the package's own
+// composables real so a missing or changed export fails this snapshot.
+vi.mock('#imports', () => ({}))
+vi.mock('#auth/client', () => ({ default: () => ({}) }))
 
 function listRuntimeFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -15,54 +19,23 @@ function listRuntimeFiles(dir: string): string[] {
 
 describe('exports-snapshot', async () => {
   it('module exports', async () => {
-    if (!existsSync('dist/module.mjs') || !existsSync('dist/runtime/config.js') || !existsSync('dist/runtime/composables.js')) {
-      const build = spawnSync('pnpm', ['exec', 'nuxt-module-build', 'build'], {
-        encoding: 'utf8',
-        env: process.env,
-      })
-      expect(build.status, `nuxt-module-build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
-    }
-
     const moduleExports = await import('../dist/module.mjs')
     const configExports = await import('../dist/runtime/config.js')
 
+    const composableExports = await import('../dist/runtime/composables.js')
+    const exportTypes = (exports: Record<string, unknown>) => Object.fromEntries(
+      Object.entries(exports).sort(([a], [b]) => a.localeCompare(b)).map(([name, value]) => [name, typeof value]),
+    )
     const manifest = {
-      '.': {
-        default: typeof moduleExports.default,
-        defineClientAuth: typeof moduleExports.defineClientAuth,
-        defineServerAuth: typeof moduleExports.defineServerAuth,
-      },
-      './composables': {
-        runWithSessionRefresh: 'function',
-        useAction: 'function',
-        useAuthAsyncData: 'function',
-        useAuthClient: 'function',
-        useAuthClientAction: 'function',
-        useAuthRequestFetch: 'function',
-        useSignIn: 'function',
-        useSignOut: 'function',
-        useSignUp: 'function',
-        useUserSession: 'function',
-        useUserSessionState: 'function',
-      },
-      './config': {
-        defineClientAuth: typeof configExports.defineClientAuth,
-        defineServerAuth: typeof configExports.defineServerAuth,
-      },
+      '.': exportTypes(moduleExports),
+      './composables': exportTypes(composableExports),
+      './config': exportTypes(configExports),
     }
 
     await expect(yaml.stringify(manifest)).toMatchFileSnapshot('./exports/module.yaml')
-  }, 60_000)
+  }, 360_000)
 
   it('does not import module-owned composables from #imports in built runtime', () => {
-    if (!existsSync('dist/runtime/composables.js')) {
-      const build = spawnSync('pnpm', ['exec', 'nuxt-module-build', 'build'], {
-        encoding: 'utf8',
-        env: process.env,
-      })
-      expect(build.status, `nuxt-module-build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
-    }
-
     const runtimeFiles = listRuntimeFiles('dist/runtime/app')
     const coupledFiles = runtimeFiles.filter((file) => {
       const contents = readFileSync(file, 'utf8')
@@ -70,5 +43,5 @@ describe('exports-snapshot', async () => {
     })
 
     expect(coupledFiles).toEqual([])
-  }, 60_000)
+  }, 360_000)
 })

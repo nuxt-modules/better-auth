@@ -1,7 +1,7 @@
 import type { Nuxt, NuxtPage } from '@nuxt/schema'
 import type { AuthRouteRules } from '../runtime/types'
 import { existsSync, statSync } from 'node:fs'
-import { addComponentsDir, addImportsDir, addPlugin, addServerHandler, addServerImports, addServerImportsDir, addServerScanDir, extendPages, updateTemplates } from '@nuxt/kit'
+import { addComponentsDir, addImports, addPlugin, addServerHandler, addServerImports, addServerScanDir, extendPages, updateTemplates } from '@nuxt/kit'
 import { defu } from 'defu'
 import { isAbsolute, join } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
@@ -38,14 +38,34 @@ export function registerServerRuntime(input: RegisterServerRuntimeInput): void {
   const { clientOnly, resolve } = input
 
   if (!clientOnly) {
-    addServerImportsDir(resolve('./runtime/server/utils'))
-    addServerImports([{ name: 'defineServerAuth', from: resolve('./runtime/config') }])
+    addServerImports([
+      { name: 'defineServerAuth', from: resolve('./runtime/config') },
+      { name: 'serverAuth', from: resolve('./runtime/server/utils/auth') },
+      ...['getRequestSession', 'getUserSession', 'setRequestSession', 'refreshSessionCookieCache', 'setSessionCookie', 'createSession', 'requireUserSession']
+        .map(name => ({ name, from: resolve('./runtime/server/utils/session') })),
+    ])
     addServerScanDir(resolve('./runtime/server/middleware'))
     addServerHandler({ route: '/api/auth/**', handler: resolve('./runtime/server/api/auth/[...all]') })
   }
 
-  addImportsDir(resolve('./runtime/app/composables'))
-  addImportsDir(resolve('./runtime/utils'))
+  addImports([
+    'runWithSessionRefresh',
+    'useAction',
+    'useAuthAsyncData',
+    'useAuthClient',
+    'useAuthClientAction',
+    'useAuthRequestFetch',
+    'useSignIn',
+    'useSignOut',
+    'useSignUp',
+    'useUserSession',
+    'useUserSessionState',
+  ].map(name => ({ name, from: resolve('./runtime/composables') })))
+  addImports([
+    ...['SignOutOptions', 'UseUserSessionReturn', 'UseUserSessionStateReturn']
+      .map(name => ({ name, type: true, from: resolve('./runtime/composables') })),
+    { name: 'UseAuthAsyncDataOptions', type: true, from: resolve('./runtime/app/composables/useAuthAsyncData') },
+  ])
   if (!clientOnly)
     addPlugin({ src: resolve('./runtime/app/plugins/session.server'), mode: 'server' })
   addPlugin({ src: resolve('./runtime/app/plugins/session.client'), mode: 'client' })
@@ -69,7 +89,6 @@ export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): 
       join(nuxt.options.buildDir, 'types/nitro-imports.d.ts'),
       join(nuxt.options.buildDir, 'types/auth-database.d.ts'),
       join(nuxt.options.buildDir, 'types/auth-schema.d.ts'),
-      join(nuxt.options.buildDir, 'types/auth-secondary-storage.d.ts'),
     ]
 
     if (hasHubDb)
@@ -81,7 +100,6 @@ export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): 
       '#auth/client': nuxt.options.alias['#auth/client'],
       '#auth/database': nuxt.options.alias['#auth/database'],
       '#auth/schema': nuxt.options.alias['#auth/schema'],
-      '#auth/secondary-storage': nuxt.options.alias['#auth/secondary-storage'],
       '#auth/route-rules': nuxt.options.alias['#auth/route-rules'],
     } as const
 
