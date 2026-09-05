@@ -1,5 +1,6 @@
 import type { Ref } from 'vue'
 import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
+import { parseJSON } from 'better-auth/client'
 import { useRequestFetch, useRequestHeaders } from '#imports'
 import { normalizeAuthActionError } from './auth-action-error'
 
@@ -28,6 +29,7 @@ export async function fetchSessionServer(
     const requestFetch = useRequestFetch()
     const data = await requestFetch<SessionResponse | null>('/api/auth/get-session', {
       headers,
+      parseResponse: parseJSON,
       ...(options.force ? { query: { disableCookieCache: true } } : {}),
     })
 
