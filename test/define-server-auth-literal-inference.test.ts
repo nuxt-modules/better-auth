@@ -9,6 +9,7 @@ describe('defineServerAuth literal inference regression #134', () => {
     const typecheck = spawnSync('pnpm', ['exec', 'tsc', '--noEmit', '--pretty', 'false', '-p', 'tsconfig.json'], {
       cwd: fixtureDir,
       encoding: 'utf8',
+      timeout: 120_000,
     })
 
     expect(typecheck.status, `tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)

@@ -16,6 +16,7 @@ describe('public composables subpath export', () => {
         cwd: fileURLToPath(new URL('..', import.meta.url)),
         env,
         encoding: 'utf8',
+        timeout: 120_000,
       })
       expect(build.status, `nuxt-module-build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
     }
@@ -24,6 +25,7 @@ describe('public composables subpath export', () => {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(prepare.status, `nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`).toBe(0)
 
@@ -31,6 +33,7 @@ describe('public composables subpath export', () => {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(typecheck.status, `tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
   }, 180_000)

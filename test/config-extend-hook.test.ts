@@ -35,6 +35,7 @@ it('rejects runtime options during typechecking', { timeout: 30_000 }, () => {
   ], {
     cwd: import.meta.dirname,
     encoding: 'utf8',
+    timeout: 120_000,
   })
 
   expect(typecheck.status, `tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
