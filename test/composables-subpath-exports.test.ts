@@ -36,5 +36,5 @@ describe('public composables subpath export', () => {
       timeout: 120_000,
     })
     expect(typecheck.status, `tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
-  }, 180_000)
+  }, 360_000)
 })

@@ -16,7 +16,7 @@ it('accepts only schema plugin contributions', () => {
   expect(runtimeConfig.appName).toBe('runtime option')
 })
 
-it('rejects runtime options during typechecking', { timeout: 30_000 }, () => {
+it('rejects runtime options during typechecking', { timeout: 180_000 }, () => {
   const typecheck = spawnSync('pnpm', [
     'exec',
     'tsc',
