@@ -15,6 +15,7 @@ describe('type inference regressions #107, #192, and #382', () => {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(prepare.status, `nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`).toBe(0)
 
@@ -22,6 +23,7 @@ describe('type inference regressions #107, #192, and #382', () => {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(typecheck.status, `vue-tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
     const output = `${typecheck.stdout}\n${typecheck.stderr}`
@@ -32,19 +34,29 @@ describe('type inference regressions #107, #192, and #382', () => {
     expect(output).not.toContain(`Property 'signInUsername' does not exist on type`)
     expect(output).not.toContain(`'signInUsername' does not exist on type`)
 
+    const appTypecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', '.nuxt/tsconfig.app.json'], {
+      cwd: fixtureDir,
+      env,
+      encoding: 'utf8',
+      timeout: 60_000,
+    })
+    expect(appTypecheck.status, `app vue-tsc failed:\n${appTypecheck.stdout}\n${appTypecheck.stderr}`).toBe(0)
+
     const sharedTypecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', '.nuxt/tsconfig.shared.json'], {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(sharedTypecheck.status, `shared vue-tsc failed:\n${sharedTypecheck.stdout}\n${sharedTypecheck.stderr}`).toBe(0)
-  }, 60_000)
+  }, 360_000)
 
   it('keeps admin plugin fields in app and shared projects when auth config comes from a layer', () => {
     const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
       cwd: layerFixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(prepare.status, `layer nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`).toBe(0)
 
@@ -53,8 +65,9 @@ describe('type inference regressions #107, #192, and #382', () => {
         cwd: layerFixtureDir,
         env,
         encoding: 'utf8',
+        timeout: 120_000,
       })
       expect(typecheck.status, `${project} vue-tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
     }
-  }, 60_000)
+  }, 360_000)
 })
