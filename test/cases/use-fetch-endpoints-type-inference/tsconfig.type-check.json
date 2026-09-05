@@ -8,6 +8,7 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "paths": {
+      "#app/*": ["../../../node_modules/nuxt/dist/app/*"],
       "#auth/client": ["../_base-module/app/auth.config"],
       "#auth/server": ["./server/auth.config"],
       "#imports": ["./imports-shim"]
