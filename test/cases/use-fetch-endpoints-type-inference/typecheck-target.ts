@@ -2,6 +2,12 @@ import type { AuthApiEndpointMethod, AuthApiEndpointPath, AuthApiEndpointPattern
 import { useFetch, useLazyFetch } from 'nuxt/app'
 import { useAuthRequestFetch } from '../../../src/runtime/app/composables/useAuthRequestFetch'
 
+declare module 'nitropack/types' {
+  interface InternalApi {
+    '/api/report': { get: { title: string, count: number } }
+  }
+}
+
 type DynamicPath = Extract<AuthApiEndpointPath, `/api/auth/customer/${string}/state`>
 const dynamicPath: DynamicPath = '/api/auth/customer/123/state'
 
@@ -79,3 +85,49 @@ void invalidMethodForPostOnly
 // @ts-expect-error no unknown key on inferred endpoint response
 void customerStateResponse.missingField
 void assertUseFetchPathInference
+
+async function assertNuxtFetchContracts() {
+  for (const fetch of [useFetch, useLazyFetch]) {
+    const report = await fetch('/api/report')
+    report.data.value?.title.toUpperCase()
+    report.data.value?.count.toFixed()
+    // @ts-expect-error unrelated route results must retain their response types
+    void report.data.value?.missingField
+    // @ts-expect-error AsyncData is not an arbitrary object
+    void report.nonexistent().anything
+    // @ts-expect-error invalid HTTP methods must not match a fallback overload
+    fetch('/api/report', { method: 'NOT_A_METHOD' })
+    // @ts-expect-error Nuxt fetch options must retain their types
+    fetch('/api/report', { immediate: 'yes' })
+    // @ts-expect-error even unknown routes require valid options
+    fetch('/api/unrelated', { immediate: 'yes' })
+
+    // @ts-expect-error auth routes also require valid HTTP methods
+    fetch('/api/auth/customer/state', { method: 'NOT_A_METHOD' })
+    const auth = await fetch('/api/auth/customer/state')
+    auth.data.value?.activeSubscriptions[0]?.toUpperCase()
+    // @ts-expect-error auth responses must not fall back to any
+    void auth.data.value?.missingField
+
+    const explicit = await fetch<{ label: string }>('/api/unrelated')
+    explicit.data.value?.label.toUpperCase()
+    // @ts-expect-error explicit response generics must remain checked
+    void explicit.data.value?.count
+    const explicitAuth = await fetch<{ label: string }>('/api/auth/customer/state')
+    explicitAuth.data.value?.label.toUpperCase()
+    // @ts-expect-error an explicit response generic replaces endpoint inference
+    void explicitAuth.data.value?.activeSubscriptions
+  }
+
+  const transformed = await useFetch('/api/report', { transform: report => report.title })
+  transformed.data.value?.toUpperCase()
+  // @ts-expect-error transform output replaces the original response
+  void transformed.data.value?.count
+  const selected = await useLazyFetch('/api/report', { pick: ['title'] })
+  selected.data.value?.title.toUpperCase()
+  // @ts-expect-error pick removes unselected properties
+  void selected.data.value?.count
+  const withDefault = await useFetch('/api/report', { default: () => ({ title: '', count: 0 }) })
+  withDefault.data.value.title.toUpperCase()
+}
+void assertNuxtFetchContracts
