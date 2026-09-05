@@ -1,3 +1,4 @@
+import type { useFetch as nativeUseFetch } from '#app/composables/fetch'
 import type { AuthApiEndpointMethod, AuthApiEndpointPath, AuthApiEndpointPatternPath, AuthApiEndpointResponse } from '#nuxt-better-auth'
 import { useFetch, useLazyFetch } from 'nuxt/app'
 import { useAuthRequestFetch } from '../../../src/runtime/app/composables/useAuthRequestFetch'
@@ -86,11 +87,19 @@ void invalidMethodForPostOnly
 void customerStateResponse.missingField
 void assertUseFetchPathInference
 
+type NativeFetchError = NonNullable<ReturnType<typeof nativeUseFetch<void>>['error']['value']>
+type SameType<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false
+type IsAny<T> = 0 extends (1 & T) ? true : false
+
 async function assertNuxtFetchContracts() {
   for (const fetch of [useFetch, useLazyFetch]) {
     const report = await fetch('/api/report')
     report.data.value?.title.toUpperCase()
     report.data.value?.count.toFixed()
+    const nativeError: SameType<NonNullable<typeof report.error.value>, NativeFetchError> = true
+    const errorIsAny: IsAny<NonNullable<typeof report.error.value>> = false
+    void nativeError
+    void errorIsAny
     // @ts-expect-error unrelated route results must retain their response types
     void report.data.value?.missingField
     // @ts-expect-error AsyncData is not an arbitrary object

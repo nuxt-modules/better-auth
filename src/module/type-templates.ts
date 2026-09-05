@@ -6,7 +6,7 @@ function buildNuxtFetchFallback(name: 'useFetch' | 'useLazyFetch'): string {
   return ['undefined', 'DataT'].map(defaultType => `
   export function ${name}<
     ResT = void,
-    ErrorT = FetchError,
+    ErrorT = _NuxtFetchError,
     ReqT extends NitroFetchRequest = NitroFetchRequest,
     const Method extends _NuxtFetchMethod<ReqT> = ResT extends void ? 'get' extends _NuxtFetchMethod<ReqT> ? 'get' : _NuxtFetchMethod<ReqT> : _NuxtFetchMethod<ReqT>,
     _ResT = ResT extends void ? import('nuxt/app').FetchResult<ReqT, Method> : ResT,
@@ -175,7 +175,9 @@ import type createServerAuth from '${serverConfigPath}'
 import type { BetterAuthOptions } from 'better-auth'
 import type { getEndpoints } from 'better-auth/api'
 import type { AvailableRouterMethod, NitroFetchRequest, Serialize, Simplify } from '${nitroTypesPath}'
-import type { FetchError } from 'ofetch'
+import type { useFetch as _NuxtUseFetch } from '#app/composables/fetch'
+
+type _NuxtFetchError = NonNullable<ReturnType<typeof _NuxtUseFetch<void>>['error']['value']>
 
 type _RawConfig = ReturnType<typeof createServerAuth>
 type _RawPlugins = _RawConfig extends { plugins: infer P } ? P : _RawConfig extends { plugins?: infer P } ? P : []
@@ -262,7 +264,7 @@ declare module '#nuxt-better-auth' {
 declare module 'nuxt/app' {
   export function useFetch<
     ResT = void,
-    ErrorT = FetchError,
+    ErrorT = _NuxtFetchError,
     Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
     const Method extends _AuthFetchMethod = _AuthFetchDefaultMethod<Path>,
     _ResT = ResT extends void ? _AuthFetchResult<Path, Method> : ResT,
@@ -272,7 +274,7 @@ declare module 'nuxt/app' {
   >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: import('nuxt/app').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>): import('nuxt/app').AsyncData<_NuxtPickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
   export function useFetch<
     ResT = void,
-    ErrorT = FetchError,
+    ErrorT = _NuxtFetchError,
     Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
     const Method extends _AuthFetchMethod = _AuthFetchDefaultMethod<Path>,
     _ResT = ResT extends void ? _AuthFetchResult<Path, Method> : ResT,
@@ -284,7 +286,7 @@ ${buildNuxtFetchFallback('useFetch')}
 
   export function useLazyFetch<
     ResT = void,
-    ErrorT = FetchError,
+    ErrorT = _NuxtFetchError,
     Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
     const Method extends _AuthFetchMethod = _AuthFetchDefaultMethod<Path>,
     _ResT = ResT extends void ? _AuthFetchResult<Path, Method> : ResT,
@@ -294,7 +296,7 @@ ${buildNuxtFetchFallback('useFetch')}
   >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: Omit<import('nuxt/app').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>, 'lazy'>): import('nuxt/app').AsyncData<_NuxtPickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
   export function useLazyFetch<
     ResT = void,
-    ErrorT = FetchError,
+    ErrorT = _NuxtFetchError,
     Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
     const Method extends _AuthFetchMethod = _AuthFetchDefaultMethod<Path>,
     _ResT = ResT extends void ? _AuthFetchResult<Path, Method> : ResT,
