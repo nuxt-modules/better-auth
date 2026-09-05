@@ -40,6 +40,7 @@ describe('exports-snapshot', async () => {
         useAuthClientAction: 'function',
         useAuthRequestFetch: 'function',
         useSignIn: 'function',
+        useSignOut: 'function',
         useSignUp: 'function',
         useUserSession: 'function',
         useUserSessionState: 'function',
