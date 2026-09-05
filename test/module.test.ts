@@ -102,6 +102,12 @@ describe('nuxt-better-auth module', async () => {
       expect(data.email).toBe(testUser.email)
     })
 
+    it('preserves Date fields in the SSR plugin and explicit session refresh', async () => {
+      const response = await fetch(url('/session-dates'), { headers: { cookie: cookies } })
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain('Initial dates: true; refreshed dates: true')
+    })
+
     it('hydrates session on SSR', async () => {
       // Fetch home page with auth cookies - should show user name, not "Not logged in"
       const response = await fetch(url('/'), { headers: { cookie: cookies } })

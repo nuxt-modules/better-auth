@@ -14,7 +14,7 @@ import { registerAuthMiddlewareHook, registerDevtools, registerNuxtHubDatabaseEx
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
 import { collectAuthRouteRules, resolveAuthModuleSetup } from './module/setup'
-import { buildAuthRouteRulesCode, buildExtendedClientAuthCode, buildExtendedServerAuthCode, buildSchemaExportCode, buildSecondaryStorageCode } from './module/templates'
+import { buildAuthRouteRulesCode, buildExtendedClientAuthCode, buildExtendedServerAuthCode, buildSchemaExportCode } from './module/templates'
 import { registerServerTypeTemplates, registerSharedTypeTemplates } from './module/type-templates'
 
 import './types/hooks'
@@ -162,13 +162,6 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       nuxt.options.alias['#auth/client'] = clientConfigPath
 
       if (!setup.clientOnly) {
-        const secondaryStorageTemplate = addTemplate({
-          filename: 'better-auth/secondary-storage.mjs',
-          getContents: () => buildSecondaryStorageCode(),
-          write: true,
-        })
-        nuxt.options.alias['#auth/secondary-storage'] = secondaryStorageTemplate.dst
-
         const databaseTemplate = addTemplate({
           filename: 'better-auth/database.mjs',
           getContents: () => setup.database.providerDefinition!.buildDatabaseCode(setup.database.buildContext!),

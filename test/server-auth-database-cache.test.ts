@@ -11,10 +11,6 @@ vi.mock('#auth/database', () => ({
   db: { query: {} },
 }))
 
-vi.mock('#auth/secondary-storage', () => ({
-  createSecondaryStorage: vi.fn(() => undefined),
-}))
-
 vi.mock('#auth/server', () => ({
   default: createServerAuthMock,
 }))
@@ -72,6 +68,45 @@ describe('serverAuth database cache and secret validation', () => {
   afterEach(() => {
     vi.unstubAllEnvs()
     vi.restoreAllMocks()
+  })
+
+  it('rejects request-derived origins and listener addresses in production', async () => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: '' },
+      auth: {},
+      betterAuthSecret: 'test-secret-for-testing-only-32chars',
+    })
+    for (const name of ['VERCEL_URL', 'CF_PAGES_URL', 'URL'])
+      vi.stubEnv(name, '')
+    vi.stubEnv('HOST', '0.0.0.0')
+    vi.stubEnv('NITRO_HOST', '127.0.0.1')
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth(createEvent())).toThrow('siteUrl required in production')
+    expect(betterAuthMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['VERCEL_URL', 'deployment.vercel.app', 'https://deployment.vercel.app'],
+    ['CF_PAGES_URL', 'https://deployment.pages.dev', 'https://deployment.pages.dev'],
+    ['URL', 'https://deployment.netlify.app', 'https://deployment.netlify.app'],
+  ])('uses %s without trusting the request origin', async (name, value, expected) => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: '' },
+      auth: {},
+      betterAuthSecret: 'test-secret-for-testing-only-32chars',
+    })
+    for (const variable of ['VERCEL_URL', 'CF_PAGES_URL', 'URL'])
+      vi.stubEnv(variable, '')
+    vi.stubEnv(name, value)
+    vi.stubEnv('NITRO_HOST', '127.0.0.1')
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+    serverAuth(createEvent())
+
+    expect(betterAuthMock.mock.calls[0]?.[0].baseURL).toBe(expected)
+    expect(createServerAuthMock).toHaveBeenCalledWith(expect.objectContaining({ requestOrigin: 'https://example.com' }))
   })
 
   it('rejects missing singular and versioned secrets before creating auth', async () => {

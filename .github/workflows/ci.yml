@@ -24,6 +24,8 @@ jobs:
       - run: pnpm install
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm typecheck:runtime-server
+      - run: pnpm typecheck:playground
       - run: pnpm prepack
       - run: pnpm dev:build
         env:
@@ -56,7 +58,7 @@ jobs:
       - name: Install compatibility dependencies
         timeout-minutes: 5
         working-directory: /tmp/nuxt-better-auth-compatibility
-        run: corepack pnpm@11.21.0 add --save-exact "nuxt@${{ matrix.nuxt }}" better-auth@1.5.5 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/nuxtjs-better-auth-*.tgz
+        run: corepack pnpm@11.21.0 add --save-exact "nuxt@${{ matrix.nuxt }}" better-auth@1.7.1 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/nuxtjs-better-auth-*.tgz
       - run: corepack pnpm@11.21.0 typecheck
         working-directory: /tmp/nuxt-better-auth-compatibility
       - run: corepack pnpm@11.21.0 build
