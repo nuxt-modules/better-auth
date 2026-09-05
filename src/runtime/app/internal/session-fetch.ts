@@ -59,7 +59,7 @@ export async function fetchSessionClient(
 ): Promise<void> {
   try {
     const headers = options.headers || useRequestHeaders(['cookie'])
-    const fetchOptions = headers ? { headers } : undefined
+    const fetchOptions = { ...(headers ? { headers } : {}), throw: false as const }
     const query = options.force ? { disableCookieCache: true } : undefined
     const result = await client.getSession({ query }, fetchOptions)
     const data = result.data as SessionResponse | null

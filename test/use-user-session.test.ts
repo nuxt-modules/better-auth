@@ -1,3 +1,4 @@
+import { createAuthClient } from 'better-auth/vue'
 import { createPinia, defineStore, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isReactive, isRef, ref, watch } from 'vue'
@@ -912,6 +913,41 @@ describe('useUserSession hydration bootstrap', () => {
     await flushPromises()
 
     expect(auth.session.value).toBe(bridgedSession)
+  })
+
+  it.each([401, 500])('preserves session state when Better Auth returns HTTP %i during logout', async (status) => {
+    const client = createAuthClient({
+      baseURL: 'https://auth.example.test',
+      fetchOptions: {
+        customFetchImpl: async () => Response.json({ message: 'Logout unavailable' }, { status }),
+      },
+    })
+    mockClient.signOut.mockImplementationOnce(() => client.signOut())
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    seedHydratedState()
+    const auth = (await loadUseUserSession())()
+    const onSuccess = vi.fn()
+
+    await expect(auth.signOut({ onSuccess })).rejects.toThrow('Logout unavailable')
+
+    expect(auth.loggedIn.value).toBe(true)
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(navigateTo).not.toHaveBeenCalled()
+
+    await auth.signOut({ onSuccess })
+    expect(auth.loggedIn.value).toBe(false)
+    expect(onSuccess).toHaveBeenCalledOnce()
+  })
+
+  it('preserves session state when logout rejects', async () => {
+    mockClient.signOut.mockRejectedValueOnce(new Error('Network unavailable'))
+    seedHydratedState()
+    const auth = (await loadUseUserSession())()
+    const onSuccess = vi.fn()
+
+    await expect(auth.signOut({ onSuccess })).rejects.toThrow('Network unavailable')
+    expect(auth.loggedIn.value).toBe(true)
+    expect(onSuccess).not.toHaveBeenCalled()
   })
 
   it('signOut navigates to redirects.logout when configured (and no onSuccess)', async () => {
