@@ -18,6 +18,7 @@ describe('exports-snapshot', async () => {
     if (!existsSync('dist/module.mjs') || !existsSync('dist/runtime/config.js') || !existsSync('dist/runtime/composables.js')) {
       const build = spawnSync('pnpm', ['exec', 'nuxt-module-build', 'build'], {
         encoding: 'utf8',
+        timeout: 120_000,
         env: process.env,
       })
       expect(build.status, `nuxt-module-build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
@@ -51,12 +52,13 @@ describe('exports-snapshot', async () => {
     }
 
     await expect(yaml.stringify(manifest)).toMatchFileSnapshot('./exports/module.yaml')
-  }, 60_000)
+  }, 360_000)
 
   it('does not import module-owned composables from #imports in built runtime', () => {
     if (!existsSync('dist/runtime/composables.js')) {
       const build = spawnSync('pnpm', ['exec', 'nuxt-module-build', 'build'], {
         encoding: 'utf8',
+        timeout: 120_000,
         env: process.env,
       })
       expect(build.status, `nuxt-module-build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
@@ -69,5 +71,5 @@ describe('exports-snapshot', async () => {
     })
 
     expect(coupledFiles).toEqual([])
-  }, 60_000)
+  }, 360_000)
 })

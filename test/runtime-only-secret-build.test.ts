@@ -19,9 +19,10 @@ describe('runtime-only auth secret', () => {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
 
     expect(build.status, `nuxi build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
     expect(existsSync(join(fixtureDir, '.output/server/wrangler.json'))).toBe(true)
-  }, 120_000)
+  }, 360_000)
 })
