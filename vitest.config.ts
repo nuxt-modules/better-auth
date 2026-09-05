@@ -31,6 +31,7 @@ const integrationTests = [
   'test/preserve-redirect-custom-key.test.ts',
   'test/preserve-redirect-custom-login.test.ts',
   'test/preserve-redirect-disabled.test.ts',
+  'test/public-auto-imports.test.ts',
   'test/redirects-option.test.ts',
   'test/runtime-only-secret-build.test.ts',
   'test/server-auth-base-url-cache.test.ts',
