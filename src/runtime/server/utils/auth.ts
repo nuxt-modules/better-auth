@@ -158,7 +158,7 @@ function getNitroOrigin(): string | undefined {
 }
 
 function resolveEnvironmentOrigin(): { origin: string, source: string } | undefined {
-  const nitroOrigin = getNitroOrigin()
+  const nitroOrigin = import.meta.dev ? getNitroOrigin() : undefined
   if (nitroOrigin)
     return { origin: validateURL(nitroOrigin), source: 'Nitro environment detection' }
 
@@ -166,7 +166,7 @@ function resolveEnvironmentOrigin(): { origin: string, source: string } | undefi
     return { origin: validateURL(`https://${process.env.VERCEL_URL}`), source: 'VERCEL_URL' }
 
   if (process.env.CF_PAGES_URL)
-    return { origin: validateURL(`https://${process.env.CF_PAGES_URL}`), source: 'CF_PAGES_URL' }
+    return { origin: validateURL(process.env.CF_PAGES_URL), source: 'CF_PAGES_URL' }
 
   if (process.env.URL)
     return { origin: validateURL(process.env.URL.startsWith('http') ? process.env.URL : `https://${process.env.URL}`), source: 'URL' }
@@ -187,7 +187,7 @@ function getBaseURL(event?: ServerEvent): string {
   if (configuredSiteUrl)
     return configuredSiteUrl
 
-  const eventOrigin = resolveEventOrigin(event)
+  const eventOrigin = import.meta.dev ? resolveEventOrigin(event) : undefined
   if (eventOrigin) {
     logInferredBaseURL(eventOrigin, 'request origin')
     return eventOrigin
@@ -205,7 +205,7 @@ function getBaseURL(event?: ServerEvent): string {
     return devFallback.origin
   }
 
-  throw new Error('siteUrl required. Set NUXT_PUBLIC_SITE_URL.')
+  throw new Error('siteUrl required in production. Set NUXT_PUBLIC_SITE_URL to the public application URL or provide VERCEL_URL, CF_PAGES_URL, or URL.')
 }
 
 function dedupeOrigins(origins: readonly string[]): string[] {
