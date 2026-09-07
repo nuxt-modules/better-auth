@@ -107,6 +107,11 @@ async function loadAuthComposables() {
   return import('../src/runtime/app/composables/useUserSession')
 }
 
+async function loadRedirectHelpers() {
+  vi.resetModules()
+  return import('../src/runtime/app/internal/redirect-helpers')
+}
+
 async function flushPromises() {
   await Promise.resolve()
   await Promise.resolve()
@@ -1206,4 +1211,27 @@ describe('useUserSession hydration bootstrap', () => {
 
     await expect(auth.signOut()).rejects.toThrow('signOut can only be called on client-side')
   })
+})
+
+describe('local redirect validation', () => {
+  it.each([
+    'https://evil.example/phish',
+    '//evil.example/phish',
+    '/\\evil.example/phish',
+    '/%2fevil.example/phish',
+    '/%5cevil.example/phish',
+    '/safe\nevil',
+    '/%2e%2e//evil.example/phish',
+  ])('rejects unsafe redirect %j', async (redirect) => {
+    const { isSafeLocalRedirect } = await loadRedirectHelpers()
+    expect(isSafeLocalRedirect(redirect)).toBeUndefined()
+  })
+
+  it.each(['/dashboard', '/dashboard?tab=billing', '/dashboard#security'])(
+    'accepts local redirect %j',
+    async (redirect) => {
+      const { isSafeLocalRedirect } = await loadRedirectHelpers()
+      expect(isSafeLocalRedirect(redirect)).toBe(redirect)
+    },
+  )
 })
