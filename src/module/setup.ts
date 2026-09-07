@@ -145,7 +145,7 @@ export function assertSafeAuthRouteRules(nuxt: Nuxt): void {
 
     const incompatibleKeys = authIncompatibleRouteRuleKeys.filter((key) => {
       const value = effectiveRule[key]
-      return value !== undefined && value !== false
+      return value !== undefined && value !== false && value !== 0
     })
 
     return incompatibleKeys.length ? [{ path, incompatibleKeys }] : []

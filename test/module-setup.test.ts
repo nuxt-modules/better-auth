@@ -225,7 +225,7 @@ describe('assertSafeAuthRouteRules', () => {
     const nuxt = await loadCase('without-nuxthub')
     nuxt.options.routeRules = {
       '/api/public': { auth: false, cache: true },
-      '/api/private': { auth: 'user', cache: false, swr: false, prerender: false },
+      '/api/private': { auth: 'user', cache: false, swr: 0, prerender: false },
     }
 
     expect(() => assertSafeAuthRouteRules(nuxt)).not.toThrow()
