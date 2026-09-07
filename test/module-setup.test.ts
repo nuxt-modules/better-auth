@@ -85,12 +85,15 @@ describe('resolveAuthModuleSetup', () => {
 
   it('captures a non-NuxtHub setup without selecting a database provider', async () => {
     const nuxt = await loadCase('without-nuxthub')
+    const packageExists = vi.fn(() => false)
 
     const setup = await resolveAuthModuleSetup({
       nuxt,
       options: createModuleOptions(nuxt),
       runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
       consola: createConsolaMock(),
+    }, {
+      packageExists,
     })
 
     expect(setup.hub.hasNuxtHub).toBe(false)
@@ -98,16 +101,91 @@ describe('resolveAuthModuleSetup', () => {
     expect(setup.database.providerId).toBe('none')
     expect(setup.database.hasHubDb).toBe(false)
     expect(setup.schemaGeneration).toBeUndefined()
+    expect(packageExists).not.toHaveBeenCalled()
+  })
+
+  it('requires drizzle-orm for a NuxtHub SQLite database', async () => {
+    const nuxt = await loadCase('core-auth')
+    nuxt.options.alias['hub:db'] = '/virtual/hub-db'
+
+    await expect(resolveAuthModuleSetup({
+      nuxt,
+      options: createModuleOptions(nuxt),
+      runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
+      consola: createConsolaMock(),
+    }, {
+      packageExists: () => false,
+    })).rejects.toThrow(
+      '[nuxt-better-auth] NuxtHub sqlite support requires drizzle-orm. Install it in your Nuxt app, for example with `pnpm add drizzle-orm`.',
+    )
+  })
+
+  it('does not require postgres for a NuxtHub SQLite database', async () => {
+    const nuxt = await loadCase('core-auth')
+    const packageExists = vi.fn((packageName: string) => packageName === 'drizzle-orm')
+    nuxt.options.alias['hub:db'] = '/virtual/hub-db'
+
+    const setup = await resolveAuthModuleSetup({
+      nuxt,
+      options: createModuleOptions(nuxt),
+      runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
+      consola: createConsolaMock(),
+    }, {
+      packageExists,
+    })
+
+    expect(setup.database.providerId).toBe('nuxthub')
+    expect(packageExists).toHaveBeenCalledOnce()
+    expect(packageExists).toHaveBeenCalledWith('drizzle-orm', nuxt.options.rootDir)
+  })
+
+  it('requires postgres for a NuxtHub PostgreSQL database', async () => {
+    const nuxt = await loadCase('core-auth')
+    nuxt.options.alias['hub:db'] = '/virtual/hub-db'
+    Object.assign(nuxt.options, { hub: { db: 'postgresql' } })
+
+    await expect(resolveAuthModuleSetup({
+      nuxt,
+      options: createModuleOptions(nuxt),
+      runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
+      consola: createConsolaMock(),
+    }, {
+      packageExists: packageName => packageName === 'drizzle-orm',
+    })).rejects.toThrow(
+      '[nuxt-better-auth] NuxtHub postgresql support requires postgres. Install it in your Nuxt app, for example with `pnpm add postgres`.',
+    )
+  })
+
+  it('accepts a NuxtHub PostgreSQL database when both packages are installed', async () => {
+    const nuxt = await loadCase('core-auth')
+    const packageExists = vi.fn(() => true)
+    nuxt.options.alias['hub:db'] = '/virtual/hub-db'
+    Object.assign(nuxt.options, { hub: { db: 'postgresql' } })
+
+    const setup = await resolveAuthModuleSetup({
+      nuxt,
+      options: createModuleOptions(nuxt),
+      runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
+      consola: createConsolaMock(),
+    }, {
+      packageExists,
+    })
+
+    expect(setup.database.providerId).toBe('nuxthub')
+    expect(packageExists.mock.calls.map(([packageName]) => packageName)).toEqual(['drizzle-orm', 'postgres'])
   })
 
   it('supports client-only mode without server setup state', async () => {
-    const nuxt = await loadCase('without-nuxthub')
+    const nuxt = await loadCase('core-auth')
+    const packageExists = vi.fn(() => false)
 
     const setup = await resolveAuthModuleSetup({
       nuxt,
       options: createModuleOptions(nuxt, { clientOnly: true }),
       runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
       consola: createConsolaMock(),
+    }, {
+      packageExists,
     })
 
     expect(setup.clientOnly).toBe(true)
@@ -116,10 +194,12 @@ describe('resolveAuthModuleSetup', () => {
     expect(setup.prepareTypes).toBeUndefined()
     expect(setup.serverTypes).toBeUndefined()
     expect(setup.schemaGeneration).toBeUndefined()
+    expect(packageExists).not.toHaveBeenCalled()
   })
 
   it('prefers a higher-priority external provider from the provider hook', async () => {
-    const nuxt = await loadCase('without-nuxthub')
+    const nuxt = await loadCase('core-auth')
+    const packageExists = vi.fn(() => false)
     let aliasesDuringProviderSelection: Record<string, string | undefined> | undefined
 
     nuxt.hook('better-auth:database:providers', (providers) => {
@@ -141,10 +221,13 @@ describe('resolveAuthModuleSetup', () => {
       options: createModuleOptions(nuxt),
       runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
       consola: createConsolaMock(),
+    }, {
+      packageExists,
     })
 
     expect(setup.database.providerId).toBe('external')
     expect(setup.database.hasHubDb).toBe(false)
+    expect(packageExists).not.toHaveBeenCalled()
     expect(aliasesDuringProviderSelection).toEqual({
       server: setup.configs.server.path,
       client: setup.configs.client.path,

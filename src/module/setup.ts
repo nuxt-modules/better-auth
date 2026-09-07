@@ -8,8 +8,9 @@ import type {
 } from '../types/hooks'
 import type { AuthConfigDescriptor } from './config-paths'
 import type { NuxtHubOptions } from './hub'
+import { createRequire } from 'node:module'
 import { hasNuxtModule } from '@nuxt/kit'
-import { dirname } from 'pathe'
+import { dirname, join } from 'pathe'
 import { resolveDatabaseProvider } from '../database-provider'
 import { resolveAuthConfigDescriptors, resolveAuthPluginSources } from './config-paths'
 import { getHubCasing, getHubDialect } from './hub'
@@ -74,6 +75,35 @@ interface ResolveAuthModuleSetupInput {
 interface ResolveAuthModuleSetupDependencies {
   configExists?: (path: string) => boolean
   hasNuxtModule?: typeof hasNuxtModule
+  packageExists?: (packageName: string, rootDir: string) => boolean
+}
+
+function packageExists(packageName: string, rootDir: string): boolean {
+  try {
+    createRequire(join(rootDir, 'package.json')).resolve(packageName)
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
+function assertNuxtHubDatabaseDependencies(
+  dialect: BetterAuthDatabaseProviderBuildContext['hubDialect'],
+  rootDir: string,
+  packageExistsFn: NonNullable<ResolveAuthModuleSetupDependencies['packageExists']>,
+): void {
+  const requiredPackages = dialect === 'postgresql'
+    ? ['drizzle-orm', 'postgres']
+    : ['drizzle-orm']
+  const missingPackages = requiredPackages.filter(packageName => !packageExistsFn(packageName, rootDir))
+
+  if (!missingPackages.length)
+    return
+
+  throw new Error(
+    `[nuxt-better-auth] NuxtHub ${dialect} support requires ${missingPackages.join(' and ')}. Install ${missingPackages.length === 1 ? 'it' : 'them'} in your Nuxt app, for example with \`pnpm add ${missingPackages.join(' ')}\`.`,
+  )
 }
 
 function assertConfigPresence(configs: ResolvedAuthModuleSetup['configs'], clientOnly: boolean): void {
@@ -197,6 +227,13 @@ export async function resolveAuthModuleSetup(
   const hasHubDb = providerId === 'nuxthub'
   if (hasHubDb && !nuxt.options.alias['hub:db']) {
     throw new Error('[nuxt-better-auth] hub:db not found. Ensure @nuxthub/core is loaded before this module and hub.db is configured.')
+  }
+  if (hasHubDb) {
+    assertNuxtHubDatabaseDependencies(
+      hubDialect,
+      nuxt.options.rootDir,
+      dependencies.packageExists ?? packageExists,
+    )
   }
 
   return {

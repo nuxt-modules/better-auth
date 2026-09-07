@@ -64,10 +64,18 @@
   },
   "peerDependencies": {
     "@nuxthub/core": ">=0.10.5",
-    "better-auth": ">=1.7.3 <2"
+    "better-auth": ">=1.7.3 <2",
+    "drizzle-orm": "^0.45.2 || >=1.0.0-rc.1 <2.0.0",
+    "postgres": "^3.4.9"
   },
   "peerDependenciesMeta": {
     "@nuxthub/core": {
+      "optional": true
+    },
+    "drizzle-orm": {
+      "optional": true
+    },
+    "postgres": {
       "optional": true
     }
   },
