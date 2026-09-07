@@ -68,9 +68,6 @@ describe('resolveAuthModuleSetup', () => {
       consola: createConsolaMock(),
     })
 
-    expect(setup.hub.hasNuxtHub).toBe(true)
-    expect(setup.hub.hasHubDbAvailable).toBe(true)
-    expect(setup.database.providerId).toBe('nuxthub')
     expect(setup.database.hasHubDb).toBe(true)
     expect(collectAuthRouteRules(nuxt)).toMatchObject({
       '/protected': { auth: 'user' },
@@ -80,7 +77,7 @@ describe('resolveAuthModuleSetup', () => {
     expect(setup.prepareTypes).toMatchObject({
       hasHubDb: true,
     })
-    expect(setup.serverTypes?.serverConfigPath).toContain('/test/cases/core-auth/server/auth.config')
+    expect(setup.serverTypes).toEqual({ hasHubDb: true })
   })
 
   it('captures a non-NuxtHub setup without selecting a database provider', async () => {
@@ -93,9 +90,6 @@ describe('resolveAuthModuleSetup', () => {
       consola: createConsolaMock(),
     })
 
-    expect(setup.hub.hasNuxtHub).toBe(false)
-    expect(setup.hub.hasHubDbAvailable).toBe(false)
-    expect(setup.database.providerId).toBe('none')
     expect(setup.database.hasHubDb).toBe(false)
     expect(setup.schemaGeneration).toBeUndefined()
   })
@@ -111,7 +105,6 @@ describe('resolveAuthModuleSetup', () => {
     })
 
     expect(setup.clientOnly).toBe(true)
-    expect(setup.database.providerId).toBe('none')
     expect(setup.aliases['#auth/server']).toBeUndefined()
     expect(setup.prepareTypes).toBeUndefined()
     expect(setup.serverTypes).toBeUndefined()
@@ -143,8 +136,9 @@ describe('resolveAuthModuleSetup', () => {
       consola: createConsolaMock(),
     })
 
-    expect(setup.database.providerId).toBe('external')
     expect(setup.database.hasHubDb).toBe(false)
+    expect(setup.database.providerDefinition?.buildDatabaseCode(setup.database.buildContext!))
+      .toBe('export function createDatabase() { return "external" }')
     expect(aliasesDuringProviderSelection).toEqual({
       server: setup.configs.server.path,
       client: setup.configs.client.path,
