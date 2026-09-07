@@ -8,6 +8,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate } from '@nuxt/kit'
 import { join } from 'pathe'
 import { generateDrizzleSchema, loadUserAuthConfig } from '../schema-generator'
+import { resolveAuthConfigFile } from './config-paths'
 import { getHubCasing, getHubDialect } from './hub'
 
 interface SchemaContext {
@@ -18,7 +19,6 @@ interface SchemaContext {
 type HubSecondaryStorageMode = BetterAuthModuleOptions['hubSecondaryStorage']
 
 const NODE_MODULES_SEGMENT_RE = /[\\/]/
-const CONFIG_EXTENSION_RE = /\.[cm]?[jt]s$/
 
 export function resolveSchemaSecondaryStorageInjection(
   hubSecondaryStorage: HubSecondaryStorageMode,
@@ -84,7 +84,7 @@ export function registerNuxtHubSchemaHook(
 
 async function loadAuthOptions(context: SchemaContext) {
   const isProduction = !context.nuxt.options.dev
-  const configFile = CONFIG_EXTENSION_RE.test(context.serverConfigPath) ? context.serverConfigPath : `${context.serverConfigPath}.ts`
+  const configFile = resolveAuthConfigFile(context.serverConfigPath) ?? context.serverConfigPath
   const alias = Object.fromEntries(
     Object.entries(context.nuxt.options.alias)
       .filter(([, value]) => typeof value === 'string')

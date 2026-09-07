@@ -2,7 +2,7 @@ import type { Nuxt } from '@nuxt/schema'
 import { fileURLToPath } from 'node:url'
 import { loadNuxt } from '@nuxt/kit'
 import { afterEach, describe, expect, it } from 'vitest'
-import { resolveAuthConfigDescriptor, resolveAuthConfigDescriptors, resolveAuthPluginSources } from '../src/module/config-paths'
+import { resolveAuthConfigDescriptor, resolveAuthConfigDescriptors, resolveAuthConfigFile, resolveAuthPluginSources } from '../src/module/config-paths'
 
 const loadedNuxtInstances: Nuxt[] = []
 
@@ -25,6 +25,13 @@ afterEach(async () => {
 })
 
 describe('resolveAuthConfigDescriptor', () => {
+  it.each(['.mts', '.mjs'])('resolves an extensionless path to a %s config', (extension) => {
+    const configPath = '/project/server/auth.config'
+
+    expect(resolveAuthConfigFile(configPath, candidate => candidate === `${configPath}${extension}`))
+      .toBe(`${configPath}${extension}`)
+  })
+
   it('resolves plugin sources from each declaring layer in Nuxt priority order', async () => {
     const nuxt = await loadCase('layer-plugin-contributions')
 
