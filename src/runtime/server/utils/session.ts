@@ -82,14 +82,14 @@ async function loadSession(event: ServerEvent): Promise<SessionWithHeaders> {
   const result = await auth.api.getSession({
     headers: getRequestHeaders(event),
     returnHeaders: true,
-  }) as unknown as SessionWithHeaders | AppSession | null
+  }) as unknown
 
   // Keep unit-level and forward-compatible resilience if an auth adapter ignores
   // returnHeaders, while Better Auth 1.7.3+ returns SessionWithHeaders here.
-  if (result && 'headers' in result && result.headers instanceof Headers && 'response' in result)
-    return result
+  if (result && typeof result === 'object' && 'headers' in result && result.headers instanceof Headers && 'response' in result)
+    return result as SessionWithHeaders
 
-  return { headers: new Headers(), response: result }
+  return { headers: new Headers(), response: result as AppSession | null }
 }
 
 function loadFreshSession(event: ServerEvent): Promise<SessionWithHeaders> {
