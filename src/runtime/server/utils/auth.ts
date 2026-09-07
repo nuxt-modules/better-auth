@@ -76,10 +76,21 @@ function logInferredBaseURL(baseURL: string, source: string): void {
 
 function validateURL(url: string): string {
   try {
-    return normalizeLoopbackOrigin(new URL(url).origin)
+    const parsed = new URL(url)
+
+    // Better Auth builds callback URLs and origin checks from this value. An
+    // opaque origin (for example `javascript:`) or a URL containing
+    // credentials is never a valid site origin and could otherwise result in
+    // surprising redirects or origin mismatches.
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+      throw new Error('unsupported protocol')
+    if (parsed.username || parsed.password)
+      throw new Error('credentials are not allowed')
+
+    return normalizeLoopbackOrigin(parsed.origin)
   }
   catch {
-    throw new Error(`Invalid siteUrl: "${url}". Must be a valid URL.`)
+    throw new Error(`Invalid siteUrl: "${url}". Must be a valid HTTP(S) URL without credentials.`)
   }
 }
 

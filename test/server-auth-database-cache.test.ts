@@ -123,6 +123,24 @@ describe('serverAuth database cache and secret validation', () => {
     expect(betterAuthMock).not.toHaveBeenCalled()
   })
 
+  it.each([
+    'javascript:alert(1)',
+    'ftp://example.com',
+    'https://user:password@example.com',
+  ])('rejects unsafe siteUrl %s before creating auth', async (siteUrl) => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl },
+      auth: {},
+      betterAuthSecret: 'test-secret-for-testing-only-32chars',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('Must be a valid HTTP(S) URL without credentials')
+    expect(createDatabaseMock).not.toHaveBeenCalled()
+    expect(betterAuthMock).not.toHaveBeenCalled()
+  })
+
   it('forwards versioned secrets without requiring a singular secret', async () => {
     const secrets = [
       { version: 2, value: 'current-secret-for-testing-only-32chars' },
