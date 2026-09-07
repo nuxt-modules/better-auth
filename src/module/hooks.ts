@@ -29,8 +29,11 @@ interface RegisterPrepareTypesHookInput {
 
 export function registerTemplateHmrHook(nuxt: Nuxt): void {
   nuxt.hook('builder:watch', async (_event, relativePath) => {
-    if (relativePath.includes('auth.config'))
-      await updateTemplates({ filter: t => t.filename.includes('nuxt-better-auth') })
+    if (relativePath.includes('auth.config')) {
+      await updateTemplates({
+        filter: template => template.filename.startsWith('better-auth/') || template.filename.startsWith('types/nuxt-better-auth'),
+      })
+    }
   })
 }
 
