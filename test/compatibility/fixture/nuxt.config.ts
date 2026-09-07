@@ -1,5 +1,6 @@
 export default defineNuxtConfig({
-  modules: ['@nuxtjs/better-auth'],
+  modules: ['@nuxthub/core', '@nuxtjs/better-auth'],
+  hub: { db: { dialect: 'sqlite', applyMigrationsDuringBuild: false } },
   routeRules: {
     '/api/guest': { auth: 'guest' },
   },

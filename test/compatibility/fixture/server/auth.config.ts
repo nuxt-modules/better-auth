@@ -1,3 +1,10 @@
 import { defineServerAuth } from '@nuxtjs/better-auth/config'
 
-export default defineServerAuth({})
+export default defineServerAuth({
+  emailAndPassword: { enabled: true },
+  user: {
+    additionalFields: {
+      preferredLocale: { type: 'string', required: false },
+    },
+  },
+})
