@@ -6,34 +6,35 @@ const fixtureDir = resolve(process.argv[2] || '')
 const port = '43175'
 const baseURL = `http://127.0.0.1:${port}`
 
+const cookies = new Map()
+
+async function request(path, { body, ip = '192.0.2.123' } = {}, status = 200) {
+  const response = await fetch(`${baseURL}${path}`, {
+    method: body ? 'POST' : 'GET',
+    headers: {
+      'content-type': 'application/json',
+      'origin': baseURL,
+      'x-forwarded-for': ip,
+      'cookie': [...cookies.values()].join('; '),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(10_000),
+  })
+  for (const value of response.headers.getSetCookie()) {
+    const cookie = value.split(';')[0]
+    const name = cookie.slice(0, cookie.indexOf('='))
+    if (/max-age=0(?:;|$)/i.test(value))
+      cookies.delete(name)
+    else
+      cookies.set(name, cookie)
+  }
+  assert.equal(response.status, status, `${path}: ${response.status}`)
+  return response.json()
+}
+
 async function checkAuthLifecycle() {
-  const cookies = new Map()
   const email = `compatibility-${Date.now()}@example.com`
   const password = 'Compatibility-test-password-123!'
-
-  async function request(path, { body, ip = '192.0.2.123' } = {}, status = 200) {
-    const response = await fetch(`${baseURL}${path}`, {
-      method: body ? 'POST' : 'GET',
-      headers: {
-        'content-type': 'application/json',
-        'origin': baseURL,
-        'x-forwarded-for': ip,
-        'cookie': [...cookies.values()].join('; '),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(10_000),
-    })
-    for (const value of response.headers.getSetCookie()) {
-      const cookie = value.split(';')[0]
-      const name = cookie.slice(0, cookie.indexOf('='))
-      if (/max-age=0(?:;|$)/i.test(value))
-        cookies.delete(name)
-      else
-        cookies.set(name, cookie)
-    }
-    assert.equal(response.status, status, `${path}: ${response.status}`)
-    return response.json()
-  }
 
   await request('/api/private', {}, 401)
   await request('/api/auth/sign-up/email', {
@@ -94,20 +95,9 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 250))
     }
 
-    if (!response?.ok)
-      throw new Error(`Compatibility server did not respond successfully.\n${output}`)
-
-    const body = await response.json()
-    if (body?.ok !== true)
-      throw new Error(`Unexpected auth response: ${JSON.stringify(body)}`)
-
-    const guestResponse = await fetch(`http://127.0.0.1:${port}/api/guest`)
-    if (!guestResponse.ok)
-      throw new Error(`Guest route returned ${guestResponse.status}.\n${output}`)
-
-    const guestBody = await guestResponse.json()
-    if (guestBody?.guest !== true)
-      throw new Error(`Unexpected guest response: ${JSON.stringify(guestBody)}`)
+    assert.ok(response?.ok, 'Compatibility server did not respond successfully')
+    assert.equal((await response.json()).ok, true)
+    assert.equal((await request('/api/guest')).guest, true)
 
     if (process.env.COMPATIBILITY_DATABASE === 'true') {
       await checkAuthLifecycle()
