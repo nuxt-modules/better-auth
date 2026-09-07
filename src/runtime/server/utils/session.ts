@@ -5,6 +5,7 @@ import { createAuthError, splitCookiesString } from '../internal/nitro-compat'
 import { serverAuth } from './auth'
 
 const requestSessionLoadKey = Symbol.for('nuxt-better-auth.requestSessionLoad')
+const requestSessionMutationKey = Symbol.for('nuxt-better-auth.requestSessionMutation')
 const signingAlgorithm: HmacImportParams = { name: 'HMAC', hash: 'SHA-256' }
 const cookiePairSeparatorRE = /;\s*/
 
@@ -44,6 +45,7 @@ interface RequestSessionContext {
   requestSession?: AppSession | null
   requestHeaders?: Headers
   [requestSessionLoadKey]?: Promise<AppSession | null>
+  [requestSessionMutationKey]?: number
 }
 
 interface SessionWithHeaders {
@@ -75,9 +77,19 @@ function getRequestHeaders(event: ServerEvent): Headers {
   return getRequestSessionContext(event).requestHeaders ?? getIncomingRequestHeaders(event)
 }
 
-function loadSession(event: ServerEvent): Promise<AppSession | null> {
+async function loadSession(event: ServerEvent): Promise<SessionWithHeaders> {
   const auth = serverAuth(event)
-  return auth.api.getSession({ headers: getRequestHeaders(event) }) as Promise<AppSession | null>
+  const result = await auth.api.getSession({
+    headers: getRequestHeaders(event),
+    returnHeaders: true,
+  }) as unknown as SessionWithHeaders | AppSession | null
+
+  // Keep unit-level and forward-compatible resilience if an auth adapter ignores
+  // returnHeaders, while Better Auth 1.7.3+ returns SessionWithHeaders here.
+  if (result && 'headers' in result && result.headers instanceof Headers && 'response' in result)
+    return result
+
+  return { headers: new Headers(), response: result }
 }
 
 function loadFreshSession(event: ServerEvent): Promise<SessionWithHeaders> {
@@ -229,6 +241,14 @@ function appendSetCookieHeaders(event: ServerEvent, headers: Headers): void {
     appendCookieHeader(event, header)
 }
 
+function getRequestSessionMutation(context: RequestSessionContext): number {
+  return context[requestSessionMutationKey] ?? 0
+}
+
+function markRequestSessionMutation(context: RequestSessionContext): void {
+  context[requestSessionMutationKey] = getRequestSessionMutation(context) + 1
+}
+
 function parseRequestCookies(cookieHeader: string | null): Map<string, string> {
   const cookies = new Map<string, string>()
   if (!cookieHeader)
@@ -313,7 +333,11 @@ export async function getRequestSession(event: ServerEvent): Promise<AppSession 
   if (context.requestSession !== undefined)
     return context.requestSession
 
-  const load = loadSession(event)
+  const load: Promise<AppSession | null> = loadSession(event).then(({ headers, response }) => {
+    if (context[requestSessionLoadKey] === load)
+      appendSetCookieHeaders(event, headers)
+    return response
+  })
 
   context[requestSessionLoadKey] = load
   try {
@@ -337,11 +361,16 @@ export async function getUserSession(event: ServerEvent): Promise<AppSession | n
   if (context.requestSession !== undefined)
     return context.requestSession
 
-  return loadSession(event)
+  const mutation = getRequestSessionMutation(context)
+  const { headers, response } = await loadSession(event)
+  if (getRequestSessionMutation(context) === mutation)
+    appendSetCookieHeaders(event, headers)
+  return response
 }
 
 export function setRequestSession(event: ServerEvent, session: AppSession | null): void {
   const context = getRequestSessionContext(event)
+  markRequestSessionMutation(context)
   context.requestSession = session
   delete context[requestSessionLoadKey]
 }
@@ -364,6 +393,7 @@ export async function refreshSessionCookieCache(event: ServerEvent): Promise<App
     return response
   })
 
+  markRequestSessionMutation(context)
   context[requestSessionLoadKey] = load
   try {
     return await load
@@ -391,6 +421,7 @@ export async function setSessionCookie(event: ServerEvent, token: string): Promi
   expireCookies(event, context.authCookies.dontRememberToken)
 
   const requestContext = getRequestSessionContext(event)
+  markRequestSessionMutation(requestContext)
   delete requestContext.requestSession
   delete requestContext[requestSessionLoadKey]
   updateRequestHeaders(event, sessionCookie, [

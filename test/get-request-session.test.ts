@@ -127,6 +127,31 @@ describe('getRequestSession', () => {
     expect(event.context.requestSession).toBe(first)
   })
 
+  it('forwards session cookies returned by an ordinary session load', async () => {
+    const session = {
+      user: { id: 'u1' },
+      session: { id: 's1' },
+    }
+    const sessionDataCookie = `${authContextMock.authCookies.sessionData.name}=fresh; Path=/; HttpOnly`
+    const sessionTokenCookie = `${authContextMock.authCookies.sessionToken.name}=token; Path=/; HttpOnly`
+    const headers = new Headers()
+    headers.set('set-cookie', `${sessionDataCookie}, ${sessionTokenCookie}`)
+    getSessionMock.mockResolvedValue({ headers, response: session })
+
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    await expect(getRequestSession(event)).resolves.toEqual(session)
+    expect(getSessionMock).toHaveBeenCalledWith({
+      headers: event.headers,
+      returnHeaders: true,
+    })
+    expect(event.node.res.getHeader('set-cookie')).toEqual([
+      sessionDataCookie,
+      sessionTokenCookie,
+    ])
+  })
+
   it('deduplicates concurrent resolution within a single request', async () => {
     let resolveSession: ((value: unknown) => void) | undefined
     getSessionMock.mockImplementation(() => new Promise((resolve) => {
@@ -168,16 +193,25 @@ describe('getRequestSession', () => {
   })
 
   it('reads request headers from Nitro 3 events', async () => {
-    getSessionMock.mockResolvedValue({
+    const session = {
       user: { id: 'u1' },
       session: { id: 's1' },
+    }
+    const sessionCookie = 'better-auth.session_data=fresh; Path=/; HttpOnly'
+    getSessionMock.mockResolvedValue({
+      headers: new Headers({ 'set-cookie': sessionCookie }),
+      response: session,
     })
     const { getRequestSession } = await import('../src/runtime/server/utils/session')
     const event = createNitroV3Event()
 
-    await getRequestSession(event)
+    await expect(getRequestSession(event)).resolves.toEqual(session)
 
-    expect(getSessionMock).toHaveBeenCalledWith({ headers: event.req.headers })
+    expect(getSessionMock).toHaveBeenCalledWith({
+      headers: event.req.headers,
+      returnHeaders: true,
+    })
+    expect(event.res.headers.getSetCookie()).toEqual([sessionCookie])
   })
 })
 
@@ -269,6 +303,37 @@ describe('getUserSession', () => {
     expect(getSessionMock).toHaveBeenCalledTimes(1)
     expect('context' in event).toBe(false)
   })
+
+  it('does not forward stale cookies after a trusted request-session mutation', async () => {
+    let resolveSession: ((value: unknown) => void) | undefined
+    getSessionMock.mockImplementation(() => new Promise((resolve) => {
+      resolveSession = resolve
+    }))
+
+    const staleSession = {
+      user: { id: 'cookie-user' },
+      session: { id: 'cookie-session' },
+    }
+    const suppliedSession = {
+      user: { id: 'bearer-user' },
+      session: { id: 'bearer-session' },
+    }
+    const staleCookie = 'better-auth.session_data=stale; Path=/; HttpOnly'
+    const { getRequestSession, getUserSession, setRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    const earlierLookup = getUserSession(event)
+    setRequestSession(event, suppliedSession as any)
+    resolveSession?.({
+      headers: new Headers({ 'set-cookie': staleCookie }),
+      response: staleSession,
+    })
+
+    await expect(earlierLookup).resolves.toEqual(staleSession)
+    await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
+    expect(event.context.requestSession).toBe(suppliedSession)
+    expect(event.node.res.getHeader('set-cookie')).toBeUndefined()
+  })
 })
 
 describe('setRequestSession', () => {
@@ -336,7 +401,11 @@ describe('setRequestSession', () => {
     const laterUserLookup = getUserSession(event)
     const laterRequiredLookup = requireUserSession(event)
 
-    resolveSession?.(staleSession)
+    const staleCookie = 'better-auth.session_data=stale; Path=/; HttpOnly'
+    resolveSession?.({
+      headers: new Headers({ 'set-cookie': staleCookie }),
+      response: staleSession,
+    })
 
     await expect(earlierLookup).resolves.toEqual(staleSession)
     await expect(laterRequestLookup).resolves.toBe(suppliedSession)
@@ -344,6 +413,7 @@ describe('setRequestSession', () => {
     await expect(laterRequiredLookup).resolves.toBe(suppliedSession)
     await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
     expect(event.context.requestSession).toBe(suppliedSession)
+    expect(event.node.res.getHeader('set-cookie')).toBeUndefined()
   })
 
   it('supplies the session when an earlier lookup rejects', async () => {
