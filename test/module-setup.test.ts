@@ -3,7 +3,7 @@ import type { BetterAuthModuleOptions } from '../src/runtime/config'
 import { fileURLToPath } from 'node:url'
 import { loadNuxt } from '@nuxt/kit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { collectAuthRouteRules, resolveAuthModuleSetup } from '../src/module/setup'
+import { assertSafeAuthRouteRules, collectAuthRouteRules, resolveAuthModuleSetup } from '../src/module/setup'
 
 const loadedNuxtInstances: Nuxt[] = []
 
@@ -195,5 +195,39 @@ describe('resolveAuthModuleSetup', () => {
     }, {
       configExists: path => !path.endsWith('/server/auth.config'),
     })).rejects.toThrow('Missing')
+  })
+})
+
+describe('assertSafeAuthRouteRules', () => {
+  it.each(['cache', 'swr', 'isr', 'static', 'prerender', 'proxy'] as const)(
+    'rejects auth combined with %s',
+    async (key) => {
+      const nuxt = await loadCase('without-nuxthub')
+      nuxt.options.routeRules = {
+        '/api/private': { auth: 'user', [key]: true },
+      }
+
+      expect(() => assertSafeAuthRouteRules(nuxt)).toThrow(`/api/private (${key})`)
+    },
+  )
+
+  it('rejects incompatible rules inherited from a broader auth rule', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    nuxt.options.routeRules = {
+      '/api/**': { auth: 'user' },
+      '/api/cached/**': { cache: true },
+    }
+
+    expect(() => assertSafeAuthRouteRules(nuxt)).toThrow('/api/cached/** (cache)')
+  })
+
+  it('allows disabled auth and disabled response rules', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    nuxt.options.routeRules = {
+      '/api/public': { auth: false, cache: true },
+      '/api/private': { auth: 'user', cache: false, swr: false, prerender: false },
+    }
+
+    expect(() => assertSafeAuthRouteRules(nuxt)).not.toThrow()
   })
 })

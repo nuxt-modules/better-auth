@@ -9,7 +9,9 @@ import type {
 import type { AuthConfigDescriptor } from './config-paths'
 import type { NuxtHubOptions } from './hub'
 import { hasNuxtModule } from '@nuxt/kit'
+import { defu } from 'defu'
 import { dirname } from 'pathe'
+import { createRouter, toRouteMatcher } from 'radix3'
 import { resolveDatabaseProvider } from '../database-provider'
 import { resolveAuthConfigDescriptors, resolveAuthPluginSources } from './config-paths'
 import { getHubCasing, getHubDialect } from './hub'
@@ -107,11 +109,7 @@ function createDefaultDatabaseProviders(
 }
 
 export function collectAuthRouteRules(nuxt: Nuxt): Record<string, { auth: unknown }> {
-  const runtimeRouteRulesSource = (
-    (nuxt.options as { nitro?: { routeRules?: Record<string, unknown> } }).nitro?.routeRules
-    || (nuxt.options as { routeRules?: Record<string, unknown> }).routeRules
-    || {}
-  ) as Record<string, unknown>
+  const runtimeRouteRulesSource = getRuntimeRouteRules(nuxt)
 
   return Object.fromEntries(
     Object.entries(runtimeRouteRulesSource).flatMap(([path, rule]) => {
@@ -120,6 +118,49 @@ export function collectAuthRouteRules(nuxt: Nuxt): Record<string, { auth: unknow
 
       return [[path, { auth: (rule as { auth?: unknown }).auth }]]
     }),
+  )
+}
+
+const authIncompatibleRouteRuleKeys = ['cache', 'swr', 'isr', 'static', 'prerender', 'proxy'] as const
+
+function getRuntimeRouteRules(nuxt: Nuxt): Record<string, unknown> {
+  return (
+    (nuxt.options as { nitro?: { routeRules?: Record<string, unknown> } }).nitro?.routeRules
+    || (nuxt.options as { routeRules?: Record<string, unknown> }).routeRules
+    || {}
+  ) as Record<string, unknown>
+}
+
+export function assertSafeAuthRouteRules(nuxt: Nuxt): void {
+  const routeRules = getRuntimeRouteRules(nuxt)
+  if (!Object.keys(routeRules).length)
+    return
+
+  const matcher = toRouteMatcher(createRouter({ routes: routeRules }))
+  const conflicts = Object.keys(routeRules).flatMap((path) => {
+    const matches = matcher.matchAll(path) as Record<string, unknown>[]
+    const effectiveRule = defu({}, ...matches.reverse()) as Record<string, unknown>
+    if (effectiveRule.auth === undefined || effectiveRule.auth === false)
+      return []
+
+    const incompatibleKeys = authIncompatibleRouteRuleKeys.filter((key) => {
+      const value = effectiveRule[key]
+      return value !== undefined && value !== false
+    })
+
+    return incompatibleKeys.length ? [{ path, incompatibleKeys }] : []
+  })
+
+  if (!conflicts.length)
+    return
+
+  const details = conflicts
+    .map(({ path, incompatibleKeys }) => `${path} (${incompatibleKeys.join(', ')})`)
+    .join(', ')
+
+  throw new Error(
+    `[nuxt-better-auth] Auth route rules cannot be combined with cache, swr, isr, static, prerender, or proxy rules. `
+    + `These rules can run before authentication or share user-specific responses. Conflicts: ${details}`,
   )
 }
 
