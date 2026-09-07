@@ -401,7 +401,13 @@ export async function setSessionCookie(event: ServerEvent, token: string): Promi
 
 export async function createSession(event: ServerEvent, userId: string): Promise<AuthSession> {
   const context = await getServerAuthContext(event)
-  return context.internalAdapter.createSession?.(userId, false) as Promise<AuthSession>
+  if (typeof context.internalAdapter.createSession !== 'function') {
+    throw new TypeError(
+      '[@nuxtjs/better-auth] Cannot create a session: the installed Better Auth version does not expose internalAdapter.createSession().',
+    )
+  }
+
+  return context.internalAdapter.createSession(userId, false) as Promise<AuthSession>
 }
 
 export async function requireUserSession(event: ServerEvent, options?: RequireSessionOptions): Promise<AppSession> {
