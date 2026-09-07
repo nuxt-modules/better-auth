@@ -109,8 +109,13 @@ async function main() {
     if (guestBody?.guest !== true)
       throw new Error(`Unexpected guest response: ${JSON.stringify(guestBody)}`)
 
-    await checkAuthLifecycle()
-    process.stdout.write('Packed consumer signup, sign-in, session, protected route, and logout passed.\n')
+    if (process.env.COMPATIBILITY_DATABASE === 'true') {
+      await checkAuthLifecycle()
+      process.stdout.write('Packed consumer signup, sign-in, session, protected route, and logout passed.\n')
+    }
+    else {
+      process.stdout.write('Packed consumer auth and guest route smoke checks passed.\n')
+    }
   }
   catch (error) {
     throw new Error(`Compatibility auth flow failed.\n${output}`, { cause: error })

@@ -38,14 +38,19 @@ jobs:
       - run: pnpm test
 
   compatibility:
+    env:
+      COMPATIBILITY_DATABASE: ${{ matrix.nuxt.database }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         nuxt:
-          - 4.5.0
+          - version: 4.5.0
+            database: true
           # Keep merge proof on a reviewed snapshot; float nightlies only in non-gating surveillance.
-          - npm:nuxt-nightly@5.0.0-29765760.f83eac74
+          # NuxtHub 0.10.8 still imports Nitro 2 APIs; retain the no-DB Nuxt 5 smoke check.
+          - version: npm:nuxt-nightly@5.0.0-29765760.f83eac74
+            database: false
         better_auth:
           - 1.7.3
           # Resolve the newest supported stable release on each run, including the daily check.
@@ -66,10 +71,11 @@ jobs:
       - name: Install compatibility dependencies
         timeout-minutes: 5
         working-directory: /tmp/nuxt-better-auth-compatibility
-        run: corepack pnpm@11.21.0 add --save-exact "nuxt@${{ matrix.nuxt }}" "better-auth@${{ matrix.better_auth }}" @nuxthub/core@0.10.8 @libsql/client@0.17.4 drizzle-orm@0.45.2 drizzle-kit@0.31.10 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/nuxtjs-better-auth-*.tgz
+        run: corepack pnpm@11.21.0 add --save-exact "nuxt@${{ matrix.nuxt.version }}" "better-auth@${{ matrix.better_auth }}" @nuxthub/core@0.10.8 @libsql/client@0.17.4 drizzle-orm@0.45.2 drizzle-kit@0.31.10 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/nuxtjs-better-auth-*.tgz
       - run: corepack pnpm@11.21.0 typecheck
         working-directory: /tmp/nuxt-better-auth-compatibility
       - run: corepack pnpm@11.21.0 db:generate && corepack pnpm@11.21.0 db:migrate
+        if: matrix.nuxt.database
         working-directory: /tmp/nuxt-better-auth-compatibility
       - run: corepack pnpm@11.21.0 build
         working-directory: /tmp/nuxt-better-auth-compatibility
