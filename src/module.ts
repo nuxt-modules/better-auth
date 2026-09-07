@@ -10,7 +10,7 @@ import { dirname, isAbsolute, join, relative } from 'pathe'
 import { version } from '../package.json'
 import { resolveAuthConfigDescriptors } from './module/config-paths'
 import { resolveNitroCompatibilityImports } from './module/compatibility'
-import { registerAuthMiddlewareHook, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
+import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
 import { collectAuthRouteRules, resolveAuthModuleSetup } from './module/setup'
@@ -237,7 +237,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 
       registerTemplateHmrHook(nuxt)
       registerServerRuntime({ clientOnly: setup.clientOnly, resolve: resolver.resolve })
-      registerAuthMiddlewareHook(nuxt, resolver.resolve)
+      registerAuthMiddleware(resolver.resolve)
 
       await registerDevtools({ nuxt, clientOnly: setup.clientOnly, hasHubDb: setup.database.hasHubDb, resolve: resolver.resolve })
       registerRouteRulesMetaHook(nuxt)
