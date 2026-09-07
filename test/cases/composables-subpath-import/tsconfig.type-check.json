@@ -9,6 +9,7 @@
     "./.nuxt/types/nuxt-better-auth-infer.d.ts",
     "./.nuxt/types/nuxt-better-auth-social-providers.d.ts",
     "./.nuxt/types/nuxt-better-auth-endpoints.d.ts",
+    "./root-typecheck-target.ts",
     "./typecheck-target.ts"
   ]
 }

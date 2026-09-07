@@ -259,4 +259,5 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 })
 
 export { defineClientAuth, defineServerAuth } from './runtime/config'
-export type { AppSession, Auth, AuthActionError, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthSocialProviderId, AuthUser, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'
+export type ModuleOptions = Partial<BetterAuthModuleOptions>
+export type { AppSession, Auth, AuthActionError, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthSocialProviderId, AuthUser, ClientAuthSession, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'
