@@ -90,7 +90,7 @@ function validateURL(url: string): string {
     return normalizeLoopbackOrigin(parsed.origin)
   }
   catch {
-    throw new Error(`Invalid siteUrl: "${url}". Must be a valid HTTP(S) URL without credentials.`)
+    throw new Error('Invalid siteUrl. Must be a valid HTTP(S) URL without credentials.')
   }
 }
 

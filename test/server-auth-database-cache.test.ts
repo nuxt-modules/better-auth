@@ -141,6 +141,19 @@ describe('serverAuth database cache and secret validation', () => {
     expect(betterAuthMock).not.toHaveBeenCalled()
   })
 
+  it('does not expose credentials from an invalid siteUrl in the error', async () => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://user:super-secret@example.com' },
+      auth: {},
+      betterAuthSecret: 'test-secret-for-testing-only-32chars',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('Invalid siteUrl')
+    expect(() => serverAuth()).not.toThrow('super-secret')
+  })
+
   it('forwards versioned secrets without requiring a singular secret', async () => {
     const secrets = [
       { version: 2, value: 'current-secret-for-testing-only-32chars' },
