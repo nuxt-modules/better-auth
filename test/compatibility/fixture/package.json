@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "build": "nuxt build",
+    "db:generate": "nuxt-db generate",
+    "db:migrate": "nuxt-db migrate",
     "typecheck": "nuxt prepare && vue-tsc --noEmit -p .nuxt/tsconfig.server.json"
   }
 }

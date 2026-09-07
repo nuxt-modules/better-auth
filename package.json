@@ -64,7 +64,7 @@
   },
   "peerDependencies": {
     "@nuxthub/core": ">=0.10.5",
-    "better-auth": ">=1.7.1 <2"
+    "better-auth": ">=1.7.3 <2"
   },
   "peerDependenciesMeta": {
     "@nuxthub/core": {
@@ -74,7 +74,7 @@
   "dependencies": {
     "@nuxt/devtools-kit": "^3.4.1",
     "@nuxt/kit": "^4.5.2",
-    "auth": "1.7.1",
+    "auth": "1.7.3",
     "consola": "^3.4.2",
     "defu": "^6.1.7",
     "h3": "^1.15.11",
@@ -97,7 +97,7 @@
     "@pinia/nuxt": "^1.0.2",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.13.3",
-    "better-auth": "1.7.1",
+    "better-auth": "1.7.3",
     "better-call": "1.4.0",
     "better-sqlite3": "^12.11.1",
     "drizzle-kit": "^0.31.10",
