@@ -250,10 +250,10 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
     let setupPromise: Promise<boolean> | undefined
     const finishSetupOnce = () => {
       setupPromise ||= finishSetup().catch((error: unknown) => {
-        // Nuxt's CLI prints Error.message without the diagnostic fields. Format
-        // once at this boundary so the code and fix appear in its error report.
+        // Nuxt's CLI prints Error.message without the diagnostic fields. Keep
+        // the structured diagnostic intact as the presentation error's cause.
         if (error instanceof Diagnostic)
-          error.message = formatDiagnostic(error)
+          throw new Error(formatDiagnostic(error), { cause: error })
         throw error
       })
       return setupPromise
