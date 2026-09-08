@@ -62,7 +62,7 @@ Useful commands:
 - `pnpm typecheck` to check module types
 - `pnpm prepack` to build the publishable package
 - `pnpm test` to run the test suite
-- `pnpm dev:build` to build the playground
+- `BETTER_AUTH_SECRET=ci-test-secret-12345678901234567890 pnpm dev:build` to build the playground with a test secret for local verification only
 - `pnpm build:docs` to build the docs site
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the complete local CI sequence and pull request guidelines.

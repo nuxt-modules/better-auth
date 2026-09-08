@@ -15,7 +15,7 @@ Run the module playground with `pnpm dev`, or the documentation site with `pnpm 
 
 ## Before opening a pull request
 
-Run the same core checks used by CI:
+Run the same core checks used by CI. The playground build requires an auth secret. The example below uses CI's test secret for local verification only; do not use it for a deployed application.
 
 ```bash
 pnpm lint
@@ -24,7 +24,7 @@ pnpm typecheck:runtime-server
 pnpm typecheck:playground
 pnpm prepack
 pnpm test
-pnpm dev:build
+BETTER_AUTH_SECRET=ci-test-secret-12345678901234567890 pnpm dev:build
 pnpm build:docs
 ```
 
