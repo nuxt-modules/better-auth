@@ -183,10 +183,7 @@ export function useUserSession(): UseUserSessionReturn {
           session.value = stripToken(newSession.data.session as AuthSession & { token?: string })
           user.value = newSession.data.user as AuthUser
         }
-        else if (
-          !newSession?.isPending && !newSession?.isRefetching
-          && (!newSession?.error || isExpectedSignedOutSessionError(newSession.error))
-        ) {
+        else if (!newSession?.isPending && !newSession?.isRefetching) {
           const isHydrationEmptySnapshot
             = nuxtApp.isHydrating
               && nuxtApp.payload.serverRendered
@@ -199,7 +196,8 @@ export function useUserSession(): UseUserSessionReturn {
             return
           }
 
-          clearSession()
+          if (!newSession?.error || isExpectedSignedOutSessionError(newSession.error))
+            clearSession()
         }
         if (!authReady.value && !newSession?.isPending && !newSession?.isRefetching)
           authReady.value = true
