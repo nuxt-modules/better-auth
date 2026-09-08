@@ -57,6 +57,22 @@ afterEach(async () => {
 })
 
 describe('resolveAuthModuleSetup', () => {
+  it('includes diagnostic details once when a setup failure reaches Nuxt', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    nuxt.hook('better-auth:plugins:extend', (plugins) => {
+      plugins.client = ['relative.ts']
+    })
+
+    const error = await nuxt.ready().catch(error => error)
+    expect(error).toMatchObject({
+      code: 'NUXT_AUTH_INVALID_PLUGIN_SOURCE',
+      message: expect.stringContaining('fix: Resolve the plugin source'),
+      docs: 'https://better-auth.nuxt.dev/guides/diagnostics',
+    })
+    await expect(nuxt.callHook('modules:done')).rejects.toBe(error)
+    expect(error.message.match(/\[NUXT_AUTH_INVALID_PLUGIN_SOURCE\]/g)).toHaveLength(1)
+  })
+
   it('captures NuxtHub-backed setup state and auth route rules', async () => {
     const nuxt = await loadCase('core-auth')
     nuxt.options.alias['hub:db'] = '/virtual/hub-db'
@@ -194,6 +210,10 @@ describe('resolveAuthModuleSetup', () => {
       consola: createConsolaMock(),
     }, {
       configExists: path => !path.endsWith('/server/auth.config'),
-    })).rejects.toThrow('Missing')
+    })).rejects.toMatchObject({
+      code: 'NUXT_AUTH_MISSING_CONFIG',
+      message: expect.stringContaining('Missing'),
+      fix: expect.stringContaining('export default defineServerAuth'),
+    })
   })
 })

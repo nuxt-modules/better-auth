@@ -2,7 +2,9 @@ import type { BetterAuthOptions } from 'better-auth'
 import { existsSync } from 'node:fs'
 import { generateDrizzleSchema as _generateDrizzleSchema } from 'auth/api'
 import { consola } from 'consola'
+import { Diagnostic, formatDiagnostic } from 'nostics'
 import { join } from 'pathe'
+import { diagnostics } from './module/diagnostics'
 import type { SchemaCasing } from './runtime/config'
 
 export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: SchemaCasing, schemaName?: string }
@@ -50,7 +52,7 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
     options: options as unknown as DrizzleSchemaInput['options'],
   })
   if (!result.code) {
-    throw new Error(`Schema generation returned empty result for ${dialect}`)
+    throw diagnostics.NUXT_AUTH_EMPTY_SCHEMA({ dialect })
   }
   return result.code
 }
@@ -78,7 +80,6 @@ declare global {
   var __nuxtBetterAuthDefineServerAuth: RuntimeDefineServerAuthFn | undefined
 }
 
-const NO_DEFAULT_EXPORT_MESSAGE = '[@nuxtjs/better-auth] auth.config.ts does not export default. Expected: export default defineServerAuth(...)'
 const SCHEMA_NOT_REGENERATED_MESSAGE = 'The schema was not regenerated and any existing generated schema file was left unchanged.'
 
 /**
@@ -117,18 +118,20 @@ export async function loadUserAuthConfig(
     if (typeof configFn === 'function') {
       return configFn({ runtimeConfig, db: null })
     }
-    if (throwOnError) {
-      consola.warn(NO_DEFAULT_EXPORT_MESSAGE)
-      throw new Error('auth.config.ts must export default defineServerAuth(...)')
-    }
-    consola.error(`${NO_DEFAULT_EXPORT_MESSAGE}. ${SCHEMA_NOT_REGENERATED_MESSAGE}`)
-    return null
+    throw diagnostics.NUXT_AUTH_INVALID_CONFIG_EXPORT({ configPath })
   }
   catch (error) {
-    if (throwOnError) {
-      throw new Error(`Failed to load auth config: ${error instanceof Error ? error.message : error}`)
-    }
-    consola.error(`[@nuxtjs/better-auth] Failed to load auth config for schema generation. ${SCHEMA_NOT_REGENERATED_MESSAGE}`, error)
+    const diagnostic = error instanceof Diagnostic
+      ? error
+      : diagnostics.NUXT_AUTH_CONFIG_LOAD_FAILED({ configPath, cause: error })
+    if (throwOnError)
+      throw diagnostic
+
+    const message = `${formatDiagnostic(diagnostic)}\n${SCHEMA_NOT_REGENERATED_MESSAGE}`
+    if (diagnostic.cause === undefined)
+      consola.error(message)
+    else
+      consola.error(message, diagnostic.cause)
     return null
   }
   finally {

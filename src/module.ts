@@ -6,10 +6,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { consola as _consola } from 'consola'
+import { Diagnostic, formatDiagnostic } from 'nostics'
 import { dirname, isAbsolute, join, relative } from 'pathe'
 import { version } from '../package.json'
 import { resolveAuthConfigDescriptors } from './module/config-paths'
 import { resolveNitroCompatibilityImports } from './module/compatibility'
+import { diagnostics } from './module/diagnostics'
 import { registerAuthMiddlewareHook, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
@@ -125,7 +127,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       await nuxt.callHook('better-auth:plugins:extend', registeredPluginSources)
       for (const source of [...(registeredPluginSources.server || []), ...(registeredPluginSources.client || [])]) {
         if (!isAbsolute(source))
-          throw new Error(`[nuxt-better-auth] Modules must register absolute plugin source paths. Received: ${source}`)
+          throw diagnostics.NUXT_AUTH_INVALID_PLUGIN_SOURCE({ source })
       }
 
       const setup = await resolveAuthModuleSetup({
@@ -247,7 +249,13 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 
     let setupPromise: Promise<boolean> | undefined
     const finishSetupOnce = () => {
-      setupPromise ||= finishSetup()
+      setupPromise ||= finishSetup().catch((error: unknown) => {
+        // Nuxt's CLI prints Error.message without the diagnostic fields. Format
+        // once at this boundary so the code and fix appear in its error report.
+        if (error instanceof Diagnostic)
+          error.message = formatDiagnostic(error)
+        throw error
+      })
       return setupPromise
     }
 
