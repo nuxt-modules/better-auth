@@ -193,7 +193,7 @@ describe('resolveAuthModuleSetup', () => {
       runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
       consola: createConsolaMock(),
     }, {
-      configExists: path => !path.endsWith('/server/auth.config'),
+      configExists: path => /\/app\/auth\.config(?:\.[^/]+)?$/.test(path),
     })).rejects.toThrow('Missing')
   })
 })
