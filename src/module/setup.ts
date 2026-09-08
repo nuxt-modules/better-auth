@@ -30,34 +30,22 @@ export interface ResolvedAuthModuleSetup {
     server: string[]
     client: string[]
   }
-  hub: {
-    hasNuxtHub: boolean
-    options?: NuxtHubOptions
-    hasHubDbAvailable: boolean
-  }
   database: {
-    providerId: ModuleDatabaseProviderId
     hasHubDb: boolean
     providerDefinition?: BetterAuthDatabaseProviderDefinition
     buildContext?: BetterAuthDatabaseProviderBuildContext
-  }
-  runtime: {
-    secondaryStorageEnabled: boolean
   }
   prepareTypes?: {
     serverDir: string
     hasHubDb: boolean
   }
   serverTypes?: {
-    serverConfigPath: string
     hasHubDb: boolean
   }
   sharedTypes: {
     runtimeTypesAugmentPath: string
-    clientConfigPath: string
   }
   schemaGeneration?: {
-    serverConfigPath: string
     hubSecondaryStorage: BetterAuthModuleOptions['hubSecondaryStorage']
     externalizeNuxtHubDatabase: boolean
   }
@@ -184,7 +172,7 @@ export async function resolveAuthModuleSetup(
     providerDefinition = resolvedProvider.definition
   }
 
-  const runtime = setupRuntimeConfig({
+  setupRuntimeConfig({
     nuxt,
     options,
     clientOnly,
@@ -204,18 +192,11 @@ export async function resolveAuthModuleSetup(
     configs,
     aliases,
     pluginSources,
-    hub: {
-      hasNuxtHub,
-      options: hub,
-      hasHubDbAvailable,
-    },
     database: {
-      providerId,
       hasHubDb,
       providerDefinition,
       buildContext: clientOnly ? undefined : { hubDialect, usePlural, camelCase },
     },
-    runtime,
     prepareTypes: clientOnly
       ? undefined
       : {
@@ -225,16 +206,13 @@ export async function resolveAuthModuleSetup(
     serverTypes: clientOnly
       ? undefined
       : {
-          serverConfigPath: configs.server.path,
           hasHubDb,
         },
     sharedTypes: {
       runtimeTypesAugmentPath,
-      clientConfigPath: configs.client.path,
     },
     schemaGeneration: hasHubDb
       ? {
-          serverConfigPath: configs.server.path,
           hubSecondaryStorage: options.hubSecondaryStorage ?? false,
           externalizeNuxtHubDatabase: true,
         }
