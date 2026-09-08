@@ -86,7 +86,7 @@ async function ensureSchemaBootstrap(schemaPath: string, dialect: DbDialect): Pr
   await writeFile(schemaPath, buildSchemaExportCode(false, dialect))
 }
 
-export type { BetterAuthModuleOptions } from './runtime/config'
+export type { BetterAuthModuleOptions, BetterAuthModuleOptions as ModuleOptions } from './runtime/config'
 
 export default defineNuxtModule<BetterAuthModuleOptions>({
   meta: { name: '@nuxtjs/better-auth', version, configKey: 'auth', compatibility: { nuxt: '>=4.0.0' } },
@@ -251,4 +251,4 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 })
 
 export { defineClientAuth, defineServerAuth } from './runtime/config'
-export type { AppSession, Auth, AuthActionError, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthSocialProviderId, AuthUser, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'
+export type { AppSession, Auth, AuthActionError, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthSocialProviderId, AuthUser, ClientAuthSession, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'
