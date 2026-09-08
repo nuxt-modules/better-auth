@@ -40,7 +40,7 @@ export function useAuthRequestFetch(): AuthRequestFetch {
   const clientOptions: ClientAuthConfig = createAppAuthClient.resolveOptions(siteUrl)
   const configuredBaseURL = clientOptions.baseURL ?? siteUrl
   // Better Auth treats a path in baseURL as the complete auth base path.
-  const baseURL = new URL(configuredBaseURL).pathname.replace(/\/+$/, '')
+  const baseURL = configuredBaseURL && new URL(configuredBaseURL).pathname.replace(/\/+$/, '')
     ? configuredBaseURL
     : joinURL(configuredBaseURL, clientOptions.basePath ?? '/api/auth')
   const externalRequestFetch = requestFetch as unknown as (request: string, opts?: RequestFetchOptions) => Promise<unknown>

@@ -29,6 +29,7 @@ describe('useAuthRequestFetch', () => {
     requestFetch.mockReset()
     useRequestFetch.mockClear()
     runtimeConfig.public.auth.clientOnly = false
+    runtimeConfig.public.siteUrl = 'https://auth.example.com'
   })
 
   it('preserves request-scoped fetch in normal mode', async () => {
@@ -55,6 +56,8 @@ describe('useAuthRequestFetch', () => {
   })
 
   it.each([
+    [{ baseURL: '' }, '/api/auth'],
+    [{ baseURL: '', basePath: '/custom/auth' }, '/custom/auth'],
     [{ basePath: '/custom/auth' }, 'https://auth.example.com/custom/auth'],
     [{ basePath: 'custom/auth' }, 'https://auth.example.com/custom/auth'],
     [{ basePath: '/' }, 'https://auth.example.com'],
@@ -69,6 +72,19 @@ describe('useAuthRequestFetch', () => {
 
     expect(requestFetch).toHaveBeenCalledWith('/get-session', {
       baseURL,
+      credentials: 'include',
+    })
+  })
+
+  it('uses a relative auth URL when siteUrl is empty', async () => {
+    runtimeConfig.public.auth.clientOnly = true
+    runtimeConfig.public.siteUrl = ''
+    const { useAuthRequestFetch } = await import('../src/runtime/app/composables/useAuthRequestFetch')
+
+    await useAuthRequestFetch()('/api/auth/get-session')
+
+    expect(requestFetch).toHaveBeenCalledWith('/get-session', {
+      baseURL: '/api/auth',
       credentials: 'include',
     })
   })
