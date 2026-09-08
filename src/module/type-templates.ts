@@ -371,10 +371,23 @@ interface RegisterSharedTypeTemplatesInput {
   runtimeTypesPath: string
   clientConfigPath: string
   h3TypesPath: 'h3' | 'nitro/h3'
+  clientOnly: boolean
 }
 
 export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesInput) {
   const nitroV3 = input.h3TypesPath === 'nitro/h3'
+  const clientOnlyAuthApiTypes = input.clientOnly
+    ? `
+  export type AuthApiInternalRoutes = Record<string, Record<string, unknown>>
+  export type AuthApiEndpointPatternPath = string
+  export type AuthApiEndpointPath = string
+  export type AuthApiEndpointMethod<Path extends AuthApiEndpointPath> = string
+  export type AuthApiEndpointResponse<
+    Path extends AuthApiEndpointPath,
+    Method extends AuthApiEndpointMethod<Path> = AuthApiEndpointMethod<Path>,
+  > = unknown
+`
+    : ''
   addTypeTemplate({
     filename: 'types/nuxt-better-auth.d.ts',
     getContents: () => `
@@ -411,7 +424,8 @@ declare module '#nuxt-better-auth' {
   }
 
   export interface AuthSocialProviderRegistry {}
-  export type AuthSocialProviderId = AuthSocialProviderRegistry extends { ids: infer T } ? Extract<T, string> : never
+  export type AuthSocialProviderId = AuthSocialProviderRegistry extends { ids: infer T } ? Extract<T, string> : string
+${clientOnlyAuthApiTypes}
 
   export interface AuthUserUpdateInput {
     name?: string

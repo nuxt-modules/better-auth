@@ -227,6 +227,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
         runtimeTypesPath: resolver.resolve('./runtime/types'),
         clientConfigPath,
         h3TypesPath: nitroImports.h3,
+        clientOnly: setup.clientOnly,
       })
 
       registerTemplateHmrHook(nuxt)
