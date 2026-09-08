@@ -1,13 +1,17 @@
 import { defineDiagnostics } from 'nostics'
 
+function configFilename(file: string): string {
+  return /\.[cm]?[jt]s$/.test(file) ? file : `${file}.ts`
+}
+
 // Keep construction silent: Nuxt reports thrown errors, and recoverable failures
 // are formatted explicitly at the call site through the existing logger.
 export const diagnostics = defineDiagnostics({
   docsBase: code => `https://better-auth.nuxt.dev/errors/${code.toLowerCase().replaceAll('_', '-')}`,
   codes: {
     NUXT_AUTH_MISSING_CONFIG: {
-      why: (p: { file: string }) => `Missing ${p.file}.ts`,
-      fix: (p: { file: string, factory: 'defineServerAuth' | 'defineClientAuth' }) => `Create ${p.file}.ts with export default ${p.factory}(...).`,
+      why: (p: { file: string }) => `Missing ${configFilename(p.file)}`,
+      fix: (p: { file: string, factory: 'defineServerAuth' | 'defineClientAuth' }) => `Create ${configFilename(p.file)} with export default ${p.factory}(...).`,
     },
     NUXT_AUTH_NO_DATABASE_PROVIDER: {
       why: 'No database provider is enabled.',
