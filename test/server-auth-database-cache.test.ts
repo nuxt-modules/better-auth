@@ -132,6 +132,7 @@ describe('serverAuth database cache and secret validation', () => {
     'https:@example.com',
     'https:\\@example.com',
     ' \thttps://:\n@example.com\r ',
+    '\u0001https://@example.com',
   ])('rejects unsafe siteUrl %s before creating auth', async (siteUrl) => {
     useRuntimeConfigMock.mockReturnValue({
       public: { siteUrl },
