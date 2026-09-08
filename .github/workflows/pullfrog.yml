@@ -1,6 +1,6 @@
-# PULLFROG ACTION — DO NOT EDIT EXCEPT WHERE INDICATED
 name: Pullfrog
 run-name: ${{ inputs.name || github.workflow }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -11,37 +11,35 @@ on:
         type: string
         description: Run name
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   pullfrog:
-    runs-on: ubuntu-latest
+    runs-on: pullfrog-better-auth
     permissions:
       id-token: write
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
-      - name: Configure proxy access
-        run: |
-          cat > "$RUNNER_TEMP/pullfrog-opencode.json" <<'JSON'
-          {"provider":{"openai-compatible":{"options":{"headers":{"CF-Access-Client-Id":"{env:CF_ACCESS_CLIENT_ID}","CF-Access-Client-Secret":"{env:CF_ACCESS_CLIENT_SECRET}"}}}}}
-          JSON
-      # Select Custom > OpenAI-compatible in the Pullfrog console.
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Setup Corepack
+        run: npm install --global corepack@0.36.0
       - name: Run agent
         uses: pullfrog/pullfrog@v0
         with:
           prompt: ${{ inputs.prompt }}
           model: openai-compatible/byok
+          effort: high
         env:
-          OPENAI_COMPATIBLE_BASE_URL: https://ai.onmax.me/v1
+          OPENAI_COMPATIBLE_BASE_URL: http://cliproxy.internal:8317/v1
           OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPENAI_COMPATIBLE_API_KEY }}
-          OPENAI_COMPATIBLE_MODEL: gpt-6-astra
-          OPENAI_COMPATIBLE_CONTEXT: '272000'
+          OPENAI_COMPATIBLE_MODEL: gpt-5.6-luna(high)
+          OPENAI_COMPATIBLE_CONTEXT: '1050000'
           OPENAI_COMPATIBLE_MAX_OUTPUT: '128000'
-          OPENCODE_CONFIG: ${{ runner.temp }}/pullfrog-opencode.json
-          CF_ACCESS_CLIENT_ID: ${{ secrets.CLIPROXY_CF_ACCESS_CLIENT_ID }}
-          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CLIPROXY_CF_ACCESS_CLIENT_SECRET }}
