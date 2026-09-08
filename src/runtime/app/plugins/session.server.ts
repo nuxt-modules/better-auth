@@ -1,6 +1,6 @@
-import type { AuthSession, AuthUser, ClientAuthSession } from '#nuxt-better-auth'
-import { parseJSON } from 'better-auth/client'
-import { defineNuxtPlugin, useRequestEvent, useRequestHeaders, useState } from '#imports'
+import type { AuthUser, ClientAuthSession } from '#nuxt-better-auth'
+import { defineNuxtPlugin, useRequestEvent, useState } from '#imports'
+import { getRequestSession } from '../../server/utils/session'
 
 export default defineNuxtPlugin({
   name: 'auth:session-init',
@@ -10,12 +10,11 @@ export default defineNuxtPlugin({
     const user = useState<AuthUser | null>('auth:user', () => null)
     const authReady = useState('auth:ready', () => false)
 
-    // Fetch session on SSR using Better Auth's API endpoint
+    // Resolve on the outer request so Better Auth's refreshed cookies are forwarded.
     const event = useRequestEvent()
     if (event) {
       try {
-        const headers = useRequestHeaders(['cookie'])
-        const data = await $fetch<{ session: AuthSession & { token?: string }, user: AuthUser } | null>('/api/auth/get-session', { headers, parseResponse: parseJSON })
+        const data = await getRequestSession(event)
         if (data?.session && data?.user) {
           // Filter out sensitive token field from client state
           const { token: _, ...safeSession } = data.session
