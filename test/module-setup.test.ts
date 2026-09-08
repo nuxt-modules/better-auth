@@ -67,7 +67,7 @@ describe('resolveAuthModuleSetup', () => {
     expect(error).toMatchObject({
       code: 'NUXT_AUTH_INVALID_PLUGIN_SOURCE',
       message: expect.stringContaining('fix: Resolve the plugin source'),
-      docs: 'https://better-auth.nuxt.dev/guides/diagnostics',
+      docs: 'https://better-auth.nuxt.dev/errors/nuxt-auth-invalid-plugin-source',
     })
     await expect(nuxt.callHook('modules:done')).rejects.toBe(error)
     expect(error.message.match(/\[NUXT_AUTH_INVALID_PLUGIN_SOURCE\]/g)).toHaveLength(1)

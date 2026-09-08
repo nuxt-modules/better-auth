@@ -35,6 +35,10 @@ useSeoMeta({
   twitterImage: ogImageUrl,
 })
 
+useHead({
+  link: [{ rel: 'canonical', href: new URL(page.value.path, site.url).toString() }],
+})
+
 const headline = ref(findPageHeadline(navigation?.value, page.value?.path))
 watch(() => navigation?.value, () => {
   headline.value = findPageHeadline(navigation?.value, page.value?.path) || headline.value
@@ -45,7 +49,9 @@ const github = computed(() => appConfig.github || null)
 const editLink = computed(() => {
   if (!github.value)
     return
-  return [github.value.url, 'edit', github.value.branch, github.value.rootDir, 'content', `${page.value?.stem}.${page.value?.extension}`].filter(Boolean).join('/')
+  const editPath = page.value?.meta?.editPath
+  const source = typeof editPath === 'string' ? editPath : `content/${page.value?.stem}.${page.value?.extension}`
+  return [github.value.url, 'edit', github.value.branch, github.value.rootDir, source].filter(Boolean).join('/')
 })
 
 const tocLinks = computed(() => page.value?.body?.toc?.links ?? [])
@@ -70,7 +76,7 @@ const tocLinks = computed(() => page.value?.body?.toc?.links ?? [])
         :title="page.title"
         :description="page.description"
         :headline="headline"
-        :ui="{ wrapper: 'flex-row items-center flex-wrap justify-between' }"
+        :ui="{ wrapper: 'flex-row items-center flex-wrap justify-between', title: '[overflow-wrap:anywhere]' }"
       >
         <template #links>
           <UButton
