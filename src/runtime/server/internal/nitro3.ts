@@ -12,6 +12,7 @@ import {
   readBody,
 } from 'nitro/h3'
 import { useRuntimeConfig } from 'nitro/runtime-config'
+import { normalizeAuthRouteRule } from '../../internal/auth-route-rules'
 
 export {
   defineEventHandler,
@@ -27,8 +28,8 @@ export type ServerEvent = H3Event
 export { splitSetCookieString as splitCookiesString }
 
 export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
-  const auth = getRouteRules(event.req.method, getRequestURL(event).pathname).routeRules.auth?.options
-  return { auth: auth as AuthRouteRules['auth'] }
+  const auth = getRouteRules(event.req.method, getRequestURL(event).pathname).routeRules?.auth
+  return { auth: normalizeAuthRouteRule(auth) }
 }
 
 export function createAuthError(status: number, statusText: string): Error {
