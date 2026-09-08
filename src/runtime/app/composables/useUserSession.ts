@@ -3,7 +3,7 @@ import type { AppAuthClient, AuthSession, AuthUser, AuthUserUpdateInput, ClientA
 import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
-import { fetchSessionClient, fetchSessionServer, stripToken } from '../internal/session-fetch'
+import { fetchSessionClient, fetchSessionServer, isExpectedSignedOutSessionError, stripToken } from '../internal/session-fetch'
 import { isRecord } from '../internal/utils'
 import { createVueSafeAuthFacade, isAuthProxyProbeKey } from '../internal/vue-safe-auth-proxy'
 import { wrapAuthMethod } from '../internal/wrap-auth-method'
@@ -127,15 +127,34 @@ export function useUserSession(): UseUserSessionReturn {
     }
   }
 
+  let mountedReconciliationStarted = false
+
   function queueHydrationReconciliation() {
     if (hydrationReconcileQueued.value)
       return
 
     hydrationReconcileQueued.value = true
-    nuxtApp.hook('app:mounted', async () => {
-      await fetchSession({ force: true })
-      hydrationReconcileQueued.value = false
-    })
+    const reconcile = async () => {
+      try {
+        await fetchSession({ force: true })
+      }
+      catch (error) {
+        console.error('[nuxt-better-auth] Failed to fetch session during hydration reconciliation:', error)
+      }
+      finally {
+        hydrationReconcileQueued.value = false
+      }
+    }
+
+    if (mountedReconciliationStarted) {
+      void reconcile()
+    }
+    else {
+      nuxtApp.hook('app:mounted', () => {
+        mountedReconciliationStarted = true
+        return reconcile()
+      })
+    }
   }
 
   // On client, subscribe to better-auth's reactive session store
@@ -183,7 +202,8 @@ export function useUserSession(): UseUserSessionReturn {
             return
           }
 
-          clearSession()
+          if (!newSession?.error || isExpectedSignedOutSessionError(newSession.error))
+            clearSession()
         }
         if (!authReady.value && !newSession?.isPending && !newSession?.isRefetching)
           authReady.value = true
