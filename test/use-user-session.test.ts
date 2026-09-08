@@ -203,6 +203,45 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
+  it.each([
+    { status: 500, message: 'Auth database unavailable' },
+    new TypeError('Network unavailable'),
+  ])('preserves the SSR session when the initial client atom settles with %s', async (error) => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    seedHydratedState()
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error }
+    await flushPromises()
+
+    expect(auth.session.value).toEqual({ id: 'session-1' })
+    expect(auth.user.value).toEqual({ id: 'user-1' })
+    expect(auth.loggedIn.value).toBe(true)
+    expect(auth.ready.value).toBe(true)
+  })
+
+  it.each([null, { status: 401 }, { code: 'UNAUTHORIZED' }])('clears the SSR session when the initial client atom confirms sign-out: %s', async (error) => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    seedHydratedState()
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error }
+    await flushPromises()
+
+    expect(auth.session.value).toBeNull()
+    expect(auth.user.value).toBeNull()
+    expect(auth.loggedIn.value).toBe(false)
+    expect(auth.ready.value).toBe(true)
+  })
+
   it('bootstraps client session when SSR payload is not hydrated', async () => {
     payload.serverRendered = true
 

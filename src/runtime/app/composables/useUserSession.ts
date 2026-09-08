@@ -3,7 +3,7 @@ import type { AppAuthClient, AuthSession, AuthUser, AuthUserUpdateInput, ClientA
 import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
-import { fetchSessionClient, fetchSessionServer, stripToken } from '../internal/session-fetch'
+import { fetchSessionClient, fetchSessionServer, isExpectedSignedOutSessionError, stripToken } from '../internal/session-fetch'
 import { isRecord } from '../internal/utils'
 import { createVueSafeAuthFacade, isAuthProxyProbeKey } from '../internal/vue-safe-auth-proxy'
 import { wrapAuthMethod } from '../internal/wrap-auth-method'
@@ -171,7 +171,10 @@ export function useUserSession(): UseUserSessionReturn {
           session.value = stripToken(newSession.data.session as AuthSession & { token?: string })
           user.value = newSession.data.user as AuthUser
         }
-        else if (!newSession?.isPending && !newSession?.isRefetching) {
+        else if (
+          !newSession?.isPending && !newSession?.isRefetching
+          && (!newSession?.error || isExpectedSignedOutSessionError(newSession.error))
+        ) {
           const isHydrationEmptySnapshot
             = nuxtApp.isHydrating
               && nuxtApp.payload.serverRendered

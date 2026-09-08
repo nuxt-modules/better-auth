@@ -11,7 +11,7 @@ export function stripToken(session: AuthSession & { token?: string }): ClientAut
   return safe
 }
 
-function isExpectedSignedOutSessionError(error: unknown): boolean {
+export function isExpectedSignedOutSessionError(error: unknown): boolean {
   const normalizedError = normalizeAuthActionError(error)
   if (normalizedError.status === 401)
     return true
