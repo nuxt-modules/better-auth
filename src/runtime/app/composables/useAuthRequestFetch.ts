@@ -42,7 +42,7 @@ export function useAuthRequestFetch(): AuthRequestFetch {
   // Better Auth treats a path in baseURL as the complete auth base path.
   const baseURL = configuredBaseURL && new URL(configuredBaseURL).pathname.replace(/\/+$/, '')
     ? configuredBaseURL
-    : joinURL(configuredBaseURL, clientOptions.basePath ?? '/api/auth')
+    : joinURL(configuredBaseURL || '/', clientOptions.basePath ?? '/api/auth')
   const externalRequestFetch = requestFetch as unknown as (request: string, opts?: RequestFetchOptions) => Promise<unknown>
   // Keep Nuxt's request-scoped fetch so incoming cookies are forwarded during SSR.
   return ((request: AuthApiEndpointPath, opts?: RequestFetchOptions) => externalRequestFetch(request.replace(/^\/api\/auth(?=\/|$)/, ''), {

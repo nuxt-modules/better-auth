@@ -58,6 +58,7 @@ describe('useAuthRequestFetch', () => {
   it.each([
     [{ baseURL: '' }, '/api/auth'],
     [{ baseURL: '', basePath: '/custom/auth' }, '/custom/auth'],
+    [{ baseURL: '', basePath: 'custom/auth' }, '/custom/auth'],
     [{ basePath: '/custom/auth' }, 'https://auth.example.com/custom/auth'],
     [{ basePath: 'custom/auth' }, 'https://auth.example.com/custom/auth'],
     [{ basePath: '/' }, 'https://auth.example.com'],
@@ -76,15 +77,19 @@ describe('useAuthRequestFetch', () => {
     })
   })
 
-  it('uses a relative auth URL when siteUrl is empty', async () => {
+  it.each([
+    [undefined, '/api/auth'],
+    ['custom/auth', '/custom/auth'],
+  ])('uses a root-relative auth URL when siteUrl is empty and basePath is %s', async (basePath, baseURL) => {
     runtimeConfig.public.auth.clientOnly = true
     runtimeConfig.public.siteUrl = ''
+    clientOptions.basePath = basePath
     const { useAuthRequestFetch } = await import('../src/runtime/app/composables/useAuthRequestFetch')
 
     await useAuthRequestFetch()('/api/auth/get-session')
 
     expect(requestFetch).toHaveBeenCalledWith('/get-session', {
-      baseURL: '/api/auth',
+      baseURL,
       credentials: 'include',
     })
   })
