@@ -868,6 +868,7 @@ describe('createSession', () => {
     vi.clearAllMocks()
     getSessionMock.mockReset()
     createSessionMock.mockReset()
+    authContextMock.internalAdapter.createSession = createSessionMock
   })
 
   it('delegates to Better Auth internalAdapter.createSession with dontRememberMe disabled', async () => {
@@ -890,5 +891,17 @@ describe('createSession', () => {
       userId: 'u1',
       token: 'token-1',
     })
+  })
+
+  it('throws a compatibility error when Better Auth does not expose createSession', async () => {
+    const internalAdapter = authContextMock.internalAdapter as { createSession?: typeof createSessionMock }
+    internalAdapter.createSession = undefined
+
+    const { createSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    await expect(createSession(event, 'u1')).rejects.toThrow(
+      '[@nuxtjs/better-auth] Cannot create a session: the installed Better Auth version does not expose internalAdapter.createSession().',
+    )
   })
 })
