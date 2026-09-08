@@ -76,11 +76,11 @@ function logInferredBaseURL(baseURL: string, source: string): void {
 
 function validateURL(url: string): string {
   try {
-    // WHATWG URL parsing strips leading C0 controls, which could otherwise
+    // WHATWG URL parsing strips leading spaces and C0 controls, which could otherwise
     // turn a credential-bearing value into an apparently safe origin.
     const firstCode = url.charCodeAt(0)
-    if (firstCode <= 31 || firstCode === 127)
-      throw new Error('control characters are not allowed')
+    if (firstCode <= 32 || firstCode === 127)
+      throw new Error('leading whitespace and control characters are not allowed')
     const parsed = new URL(url)
 
     // Better Auth builds callback URLs and origin checks from this value. An
