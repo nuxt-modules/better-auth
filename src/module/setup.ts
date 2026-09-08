@@ -7,7 +7,7 @@ import type {
   BetterAuthPluginSources,
 } from '../types/hooks'
 import type { AuthConfigDescriptor } from './config-paths'
-import type { NuxtHubOptions } from './hub'
+import type { DbDriver, NuxtHubOptions } from './hub'
 import { createRequire } from 'node:module'
 import { hasNuxtModule } from '@nuxt/kit'
 import { dirname, join } from 'pathe'
@@ -90,12 +90,23 @@ function packageExists(packageName: string, rootDir: string): boolean {
 
 function assertNuxtHubDatabaseDependencies(
   dialect: BetterAuthDatabaseProviderBuildContext['hubDialect'],
+  driver: DbDriver | undefined,
   rootDir: string,
   packageExistsFn: NonNullable<ResolveAuthModuleSetupDependencies['packageExists']>,
 ): void {
   const requiredPackages = dialect === 'postgresql'
     ? ['drizzle-orm', 'postgres']
     : ['drizzle-orm']
+  const driverPackages: Partial<Record<DbDriver, string>> = {
+    'postgres-js': 'postgres',
+    'neon-http': '@neondatabase/serverless',
+    'libsql': '@libsql/client',
+    'mysql2': 'mysql2',
+    'pglite': '@electric-sql/pglite',
+  }
+  const driverPackage = driver && driverPackages[driver]
+  if (driverPackage && !requiredPackages.includes(driverPackage))
+    requiredPackages.push(driverPackage)
   const missingPackages = requiredPackages.filter(packageName => !packageExistsFn(packageName, rootDir))
 
   if (!missingPackages.length)
@@ -231,6 +242,7 @@ export async function resolveAuthModuleSetup(
   if (hasHubDb) {
     assertNuxtHubDatabaseDependencies(
       hubDialect,
+      typeof hub?.db === 'object' ? hub.db.driver : undefined,
       nuxt.options.rootDir,
       dependencies.packageExists ?? packageExists,
     )

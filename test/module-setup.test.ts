@@ -175,6 +175,51 @@ describe('resolveAuthModuleSetup', () => {
     expect(packageExists.mock.calls.map(([packageName]) => packageName)).toEqual(['drizzle-orm', 'postgres'])
   })
 
+  it.each([
+    ['sqlite', 'libsql', '@libsql/client'],
+    ['mysql', 'mysql2', 'mysql2'],
+    ['postgresql', 'pglite', '@electric-sql/pglite'],
+    ['postgresql', 'neon-http', '@neondatabase/serverless'],
+    ['postgresql', 'postgres-js', 'postgres'],
+  ])('checks the %s %s driver before completing setup', async (dialect, driver, driverPackage) => {
+    const nuxt = await loadCase('core-auth')
+    nuxt.options.alias['hub:db'] = '/virtual/hub-db'
+    Object.assign(nuxt.options, { hub: { db: { dialect, driver } } })
+    const input = {
+      nuxt,
+      options: createModuleOptions(nuxt),
+      runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
+      consola: createConsolaMock(),
+    }
+
+    await expect(resolveAuthModuleSetup(input, {
+      packageExists: packageName => packageName !== driverPackage,
+    })).rejects.toThrow(`Install it in your Nuxt app, for example with \`pnpm add ${driverPackage}\`.`)
+
+    const installedPackages = new Set(['drizzle-orm', driverPackage])
+    if (dialect === 'postgresql')
+      installedPackages.add('postgres')
+    const setup = await resolveAuthModuleSetup(input, {
+      packageExists: packageName => installedPackages.has(packageName),
+    })
+    expect(setup.database.providerId).toBe('nuxthub')
+  })
+
+  it.each(['d1', 'd1-http'])('does not require a client package for %s', async (driver) => {
+    const nuxt = await loadCase('core-auth')
+    nuxt.options.alias['hub:db'] = '/virtual/hub-db'
+    Object.assign(nuxt.options, { hub: { db: { dialect: 'sqlite', driver } } })
+    const setup = await resolveAuthModuleSetup({
+      nuxt,
+      options: createModuleOptions(nuxt),
+      runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
+      consola: createConsolaMock(),
+    }, {
+      packageExists: packageName => packageName === 'drizzle-orm',
+    })
+    expect(setup.database.providerId).toBe('nuxthub')
+  })
+
   it('supports client-only mode without server setup state', async () => {
     const nuxt = await loadCase('core-auth')
     const packageExists = vi.fn(() => false)

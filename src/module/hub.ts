@@ -1,9 +1,10 @@
 import type { SchemaCasing } from '../runtime/config'
 
 export type DbDialect = 'sqlite' | 'postgresql' | 'mysql'
+export type DbDriver = 'd1' | 'd1-http' | 'postgres-js' | 'neon-http' | 'libsql' | 'mysql2' | 'pglite'
 
 export interface NuxtHubOptions {
-  db?: boolean | DbDialect | { dialect?: DbDialect, casing?: SchemaCasing }
+  db?: boolean | DbDialect | { dialect?: DbDialect, casing?: SchemaCasing, driver?: DbDriver }
   kv?: boolean
 }
 
