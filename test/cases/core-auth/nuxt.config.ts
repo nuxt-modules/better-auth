@@ -9,6 +9,7 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
+    '/api/test/route-rule-only': { auth: 'user' },
     '/protected': { auth: 'user' },
     '/admin': { auth: { user: { role: 'admin' } } },
     '/login': { auth: 'guest' },
