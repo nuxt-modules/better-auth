@@ -1,7 +1,7 @@
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { createUserSessionMock } from '@nuxtjs/better-auth/test-utils/runtime'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick, reactive } from 'vue'
 import SessionPanel from '../cases/test-utils/app/components/SessionPanel.vue'
 
 const { auth } = await vi.hoisted(async () => {
@@ -31,16 +31,19 @@ const fixture = {
 }
 
 beforeEach(() => auth.reset())
+afterEach(() => vi.useRealTimers())
 
 describe('nuxt session mock', () => {
   it('isolates initial fixtures from mutations and restores them on reset', async () => {
-    const initial = structuredClone(fixture)
+    const initial = reactive(structuredClone(fixture))
     const mock = createUserSessionMock(initial)
     initial.user.name = 'Changed outside the mock'
     mock.user.value!.name = 'Changed inside the mock'
     mock.reset()
     expect(mock.user.value?.name).toBe('Viewer')
     expect(mock.session.value?.expiresAt).toEqual(fixture.session.expiresAt)
+    mock.setSession({ user: mock.user.value!, session: mock.session.value! })
+    expect(mock.user.value?.name).toBe('Viewer')
     await mock.fetchSession({ force: true })
     expect(mock.loggedIn.value).toBe(true)
   })
@@ -51,6 +54,9 @@ describe('nuxt session mock', () => {
     auth.setSession(fixture)
     await nextTick()
     expect(wrapper.text()).toContain('Viewer')
+    auth.user.value!.name = 'Direct update'
+    await nextTick()
+    expect(wrapper.text()).toContain('Direct update')
     await auth.updateUser({ name: 'Updated viewer' })
     await nextTick()
     expect(wrapper.text()).toContain('Updated viewer')
@@ -60,22 +66,40 @@ describe('nuxt session mock', () => {
     wrapper.unmount()
   })
 
-  it('resets between tests and resolves readiness when a session is supplied', async () => {
+  it('waits for authentication even when ready and cancels its timeout after login', async () => {
+    vi.useFakeTimers()
     expect(auth.loggedIn.value).toBe(false)
-    auth.setSession(null, { ready: false })
-    let ready = false
-    const pending = auth.waitForSession().then(() => {
-      ready = true
-    })
-    await nextTick()
-    expect(ready).toBe(false)
-    auth.setSession(fixture)
-    await pending
     expect(auth.ready.value).toBe(true)
+    const resolved = vi.fn()
+    const pending = auth.waitForSession().then(resolved)
+    await nextTick()
+    expect(resolved).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(1)
+    auth.setSession(fixture, { ready: false })
+    await pending
+    expect(resolved).toHaveBeenCalledOnce()
+    expect(auth.ready.value).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+    await auth.waitForSession()
+    expect(vi.getTimerCount()).toBe(0)
     const callback = vi.fn()
     await auth.signOut({ onSuccess: callback })
     expect(callback).toHaveBeenCalledOnce()
     expect(auth.user.value).toBeNull()
     expect(auth.session.value).toBeNull()
+  })
+
+  it('stops waiting after five seconds without an authenticated session', async () => {
+    vi.useFakeTimers()
+    auth.setSession(null, { ready: false })
+    const resolved = vi.fn()
+    const pending = auth.waitForSession().then(resolved)
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(resolved).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    await pending
+    expect(resolved).toHaveBeenCalledOnce()
+    expect(auth.loggedIn.value).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

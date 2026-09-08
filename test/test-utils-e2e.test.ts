@@ -3,14 +3,15 @@ import { $fetch, getBrowser, setup, url } from '@nuxt/test-utils/e2e'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createAuthTestContext } from '@nuxtjs/better-auth/test-utils/e2e'
 
-const auth = await createAuthTestContext()
+const auth = await createAuthTestContext({
+  rootDir: fileURLToPath(new URL('./cases/test-utils', import.meta.url)),
+  browser: true,
+  env: { NUXT_PUBLIC_SITE_URL: 'https://app.example.test' },
+  nuxtConfig: { auth: { redirects: { logout: '/signed-out' } } },
+})
 
 describe('auth E2E test helpers', async () => {
-  await setup({
-    rootDir: fileURLToPath(new URL('./cases/test-utils', import.meta.url)),
-    ...auth.setupOptions,
-    browser: true,
-  })
+  await setup(auth.setupOptions)
   afterEach(async () => {
     await auth.clear()
   })
@@ -21,6 +22,7 @@ describe('auth E2E test helpers', async () => {
     expect(user.createdAt).toEqual(createdAt)
     const login = await auth.login({ userId: user.id })
     expect(login.user.id).toBe(user.id)
+    expect(login.cookies[0]?.domain).toBe('127.0.0.1')
     expect(login.session.createdAt).toBeInstanceOf(Date)
     const me = await $fetch('/api/me', { headers: login.headers })
     expect(me.user.role).toBe('viewer')
@@ -37,7 +39,7 @@ describe('auth E2E test helpers', async () => {
       expect(await page.locator('#user').textContent()).toBe('Test viewer')
       expect(await page.locator('#label').textContent()).toBe('fixture')
       await page.getByRole('button', { name: 'Sign out' }).click()
-      await page.waitForURL('**/login**')
+      await page.waitForURL('**/signed-out')
       expect((await context.request.get(url('/api/me'))).status()).toBe(401)
     }
     finally {

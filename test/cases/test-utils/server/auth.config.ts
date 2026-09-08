@@ -1,5 +1,5 @@
 import { memoryAdapter } from 'better-auth/adapters/memory'
-import { defineServerAuth } from '../../../../src/runtime/config'
+import { defineServerAuth } from '@nuxtjs/better-auth/config'
 
 const database = memoryAdapter({ user: [], session: [], account: [], verification: [] })
 

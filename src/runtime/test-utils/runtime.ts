@@ -1,5 +1,5 @@
 import type { AuthUser, AuthUserUpdateInput, ClientAuthSession, UserSessionComposable } from '#nuxt-better-auth'
-import { computed, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, toRaw, watch } from 'vue'
 
 export interface MockUserSession {
   user: AuthUser
@@ -8,13 +8,18 @@ export interface MockUserSession {
 
 /** Reactive replacement for useUserSession in Nuxt runtime tests. */
 export function createUserSessionMock(initial: MockUserSession | null = null) {
-  const initialSession = structuredClone(initial)
-  const user = shallowRef<AuthUser | null>(null)
-  const session = shallowRef<ClientAuthSession | null>(null)
+  function cloneSession(value: MockUserSession | null) {
+    return value && structuredClone({ user: toRaw(value.user), session: toRaw(value.session) })
+  }
+
+  const initialSession = cloneSession(initial)
+  const user = ref<AuthUser | null>(null)
+  const session = ref<ClientAuthSession | null>(null)
   const resolved = shallowRef(true)
+  const loggedIn = computed(() => Boolean(user.value && session.value))
 
   function setSession(value: MockUserSession | null, options: { ready?: boolean } = {}) {
-    const snapshot = structuredClone(value)
+    const snapshot = cloneSession(value)
     user.value = snapshot?.user ?? null
     session.value = snapshot?.session ?? null
     resolved.value = options.ready ?? true
@@ -27,19 +32,25 @@ export function createUserSessionMock(initial: MockUserSession | null = null) {
   const auth: UserSessionComposable = {
     user,
     session,
-    loggedIn: computed(() => Boolean(user.value && session.value)),
+    loggedIn,
     ready: computed(() => resolved.value),
     async fetchSession() {},
     async waitForSession() {
-      if (resolved.value)
+      if (loggedIn.value)
         return
       await new Promise<void>((resolve) => {
-        const stop = watch(resolved, (ready) => {
-          if (ready) {
+        let timeout: ReturnType<typeof setTimeout>
+        const stop = watch(loggedIn, (authenticated) => {
+          if (authenticated) {
+            clearTimeout(timeout)
             stop()
             resolve()
           }
         })
+        timeout = setTimeout(() => {
+          stop()
+          resolve()
+        }, 5000)
       })
     },
     async signOut(options?: { onSuccess?: () => void | Promise<void> }) {

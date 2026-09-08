@@ -1,5 +1,5 @@
 export default defineNuxtConfig({
-  modules: ['../../../src/module'],
+  modules: ['@nuxtjs/better-auth'],
   auth: { redirects: { logout: '/login' } },
   runtimeConfig: { betterAuthSecret: 'test-secret-for-testing-only-32chars!' },
   routeRules: {

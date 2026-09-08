@@ -37,6 +37,7 @@ jobs:
       - run: pnpm build:docs
       - run: pnpm exec playwright-core install --with-deps chromium
       - run: pnpm test
+      - run: pnpm test:runtime
 
   compatibility:
     env:
