@@ -181,7 +181,7 @@ When using a custom \`auth.serverConfig\` path, make this change in the file nam
     cause: 'An import or config factory threw while the module loaded the server auth config for schema generation. The original error follows the config path in the diagnostic. Development preserves the previous schema; production setup fails.',
     solution: `For the example above, provide the key required by the email client before Nuxt loads the config:
 
-\`\`\`dotenv [.env.local]
+\`\`\`dotenv [.env]
 RESEND_API_KEY=your-development-api-key
 \`\`\`
 
