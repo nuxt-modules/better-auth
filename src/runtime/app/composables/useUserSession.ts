@@ -43,6 +43,12 @@ function createServerOnlyActionNamespace(path: string) {
 const _signInServerOnly = createServerOnlyActionNamespace('signIn')
 const _signUpServerOnly = createServerOnlyActionNamespace('signUp')
 
+function shouldWaitForSignUpSession(context: unknown): boolean {
+  if (!isRecord(context) || !isRecord(context.data))
+    return true
+  return context.data.token !== null
+}
+
 export function useUserSession(): UseUserSessionReturn {
   const runtimeFlags = getAuthRuntimeFlags()
   const runtimeConfig = useRuntimeConfig()
@@ -298,9 +304,10 @@ export function useAuthActionNamespaces() {
           isRedirectOAuthSignIn
             ? {
                 shouldSkipSessionSync: (data: unknown) => !isRecord(data) || data.disableRedirect !== true,
+                shouldWaitForSession: () => true,
                 transformData: (data: unknown) => withFallbackSocialCallbackURL(data, requestURL),
               }
-            : {},
+            : { shouldWaitForSession: () => true },
         )
       })
     : _signInServerOnly as SignIn
@@ -311,7 +318,11 @@ export function useAuthActionNamespaces() {
         const method = targetRecord[prop]
         if (typeof method !== 'function')
           return method
-        return wrapAuthMethod((...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args), wrapDeps)
+        return wrapAuthMethod(
+          (...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args),
+          wrapDeps,
+          { shouldWaitForSession: shouldWaitForSignUpSession },
+        )
       })
     : _signUpServerOnly as SignUp
 

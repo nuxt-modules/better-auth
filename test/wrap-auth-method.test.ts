@@ -1,4 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
+import { computed, ref } from 'vue'
+import { wrapAuthMethod } from '../src/runtime/app/internal/wrap-auth-method'
+
+vi.mock('#imports', async () => {
+  const { nextTick } = await import('vue')
+  return { nextTick }
+})
 
 /**
  * Better Auth callback patterns:
@@ -53,6 +60,51 @@ function createWrapper(
 }
 
 describe('wrapAuthMethod', () => {
+  it('does not wait after a successful action destroys an existing session', async () => {
+    vi.useFakeTimers()
+    let settledBeforeTimeout = false
+    let timerCountBeforeCleanup = 0
+    const loggedIn = ref(true)
+    const waitForSession = vi.fn(() => new Promise<void>((resolve) => {
+      setTimeout(resolve, 5000)
+    }))
+    const onSuccess = vi.fn()
+
+    try {
+      const wrapped = wrapAuthMethod(
+        vi.fn(async (_data, options) => {
+          loggedIn.value = false
+          await options?.onSuccess?.({ data: { success: true } })
+        }),
+        {
+          fetchSession: vi.fn(async () => {}),
+          loggedIn: computed(() => loggedIn.value),
+          waitForSession,
+          resolvePostAuthSuccessRedirect: () => undefined,
+        },
+        { shouldWaitForSession: () => true },
+      )
+
+      let settled = false
+      const pending = wrapped({}, { onSuccess }).then(() => {
+        settled = true
+      })
+      await vi.advanceTimersByTimeAsync(0)
+      settledBeforeTimeout = settled
+      timerCountBeforeCleanup = vi.getTimerCount()
+      await vi.runAllTimersAsync()
+      await pending
+    }
+    finally {
+      vi.useRealTimers()
+    }
+
+    expect(settledBeforeTimeout).toBe(true)
+    expect(timerCountBeforeCleanup).toBe(0)
+    expect(waitForSession).not.toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledOnce()
+  })
+
   it('standard: signIn.email(data, { onSuccess })', async () => {
     const wait = vi.fn()
     const onSuccess = vi.fn()
