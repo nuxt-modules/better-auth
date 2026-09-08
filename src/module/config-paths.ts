@@ -48,10 +48,6 @@ export function resolveAuthConfigFile(path: string, exists: (path: string) => bo
   return CONFIG_EXTENSIONS.map(extension => `${path}${extension}`).find(exists)
 }
 
-function defaultConfigExists(path: string): boolean {
-  return resolveAuthConfigFile(path) !== undefined
-}
-
 function getLayerDirectoriesWithConfigs(nuxt: Nuxt) {
   const directories = getLayerDirectories(nuxt)
   const layers = nuxt.options._layers as readonly { config?: { auth?: BetterAuthModuleOptions } }[]
@@ -79,9 +75,10 @@ function getLayerDefaultConfigPath(
       ? join(directory.server, 'auth.config')
       : join(directory.app, 'auth.config')
 
-    if (configExists(candidate)) {
+    const path = resolveAuthConfigFile(candidate, configExists)
+    if (path) {
       return {
-        path: candidate,
+        path,
         declaringLayerRoot: directory.root,
       }
     }
@@ -116,19 +113,20 @@ export function resolveAuthConfigDescriptor(
   file = getEffectiveModuleConfigFile(nuxt, kind),
   dependencies: ResolveAuthConfigDescriptorDependencies = {},
 ): AuthConfigDescriptor {
-  const configExists = dependencies.configExists ?? defaultConfigExists
-  const configuredFile = stripConfigExtension(file)
-  const resolvedConfiguredFile = CONFIG_EXTENSION_RE.test(file) ? file : configuredFile
+  const configExists = dependencies.configExists ?? existsSync
+  const configuredFile = file
 
-  if (isAbsolute(resolvedConfiguredFile)) {
-    const declaringLayerRoot = resolveDeclaringLayerRoot(nuxt, kind, configuredFile)
-    const exists = configExists(resolvedConfiguredFile)
+  if (isAbsolute(configuredFile)) {
+    const declaringLayerRoot = resolveDeclaringLayerRoot(nuxt, kind, stripConfigExtension(configuredFile))
+    const resolvedPath = resolveAuthConfigFile(configuredFile, configExists)
+    const path = resolvedPath ?? configuredFile
+    const exists = resolvedPath !== undefined
 
     return {
       kind,
       configuredFile,
-      file: resolvedConfiguredFile,
-      path: resolvedConfiguredFile,
+      file: path,
+      path,
       declaringLayerRoot,
       isDefault: false,
       isExplicit: true,
@@ -137,12 +135,12 @@ export function resolveAuthConfigDescriptor(
     }
   }
 
-  if (resolvedConfiguredFile === DEFAULT_CONFIG_FILES[kind]) {
+  if (configuredFile === DEFAULT_CONFIG_FILES[kind]) {
     const project = getProjectDirectory(nuxt)
     const discovered = getLayerDefaultConfigPath(nuxt, kind, configExists)
     const path = discovered?.path ?? getDefaultConfigPath(nuxt, kind)
     const declaringLayerRoot = discovered?.declaringLayerRoot ?? project.root
-    const exists = configExists(path)
+    const exists = discovered !== undefined
 
     return {
       kind,
@@ -157,9 +155,11 @@ export function resolveAuthConfigDescriptor(
     }
   }
 
-  const declaringLayerRoot = resolveDeclaringLayerRoot(nuxt, kind, configuredFile)
-  const path = join(declaringLayerRoot, resolvedConfiguredFile)
-  const exists = configExists(path)
+  const declaringLayerRoot = resolveDeclaringLayerRoot(nuxt, kind, stripConfigExtension(configuredFile))
+  const candidate = join(declaringLayerRoot, configuredFile)
+  const resolvedPath = resolveAuthConfigFile(candidate, configExists)
+  const path = resolvedPath ?? candidate
+  const exists = resolvedPath !== undefined
 
   return {
     kind,
