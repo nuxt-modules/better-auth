@@ -1,5 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { shouldSkipAuthRouteRules } from '../src/runtime/internal/auth-route-rules'
+import { normalizeAuthRoutePath, normalizeAuthRouteRule, shouldSkipAuthRouteRules } from '../src/runtime/internal/auth-route-rules'
+
+describe('auth route path normalization', () => {
+  it('removes the app base URL from API paths', () => {
+    expect(normalizeAuthRoutePath('/dashboard/api/private?preview=true', '/dashboard/')).toBe('/api/private')
+    expect(normalizeAuthRoutePath('/api/private', '/dashboard/')).toBe('/api/private')
+    expect(normalizeAuthRoutePath('/dashboard', '/dashboard/')).toBe('/')
+  })
+})
+
+describe('nitro auth route rule normalization', () => {
+  it('keeps current direct route rule values', () => {
+    const rule = { only: 'user' as const, user: { role: 'admin' } }
+
+    expect(normalizeAuthRouteRule('user')).toBe('user')
+    expect(normalizeAuthRouteRule(rule)).toBe(rule)
+  })
+
+  it('unwraps route rule values returned by older Nitro 3 builds', () => {
+    expect(normalizeAuthRouteRule({
+      route: '/api/private',
+      options: 'guest',
+    })).toBe('guest')
+  })
+})
 
 describe('internal auth route rule defaults', () => {
   it('skips framework and module internals', () => {
