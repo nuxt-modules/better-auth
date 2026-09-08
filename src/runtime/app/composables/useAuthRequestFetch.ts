@@ -28,13 +28,13 @@ type AuthRequestFetch = <
   opts?: Options,
 ) => Promise<AuthApiEndpointResponse<Path, Extract<AuthRequestFetchResolvedMethod<Path, Options>, AuthApiEndpointMethod<Path>>>>
 
-export function useAuthRequestFetch(): AuthRequestFetch {
+export function useAuthRequestFetch(): AuthRequestFetch & ReturnType<typeof useRequestFetch> {
   const requestFetch = useRequestFetch()
   const runtimeConfig = useRuntimeConfig()
   const authRuntimeConfig = runtimeConfig.public.auth as { clientOnly?: boolean } | undefined
 
   if (!authRuntimeConfig?.clientOnly)
-    return requestFetch as AuthRequestFetch
+    return requestFetch as AuthRequestFetch & ReturnType<typeof useRequestFetch>
 
   const siteUrl = runtimeConfig.public.siteUrl as string
   const clientOptions: ClientAuthConfig = createAppAuthClient.resolveOptions(siteUrl)
@@ -49,5 +49,5 @@ export function useAuthRequestFetch(): AuthRequestFetch {
     ...opts,
     baseURL,
     credentials: 'include',
-  })) as AuthRequestFetch
+  })) as AuthRequestFetch & ReturnType<typeof useRequestFetch>
 }
