@@ -24,6 +24,7 @@ const integrationTests = [
   'test/layer-plugin-contributions.test.ts',
   'test/module-setup.test.ts',
   'test/module.test.ts',
+  'test/test-utils-e2e.test.ts',
   'test/no-db.test.ts',
   'test/no-hub.test.ts',
   'test/non-tty-secret-prompt.test.ts',
