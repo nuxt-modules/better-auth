@@ -75,6 +75,11 @@ describe('nuxt-better-auth module', async () => {
   })
 
   describe('aPI protection', () => {
+    it('enforces auth route rules before app API handlers run', async () => {
+      const response = await fetch(url('/api/test/route-rule-only'))
+      expect(response.status).toBe(401)
+    })
+
     it('returns 401 on protected API without auth', async () => {
       const response = await fetch(url('/api/test/me'))
       expect(response.status).toBe(401)
@@ -100,6 +105,10 @@ describe('nuxt-better-auth module', async () => {
       expect(meRes.status).toBe(200)
       const data = await meRes.json()
       expect(data.email).toBe(testUser.email)
+
+      const routeRuleRes = await fetch(url('/api/test/route-rule-only'), { headers: { cookie: cookies } })
+      expect(routeRuleRes.status).toBe(200)
+      await expect(routeRuleRes.json()).resolves.toEqual({ exposed: true })
     })
 
     it('preserves Date fields in the SSR plugin and explicit session refresh', async () => {
