@@ -1,3 +1,6 @@
+import type { AuthRouteRules } from '../types'
+import { withoutBase } from 'ufo'
+
 const internalRouteRuleAuthPaths = new Set([
   '/_ipx',
   '/_nuxt',
@@ -19,6 +22,18 @@ const internalRouteRuleAuthPrefixes = [
   '/api/_nuxt_icon/',
   '/api/auth/',
 ]
+
+export function normalizeAuthRoutePath(path: string, baseURL = '/'): string {
+  const pathname = path.split(/[?#]/, 1)[0] || '/'
+  return withoutBase(pathname, baseURL) || '/'
+}
+
+export function normalizeAuthRouteRule(rule: unknown): AuthRouteRules['auth'] {
+  if (rule && typeof rule === 'object' && Object.hasOwn(rule, 'options'))
+    return (rule as { options?: AuthRouteRules['auth'] }).options
+
+  return rule as AuthRouteRules['auth']
+}
 
 export function shouldSkipAuthRouteRules(path: string): boolean {
   const pathname = path.split(/[?#]/, 1)[0] || '/'
