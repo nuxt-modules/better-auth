@@ -133,6 +133,20 @@ describe('auth.global middleware', () => {
     expect(navigateTo).toHaveBeenCalledTimes(1)
   })
 
+  it('does not redirect protected navigation when the session check fails', async () => {
+    getRouteRules.mockResolvedValueOnce({ auth: 'user' })
+    fetchSession.mockRejectedValueOnce(new Error('Auth backend unavailable'))
+
+    const middleware = await loadMiddleware()
+    await expect(middleware({
+      path: '/app',
+      fullPath: '/app',
+      meta: {},
+    })).rejects.toThrow('Auth backend unavailable')
+
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
   it('ignores internal module routes even when broad route rules set page meta', async () => {
     const middleware = await loadMiddleware()
     await middleware({
