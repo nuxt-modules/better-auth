@@ -6,9 +6,11 @@ export async function refreshSessionAfterAuthAction(
   fetchSession: (options?: { force?: boolean }) => Promise<void>,
   loggedIn: ComputedRef<boolean>,
   waitForSession: () => Promise<void>,
+  shouldWaitForSession = true,
+  wasLoggedIn = loggedIn.value,
 ) {
   await fetchSession({ force: true })
-  if (!loggedIn.value)
+  if (shouldWaitForSession && !wasLoggedIn && !loggedIn.value)
     await waitForSession()
   await nextTick()
 }
@@ -18,9 +20,11 @@ export function wrapOnSuccess(
   loggedIn: ComputedRef<boolean>,
   waitForSession: () => Promise<void>,
   cb: (ctx: unknown) => void | Promise<void>,
+  shouldWaitForSession: (ctx: unknown) => boolean,
+  wasLoggedIn: boolean,
 ) {
   return async (ctx: unknown) => {
-    await refreshSessionAfterAuthAction(fetchSession, loggedIn, waitForSession)
+    await refreshSessionAfterAuthAction(fetchSession, loggedIn, waitForSession, shouldWaitForSession(ctx), wasLoggedIn)
     await cb(ctx)
   }
 }
@@ -35,10 +39,12 @@ export function wrapAuthMethod<T extends (...args: unknown[]) => Promise<unknown
   },
   wrapOptions: {
     shouldSkipSessionSync?: (data: unknown, options: unknown) => boolean
+    shouldWaitForSession?: (ctx: unknown) => boolean
     transformData?: (data: unknown, options: unknown) => unknown
   } = {},
 ): T {
   return (async (...args: unknown[]) => {
+    const wasLoggedIn = deps.loggedIn.value
     const originalData = args[0]
     const options = args[1]
     const data = wrapOptions.transformData?.(originalData, options) ?? originalData
@@ -52,13 +58,14 @@ export function wrapAuthMethod<T extends (...args: unknown[]) => Promise<unknown
     const fetchOptions = isRecord(dataRecord?.fetchOptions) ? dataRecord.fetchOptions : undefined
     const nestedOnSuccess = fetchOptions?.onSuccess
     const topLevelOnSuccess = optionsRecord?.onSuccess
+    const shouldWaitForSession = wrapOptions.shouldWaitForSession ?? (() => false)
 
     const fallbackOnSuccess = deps.resolvePostAuthSuccessRedirect()
     const wrappedFallbackOnSuccess = fallbackOnSuccess && wrapOnSuccess(deps.fetchSession, deps.loggedIn, deps.waitForSession, async () => {
       if (!deps.loggedIn.value)
         return
       await fallbackOnSuccess()
-    })
+    }, shouldWaitForSession, wasLoggedIn)
 
     // Passkey pattern: onSuccess in data.fetchOptions
     if (typeof nestedOnSuccess === 'function') {
@@ -66,7 +73,7 @@ export function wrapAuthMethod<T extends (...args: unknown[]) => Promise<unknown
         ...dataRecord,
         fetchOptions: {
           ...fetchOptions,
-          onSuccess: wrapOnSuccess(deps.fetchSession, deps.loggedIn, deps.waitForSession, nestedOnSuccess as OnSuccess),
+          onSuccess: wrapOnSuccess(deps.fetchSession, deps.loggedIn, deps.waitForSession, nestedOnSuccess as OnSuccess, shouldWaitForSession, wasLoggedIn),
         },
       }
       return method(nextData as unknown as Parameters<T>[0], options as unknown as Parameters<T>[1])
@@ -75,7 +82,7 @@ export function wrapAuthMethod<T extends (...args: unknown[]) => Promise<unknown
     if (typeof topLevelOnSuccess === 'function') {
       const nextOptions = {
         ...optionsRecord,
-        onSuccess: wrapOnSuccess(deps.fetchSession, deps.loggedIn, deps.waitForSession, topLevelOnSuccess as OnSuccess),
+        onSuccess: wrapOnSuccess(deps.fetchSession, deps.loggedIn, deps.waitForSession, topLevelOnSuccess as OnSuccess, shouldWaitForSession, wasLoggedIn),
       }
       return method(data as unknown as Parameters<T>[0], nextOptions as unknown as Parameters<T>[1])
     }
