@@ -13,7 +13,7 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/types.d.mts",
+      "types": "./dist/module.d.mts",
       "import": "./dist/module.mjs"
     },
     "./composables": {
@@ -29,7 +29,7 @@
   "typesVersions": {
     "*": {
       ".": [
-        "./dist/types.d.mts"
+        "./dist/module.d.mts"
       ],
       "composables": [
         "./dist/runtime/composables.d.ts"
