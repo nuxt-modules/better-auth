@@ -13,7 +13,7 @@ import { resolveNitro3RouteRulesTarget, resolveNitroCompatibilityImports } from 
 import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
-import { collectAuthRouteRules, resolveAuthModuleSetup } from './module/setup'
+import { collectAuthRouteRules, registerAuthRouteRulesValidation, resolveAuthModuleSetup } from './module/setup'
 import { buildAuthRouteRulesCode, buildExtendedClientAuthCode, buildExtendedServerAuthCode, buildSchemaExportCode } from './module/templates'
 import { registerServerTypeTemplates, registerSharedTypeTemplates } from './module/type-templates'
 
@@ -188,6 +188,8 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
         }
         await setup.database.providerDefinition.setup?.(setupCtx)
       }
+
+      registerAuthRouteRulesValidation(nuxt)
 
       const authRouteRulesTemplate = addTemplate({
         filename: 'better-auth/route-rules.mjs',

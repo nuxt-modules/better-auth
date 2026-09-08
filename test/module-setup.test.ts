@@ -1,9 +1,10 @@
+import type { Nitro } from 'nitropack'
 import type { Nuxt } from '@nuxt/schema'
 import type { BetterAuthModuleOptions } from '../src/runtime/config'
 import { fileURLToPath } from 'node:url'
 import { loadNuxt } from '@nuxt/kit'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { collectAuthRouteRules, resolveAuthModuleSetup } from '../src/module/setup'
+import { assertSafeAuthRouteRules, collectAuthRouteRules, registerAuthRouteRulesValidation, resolveAuthModuleSetup } from '../src/module/setup'
 
 const loadedNuxtInstances: Nuxt[] = []
 
@@ -189,5 +190,73 @@ describe('resolveAuthModuleSetup', () => {
     }, {
       configExists: path => /\/app\/auth\.config(?:\.[^/]+)?$/.test(path),
     })).rejects.toThrow('Missing')
+  })
+})
+
+describe('assertSafeAuthRouteRules', () => {
+  it.each(['cache', 'swr', 'isr', 'static', 'prerender', 'proxy'] as const)(
+    'rejects auth combined with %s',
+    async (key) => {
+      const nuxt = await loadCase('without-nuxthub')
+      nuxt.options.routeRules = {
+        '/api/private': { auth: 'user', [key]: true },
+      }
+
+      expect(() => assertSafeAuthRouteRules(nuxt.options.routeRules)).toThrow(`/api/private (${key})`)
+    },
+  )
+
+  it('rejects incompatible rules inherited from a broader auth rule', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    nuxt.options.routeRules = {
+      '/api/**': { auth: 'user' },
+      '/api/cached/**': { cache: true },
+    }
+
+    expect(() => assertSafeAuthRouteRules(nuxt.options.routeRules)).toThrow('/api/cached/** (cache)')
+  })
+
+  it('allows disabled auth and disabled response rules', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    nuxt.options.routeRules = {
+      '/api/public': { auth: false, cache: true },
+      '/api/private': { auth: 'user', cache: false, swr: 0, prerender: false },
+    }
+
+    expect(() => assertSafeAuthRouteRules(nuxt.options.routeRules)).not.toThrow()
+  })
+})
+
+describe('registerAuthRouteRulesValidation', () => {
+  it.each(['modules:done', 'nitro:config'] as const)('rejects unsafe rules added by a later %s callback', async (phase) => {
+    const nuxt = await loadCase('without-nuxthub')
+    registerAuthRouteRulesValidation(nuxt)
+    nuxt.options.routeRules = { '/private/**': { auth: 'user' } }
+
+    if (phase === 'modules:done') {
+      nuxt.hook('modules:done', () => {
+        nuxt.options.routeRules['/private/cached'] = { cache: true }
+      })
+      await nuxt.callHook('modules:done')
+    }
+    else {
+      nuxt.hook('nitro:config', (config) => {
+        config.routeRules!['/private/cached'] = { proxy: 'https://example.com' }
+      })
+    }
+
+    const config = { routeRules: { ...nuxt.options.routeRules } }
+    await nuxt.callHook('nitro:config', config)
+    const nitro = { options: config } as Nitro
+    await expect(nuxt.callHook('nitro:init', nitro)).rejects.toThrow('/private/cached')
+  })
+
+  it('uses resolved Nitro rules instead of the earlier Nuxt rules', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    registerAuthRouteRulesValidation(nuxt)
+    nuxt.options.routeRules = { '/private': { auth: 'user', cache: true } }
+    const nitro = { options: { routeRules: { '/private': { auth: 'user', cache: false } } } } as Nitro
+
+    await expect(nuxt.callHook('nitro:init', nitro)).resolves.toBeUndefined()
   })
 })
