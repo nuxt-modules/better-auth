@@ -8,7 +8,7 @@ import { addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { consola as _consola } from 'consola'
 import { dirname, isAbsolute, join, relative } from 'pathe'
 import { version } from '../package.json'
-import { resolveAuthConfigDescriptors } from './module/config-paths'
+import { resolveAuthConfigDescriptors, resolveAuthConfigFile } from './module/config-paths'
 import { resolveNitroCompatibilityImports } from './module/compatibility'
 import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
@@ -29,15 +29,7 @@ const sessionHookAfterIdentifierRE = /\bsessionHookAfter\b/
 const nuxtHubDbImportRE = /@nuxthub\/db/
 
 function isServerConfigSharedTypeSafe(serverConfigPath: string): boolean {
-  const resolvedPath = [
-    serverConfigPath,
-    `${serverConfigPath}.ts`,
-    `${serverConfigPath}.mts`,
-    `${serverConfigPath}.cts`,
-    `${serverConfigPath}.js`,
-    `${serverConfigPath}.mjs`,
-    `${serverConfigPath}.cjs`,
-  ].find(path => existsSync(path))
+  const resolvedPath = resolveAuthConfigFile(serverConfigPath)
 
   if (!resolvedPath)
     return false

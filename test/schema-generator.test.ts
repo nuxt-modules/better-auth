@@ -47,7 +47,7 @@ const ADDITIONAL_FIELDS_CONFIG = `export default defineServerAuth({ user: { addi
  * reads: a sqlite hub dialect, a build dir to write into, and an auth config
  * whose contents each test chooses.
  */
-function createSchemaProject(options: { dev: boolean, config: string }) {
+function createSchemaProject(options: { dev: boolean, config: string, configExtension?: '.js' | '.ts' }) {
   const rootDir = mkdtempSync(join(tmpdir(), 'nuxt-better-auth-project-'))
   projectDirs.push(rootDir)
 
@@ -57,7 +57,7 @@ function createSchemaProject(options: { dev: boolean, config: string }) {
   mkdirSync(serverDir, { recursive: true })
 
   const serverConfigPath = join(serverDir, 'auth.config')
-  writeFileSync(`${serverConfigPath}.ts`, options.config)
+  writeFileSync(`${serverConfigPath}${options.configExtension ?? '.ts'}`, options.config)
 
   const hooks = new Map<string, (payload: { paths: string[], dialect: string }) => void | Promise<void>>()
 
@@ -341,6 +341,14 @@ describe('setupBetterAuthSchema when the auth config fails to load', () => {
 describe('setupBetterAuthSchema when the auth config loads', () => {
   it('writes a schema carrying the configured additionalFields', async () => {
     const project = createSchemaProject({ dev: true, config: ADDITIONAL_FIELDS_CONFIG })
+
+    await project.run()
+
+    expect(readFileSync(project.schemaPath, 'utf8')).toContain('customField')
+  })
+
+  it('loads an extensionless server config path from a JavaScript file', async () => {
+    const project = createSchemaProject({ dev: true, config: ADDITIONAL_FIELDS_CONFIG, configExtension: '.js' })
 
     await project.run()
 
