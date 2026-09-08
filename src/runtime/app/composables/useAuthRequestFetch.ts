@@ -1,4 +1,7 @@
 import type { AuthApiEndpointMethod, AuthApiEndpointPath, AuthApiEndpointResponse } from '#nuxt-better-auth'
+import type { ClientAuthConfig } from '../../config'
+import createAppAuthClient from '#auth/client'
+import { joinURL } from 'ufo'
 import { useRequestFetch, useRuntimeConfig } from '#imports'
 
 type RequestFetchOptions = NonNullable<Parameters<ReturnType<typeof useRequestFetch>>[1]>
@@ -34,11 +37,17 @@ export function useAuthRequestFetch(): AuthRequestFetch {
     return requestFetch as AuthRequestFetch
 
   const siteUrl = runtimeConfig.public.siteUrl as string
+  const clientOptions: ClientAuthConfig = createAppAuthClient.resolveOptions(siteUrl)
+  const configuredBaseURL = clientOptions.baseURL ?? siteUrl
+  // Better Auth treats a path in baseURL as the complete auth base path.
+  const baseURL = new URL(configuredBaseURL).pathname.replace(/\/+$/, '')
+    ? configuredBaseURL
+    : joinURL(configuredBaseURL, clientOptions.basePath ?? '/api/auth')
   const externalRequestFetch = requestFetch as unknown as (request: string, opts?: RequestFetchOptions) => Promise<unknown>
   // Keep Nuxt's request-scoped fetch so incoming cookies are forwarded during SSR.
-  return ((request: AuthApiEndpointPath, opts?: RequestFetchOptions) => externalRequestFetch(request, {
+  return ((request: AuthApiEndpointPath, opts?: RequestFetchOptions) => externalRequestFetch(request.replace(/^\/api\/auth(?=\/|$)/, ''), {
     ...opts,
-    baseURL: siteUrl,
+    baseURL,
     credentials: 'include',
   })) as AuthRequestFetch
 }
