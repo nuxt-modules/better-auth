@@ -778,7 +778,7 @@ describe('useUserSession hydration bootstrap', () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
     mockClient.getSession.mockResolvedValueOnce({ data: null })
     mockClient.signUp.email.mockImplementation(async (_data, opts) => {
-      await opts?.onSuccess?.('ctx')
+      await opts?.onSuccess?.({ data: { token: null, user: { id: 'user-1' } } })
     })
 
     const { useAuthActionNamespaces } = await loadAuthComposables()
@@ -787,7 +787,91 @@ describe('useUserSession hydration bootstrap', () => {
     await auth.signUp.email({ email: 'user@example.com', password: 'password', name: 'User' })
 
     expect(navigateTo).not.toHaveBeenCalled()
-  }, 10000)
+  })
+
+  it('does not wait five seconds when email-verification sign-up creates no session', async () => {
+    vi.useFakeTimers()
+    let settledBeforeTimeout = false
+    let timerCountBeforeCleanup = 0
+    const onSuccess = vi.fn()
+
+    try {
+      mockClient.getSession.mockResolvedValueOnce({ data: null })
+      mockClient.signUp.email.mockImplementation(async (_data, opts) => {
+        await opts?.onSuccess?.({ data: { token: null, user: { id: 'user-1' } } })
+      })
+
+      const { useAuthActionNamespaces } = await loadAuthComposables()
+      const auth = useAuthActionNamespaces()
+      let settled = false
+      const pending = auth.signUp.email(
+        { email: 'user@example.com', password: 'password', name: 'User' },
+        { onSuccess },
+      ).then(() => {
+        settled = true
+      })
+
+      await vi.advanceTimersByTimeAsync(0)
+      settledBeforeTimeout = settled
+      timerCountBeforeCleanup = vi.getTimerCount()
+      await vi.runAllTimersAsync()
+      await pending
+    }
+    finally {
+      vi.useRealTimers()
+    }
+
+    expect(settledBeforeTimeout).toBe(true)
+    expect(timerCountBeforeCleanup).toBe(0)
+    expect(onSuccess).toHaveBeenCalledOnce()
+  })
+
+  it('still waits for a session-creating sign-up before running onSuccess', async () => {
+    vi.useFakeTimers()
+    let callbackBeforeSession = false
+    let settledAfterSession = false
+
+    try {
+      mockClient.getSession.mockResolvedValueOnce({ data: null })
+      mockClient.signUp.email.mockImplementation(async (_data, opts) => {
+        await opts?.onSuccess?.({ data: { token: 'session-token', user: { id: 'user-1' } } })
+      })
+      const onSuccess = vi.fn()
+
+      const { useAuthActionNamespaces } = await loadAuthComposables()
+      const auth = useAuthActionNamespaces()
+      let settled = false
+      const pending = auth.signUp.email(
+        { email: 'user@example.com', password: 'password', name: 'User' },
+        { onSuccess },
+      ).then(() => {
+        settled = true
+      })
+
+      await vi.advanceTimersByTimeAsync(0)
+      callbackBeforeSession = onSuccess.mock.calls.length > 0
+      sessionAtom.value = {
+        data: {
+          session: { id: 'session-1' },
+          user: { id: 'user-1' },
+        },
+        isPending: false,
+        isRefetching: false,
+        error: null,
+      }
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(0)
+      settledAfterSession = settled
+      await vi.runAllTimersAsync()
+      await pending
+    }
+    finally {
+      vi.useRealTimers()
+    }
+
+    expect(callbackBeforeSession).toBe(false)
+    expect(settledAfterSession).toBe(true)
+  })
 
   it('signUp uses auth.redirects.authenticated when no callback is provided', async () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
