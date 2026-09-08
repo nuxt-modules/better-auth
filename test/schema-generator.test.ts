@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runWithNuxtContext } from '@nuxt/kit'
 import { getAuthTables } from 'better-auth/db'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { consola } from 'consola'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from '../src/module/schema'
 import { buildSchemaExportCode } from '../src/module/templates'
 import { defineClientAuth, defineServerAuth } from '../src/runtime/config'
@@ -20,6 +21,7 @@ beforeAll(() => {
     mkdirSync(TEST_DIR, { recursive: true })
 })
 afterEach(() => {
+  vi.restoreAllMocks()
   for (const dir of projectDirs.splice(0, projectDirs.length))
     rmSync(dir, { recursive: true, force: true })
 })
@@ -78,6 +80,7 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
   } as unknown as Nuxt
 
   const schemaPath = join(buildDir, 'better-auth', 'schema.sqlite.ts')
+  const logger = { ...silentConsola, warn: vi.fn(), error: vi.fn() }
 
   let setupPromise: Promise<boolean> | undefined
   const finishSetup = () => {
@@ -85,7 +88,7 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
       nuxt,
       serverConfigPath,
       {} as BetterAuthModuleOptions,
-      silentConsola,
+      logger,
       undefined,
     )).then(() => true)
     return setupPromise
@@ -107,7 +110,7 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
     return paths
   }
 
-  return { run, schemaPath, writeExistingSchema, collectHubSchemaPaths }
+  return { run, schemaPath, writeExistingSchema, collectHubSchemaPaths, nuxt, logger }
 }
 
 describe('generateDrizzleSchema', () => {
@@ -205,13 +208,28 @@ describe('getAuthTables with secondaryStorage', () => {
 })
 
 describe('loadUserAuthConfig', () => {
-  it('returns null for non-existent file (dev mode)', async () => {
+  it('reports the original import error once and returns null in dev mode', async () => {
+    const errorLog = vi.spyOn(consola, 'error').mockImplementation(() => {})
     const result = await loadUserAuthConfig(join(TEST_DIR, 'nonexistent.ts'), false)
     expect(result).toBeNull()
+    expect(errorLog).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining('[NUXT_AUTH_CONFIG_LOAD_FAILED]'),
+      expect.objectContaining({ code: 'MODULE_NOT_FOUND' }),
+    )
   })
 
-  it('throws for non-existent file when throwOnError=true', async () => {
-    await expect(loadUserAuthConfig(join(TEST_DIR, 'nonexistent.ts'), true)).rejects.toThrow('Failed to load auth config')
+  it('throws a config diagnostic with its original cause without logging', async () => {
+    const errorLog = vi.spyOn(consola, 'error').mockImplementation(() => {})
+    const warningLog = vi.spyOn(consola, 'warn').mockImplementation(() => {})
+
+    await expect(loadUserAuthConfig(join(TEST_DIR, 'nonexistent.ts'), true)).rejects.toMatchObject({
+      code: 'NUXT_AUTH_CONFIG_LOAD_FAILED',
+      message: expect.stringContaining('Failed to load auth config'),
+      cause: expect.objectContaining({ code: 'MODULE_NOT_FOUND' }),
+      fix: expect.stringContaining('environment variables'),
+    })
+    expect(errorLog).not.toHaveBeenCalled()
+    expect(warningLog).not.toHaveBeenCalled()
   })
 
   it('returns config from valid defineServerAuth export', async () => {
@@ -221,17 +239,28 @@ describe('loadUserAuthConfig', () => {
     expect(result).toEqual({ plugins: [] })
   })
 
-  it('warns and returns null for non-function export (dev mode)', async () => {
+  it('reports an invalid export once with a fix and returns null in dev mode', async () => {
+    const errorLog = vi.spyOn(consola, 'error').mockImplementation(() => {})
+    const warningLog = vi.spyOn(consola, 'warn').mockImplementation(() => {})
     const configPath = join(TEST_DIR, 'invalid-config.ts')
     writeFileSync(configPath, `export default { notAFunction: true }`)
     const result = await loadUserAuthConfig(configPath, false)
     expect(result).toBeNull()
+    expect(errorLog).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/\[NUXT_AUTH_INVALID_CONFIG_EXPORT\][\s\S]*fix:.*defineServerAuth[\s\S]*schema file was left unchanged/))
+    expect(warningLog).not.toHaveBeenCalled()
   })
 
   it('throws for non-function export when throwOnError=true', async () => {
+    const errorLog = vi.spyOn(consola, 'error').mockImplementation(() => {})
+    const warningLog = vi.spyOn(consola, 'warn').mockImplementation(() => {})
     const configPath = join(TEST_DIR, 'invalid-config2.ts')
     writeFileSync(configPath, `export default { notAFunction: true }`)
-    await expect(loadUserAuthConfig(configPath, true)).rejects.toThrow('must export default defineServerAuth')
+    await expect(loadUserAuthConfig(configPath, true)).rejects.toMatchObject({
+      code: 'NUXT_AUTH_INVALID_CONFIG_EXPORT',
+      message: expect.stringContaining('must export default defineServerAuth'),
+    })
+    expect(errorLog).not.toHaveBeenCalled()
+    expect(warningLog).not.toHaveBeenCalled()
   })
 
   it('returns config from object syntax defineServerAuth', async () => {
@@ -333,12 +362,30 @@ describe('setupBetterAuthSchema when the auth config fails to load', () => {
   it('rejects in production mode instead of writing a schema file', async () => {
     const project = createSchemaProject({ dev: false, config: BROKEN_CONFIG })
 
-    await expect(project.run()).rejects.toThrow('Failed to load auth config')
+    await expect(project.run()).rejects.toMatchObject({
+      code: 'NUXT_AUTH_CONFIG_LOAD_FAILED',
+      cause: expect.objectContaining({ code: 'MODULE_NOT_FOUND' }),
+    })
+    expect(project.logger.error).not.toHaveBeenCalled()
     expect(existsSync(project.schemaPath)).toBe(false)
   })
 })
 
 describe('setupBetterAuthSchema when the auth config loads', () => {
+  it.each([true, false])('preserves the cause of unexpected schema failures without logging, dev=%s', async (dev) => {
+    const project = createSchemaProject({ dev, config: ADDITIONAL_FIELDS_CONFIG })
+    const cause = new Error('Plugin schema setup failed')
+    vi.spyOn(project.nuxt, 'callHook').mockRejectedValueOnce(cause)
+    project.writeExistingSchema(PREVIOUS_SCHEMA)
+
+    await expect(project.run()).rejects.toMatchObject({
+      code: 'NUXT_AUTH_SCHEMA_GENERATION_FAILED',
+      cause,
+    })
+    expect(project.logger.error).not.toHaveBeenCalled()
+    expect(readFileSync(project.schemaPath, 'utf8')).toBe(PREVIOUS_SCHEMA)
+  })
+
   it('writes a schema carrying the configured additionalFields', async () => {
     const project = createSchemaProject({ dev: true, config: ADDITIONAL_FIELDS_CONFIG })
 

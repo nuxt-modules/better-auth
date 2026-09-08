@@ -15,6 +15,7 @@ import { dirname } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
 import { resolveDatabaseProvider } from '../database-provider'
 import { resolveAuthConfigDescriptors, resolveAuthPluginSources } from './config-paths'
+import { diagnostics } from './diagnostics'
 import { getHubCasing, getHubDialect } from './hub'
 import { setupRuntimeConfig } from './runtime'
 import { buildDatabaseCode } from './templates'
@@ -69,10 +70,10 @@ interface ResolveAuthModuleSetupDependencies {
 
 function assertConfigPresence(configs: ResolvedAuthModuleSetup['configs'], clientOnly: boolean): void {
   if (!clientOnly && !configs.server.exists)
-    throw new Error(`[nuxt-better-auth] Missing ${configs.server.file}.ts - export default defineServerAuth(...)`)
+    throw diagnostics.NUXT_AUTH_MISSING_CONFIG({ file: configs.server.file, factory: 'defineServerAuth' })
 
   if (!configs.client.exists)
-    throw new Error(`[nuxt-better-auth] Missing ${configs.client.file}.ts - export default defineClientAuth(...)`)
+    throw diagnostics.NUXT_AUTH_MISSING_CONFIG({ file: configs.client.file, factory: 'defineClientAuth' })
 }
 
 function createDefaultDatabaseProviders(
@@ -274,7 +275,7 @@ export async function resolveAuthModuleSetup(
 
   const hasHubDb = providerId === 'nuxthub'
   if (hasHubDb && !nuxt.options.alias['hub:db']) {
-    throw new Error('[nuxt-better-auth] hub:db not found. Ensure @nuxthub/core is loaded before this module and hub.db is configured.')
+    throw diagnostics.NUXT_AUTH_MISSING_HUB_DB()
   }
 
   return {

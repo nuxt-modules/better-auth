@@ -84,6 +84,9 @@ describe('resolveDatabaseProvider', () => {
     expect(() => resolveDatabaseProvider({
       providers,
       context: createContext(),
-    })).toThrow('No database provider is enabled')
+    })).toThrow(expect.objectContaining({
+      code: 'NUXT_AUTH_NO_DATABASE_PROVIDER',
+      fix: expect.stringContaining('better-auth:database:providers'),
+    }))
   })
 })

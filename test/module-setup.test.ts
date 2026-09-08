@@ -3,7 +3,9 @@ import type { Nuxt } from '@nuxt/schema'
 import type { BetterAuthModuleOptions } from '../src/runtime/config'
 import { fileURLToPath } from 'node:url'
 import { loadNuxt } from '@nuxt/kit'
+import { Diagnostic, formatDiagnostic } from 'nostics'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { diagnostics } from '../src/module/diagnostics'
 import { assertSafeAuthRouteRules, collectAuthRouteRules, registerAuthRouteRulesValidation, resolveAuthModuleSetup } from '../src/module/setup'
 
 const loadedNuxtInstances: Nuxt[] = []
@@ -58,6 +60,48 @@ afterEach(async () => {
 })
 
 describe('resolveAuthModuleSetup', () => {
+  it('includes diagnostic details once when a setup failure reaches Nuxt', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    nuxt.hook('better-auth:plugins:extend', (plugins) => {
+      plugins.client = ['relative.ts']
+    })
+
+    const error = await nuxt.ready().catch(error => error)
+    expect(error).toMatchObject({
+      message: expect.stringContaining('fix: Resolve the plugin source'),
+      cause: {
+        code: 'NUXT_AUTH_INVALID_PLUGIN_SOURCE',
+        message: 'Modules must register absolute plugin source paths. Received: relative.ts',
+        docs: 'https://better-auth.nuxt.dev/errors/nuxt-auth-invalid-plugin-source',
+      },
+    })
+    await expect(nuxt.callHook('modules:done')).rejects.toBe(error)
+    expect(error.message.match(/\[NUXT_AUTH_INVALID_PLUGIN_SOURCE\]/g)).toHaveLength(1)
+  })
+
+  it('preserves the structured diagnostic and its cause when formatting for Nuxt', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    const cause = new Error('Original failure')
+    const diagnostic = diagnostics.NUXT_AUTH_SCHEMA_GENERATION_FAILED({ cause })
+    const serialized = diagnostic.toJSON()
+    const formatted = formatDiagnostic(diagnostic)
+    nuxt.hook('better-auth:plugins:extend', () => {
+      throw diagnostic
+    })
+
+    const error = await nuxt.ready().catch(error => error)
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(Diagnostic)
+    expect(error.message).toBe(formatted)
+    expect(error.cause).toBe(diagnostic)
+    expect(diagnostic.cause).toBe(cause)
+    expect(diagnostic.message).toBe('Failed to generate schema: Original failure')
+    expect(diagnostic.why).toBe(diagnostic.message)
+    expect(diagnostic.toJSON()).toEqual(serialized)
+    expect(formatDiagnostic(diagnostic)).toBe(formatted)
+    await expect(nuxt.callHook('modules:done')).rejects.toBe(error)
+  })
+
   it('captures NuxtHub-backed setup state and auth route rules', async () => {
     const nuxt = await loadCase('core-auth')
     nuxt.options.alias['hub:db'] = '/virtual/hub-db'
@@ -189,7 +233,11 @@ describe('resolveAuthModuleSetup', () => {
       consola: createConsolaMock(),
     }, {
       configExists: path => /\/app\/auth\.config(?:\.[^/]+)?$/.test(path),
-    })).rejects.toThrow('Missing')
+    })).rejects.toMatchObject({
+      code: 'NUXT_AUTH_MISSING_CONFIG',
+      message: expect.stringContaining('Missing'),
+      fix: expect.stringContaining('export default defineServerAuth'),
+    })
   })
 })
 
