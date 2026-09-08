@@ -1,6 +1,7 @@
-import type { AuthUser, ClientAuthSession } from '#nuxt-better-auth'
-import { defineNuxtPlugin, useRequestEvent, useState } from '#imports'
-import { getRequestSession } from '../../server/utils/session'
+import type { AuthSession, AuthUser, ClientAuthSession } from '#nuxt-better-auth'
+import { parseJSON } from 'better-auth/client'
+import { defineNuxtPlugin, useRequestEvent, useRequestFetch, useState } from '#imports'
+import { appendSetCookieHeaders } from '../../server/internal/cookie-headers'
 
 export default defineNuxtPlugin({
   name: 'auth:session-init',
@@ -10,11 +11,17 @@ export default defineNuxtPlugin({
     const user = useState<AuthUser | null>('auth:user', () => null)
     const authReady = useState('auth:ready', () => false)
 
-    // Resolve on the outer request so Better Auth's refreshed cookies are forwarded.
+    // Keep auth in Nitro: importing it into the renderer duplicates config state.
+    // Forward refreshed cookies from the internal response to the outer request.
     const event = useRequestEvent()
     if (event) {
       try {
-        const data = await getRequestSession(event)
+        const response = await useRequestFetch().raw<{ session: AuthSession & { token?: string }, user: AuthUser } | null>('/api/auth/get-session', {
+          parseResponse: parseJSON,
+          ignoreResponseError: true,
+        })
+        appendSetCookieHeaders(event, response.headers)
+        const data = response.ok ? response._data : null
         if (data?.session && data?.user) {
           // Filter out sensitive token field from client state
           const { token: _, ...safeSession } = data.session
