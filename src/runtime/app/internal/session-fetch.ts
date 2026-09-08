@@ -11,11 +11,32 @@ export function stripToken(session: AuthSession & { token?: string }): ClientAut
   return safe
 }
 
-function isExpectedSignedOutSessionError(error: unknown): boolean {
+export function isExpectedSignedOutSessionError(error: unknown): boolean {
   const normalizedError = normalizeAuthActionError(error)
   if (normalizedError.status === 401)
     return true
   return normalizedError.code === 'UNAUTHORIZED'
+}
+
+function handleSessionFetchError(
+  error: unknown,
+  session: Ref<ClientAuthSession | null>,
+  user: Ref<AuthUser | null>,
+): void {
+  if (isExpectedSignedOutSessionError(error)) {
+    session.value = null
+    user.value = null
+    return
+  }
+
+  if (error instanceof Error)
+    throw error
+
+  const normalizedError = normalizeAuthActionError(error)
+  throw new Error(
+    `[nuxt-better-auth] Failed to fetch session: ${normalizedError.message}`,
+    { cause: error },
+  )
 }
 
 export async function fetchSessionServer(
@@ -42,9 +63,8 @@ export async function fetchSessionServer(
       user.value = null
     }
   }
-  catch {
-    session.value = null
-    user.value = null
+  catch (error) {
+    handleSessionFetchError(error, session, user)
   }
   finally {
     if (!authReady.value)
@@ -64,6 +84,11 @@ export async function fetchSessionClient(
     const fetchOptions = { ...(headers ? { headers } : {}), throw: false as const }
     const query = options.force ? { disableCookieCache: true } : undefined
     const result = await client.getSession({ query }, fetchOptions)
+    if (result.error) {
+      handleSessionFetchError(result.error, session, user)
+      return
+    }
+
     const data = result.data as SessionResponse | null
 
     if (data?.session && data?.user) {
@@ -76,10 +101,7 @@ export async function fetchSessionClient(
     }
   }
   catch (error) {
-    session.value = null
-    user.value = null
-    if (!isExpectedSignedOutSessionError(error))
-      console.error('[nuxt-better-auth] Failed to fetch session:', error)
+    handleSessionFetchError(error, session, user)
   }
   finally {
     if (!authReady.value)
