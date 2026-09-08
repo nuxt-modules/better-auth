@@ -1,3 +1,3 @@
 export default {
-  externals: ['consola', 'auth', 'auth/api'],
+  externals: ['consola', 'nostics', 'auth', 'auth/api'],
 }

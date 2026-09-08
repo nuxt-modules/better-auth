@@ -3,6 +3,7 @@ import type { ConsolaInstance } from 'consola'
 import type { AuthPrivateRuntimeConfig, AuthRuntimeConfig, BetterAuthModuleOptions, ModuleDatabaseProviderId } from '../runtime/config'
 import type { NuxtHubOptions } from './hub'
 import { defu } from 'defu'
+import { diagnostics } from './diagnostics'
 
 interface SetupRuntimeConfigInput {
   nuxt: Nuxt
@@ -29,7 +30,7 @@ function resolveSecondaryStorage(input: SetupRuntimeConfigInput): { hubSecondary
   const secondaryStorageEnabled = opt === 'custom'
 
   if (secondaryStorageEnabled && clientOnly) {
-    throw new Error('[nuxt-better-auth] hubSecondaryStorage is not available in clientOnly mode. Either disable clientOnly or remove auth.hubSecondaryStorage.')
+    throw diagnostics.NUXT_AUTH_STORAGE_CLIENT_ONLY()
   }
 
   return { hubSecondaryStorage: opt, secondaryStorageEnabled }

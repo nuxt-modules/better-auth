@@ -123,6 +123,63 @@ describe('serverAuth database cache and secret validation', () => {
     expect(betterAuthMock).not.toHaveBeenCalled()
   })
 
+  it.each([
+    'javascript:alert(1)',
+    'ftp://example.com',
+    'https://user:password@example.com',
+    'https://@example.com',
+    'https://:@example.com',
+    'https:@example.com',
+    'https:\\@example.com',
+    ' \thttps://:\n@example.com\r ',
+    '\u0001https://@example.com',
+    ' \u0000https://@example.com',
+    ' \u0001https://:@example.com',
+    ' https://example.com',
+  ])('rejects unsafe siteUrl %s before creating auth', async (siteUrl) => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl },
+      auth: {},
+      betterAuthSecret: 'test-secret-for-testing-only-32chars',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('Must be a valid HTTP(S) URL without credentials')
+    expect(createDatabaseMock).not.toHaveBeenCalled()
+    expect(betterAuthMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'https://example.com/@user',
+    'https://example.com?email=user@example.com',
+    'https://example.com#@user',
+  ])('accepts @ outside the siteUrl authority: %s', async (siteUrl) => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl },
+      auth: {},
+      betterAuthSecret: 'test-secret-for-testing-only-32chars',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+    serverAuth()
+
+    expect(betterAuthMock.mock.calls[0]?.[0].baseURL).toBe('https://example.com')
+  })
+
+  it('does not expose credentials from an invalid siteUrl in the error', async () => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl: 'https://user:super-secret@example.com' },
+      auth: {},
+      betterAuthSecret: 'test-secret-for-testing-only-32chars',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    expect(() => serverAuth()).toThrow('Invalid siteUrl')
+    expect(() => serverAuth()).not.toThrow('super-secret')
+  })
+
   it('forwards versioned secrets without requiring a singular secret', async () => {
     const secrets = [
       { version: 2, value: 'current-secret-for-testing-only-32chars' },
