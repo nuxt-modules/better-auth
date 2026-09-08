@@ -127,6 +127,11 @@ describe('serverAuth database cache and secret validation', () => {
     'javascript:alert(1)',
     'ftp://example.com',
     'https://user:password@example.com',
+    'https://@example.com',
+    'https://:@example.com',
+    'https:@example.com',
+    'https:\\@example.com',
+    ' \thttps://:\n@example.com\r ',
   ])('rejects unsafe siteUrl %s before creating auth', async (siteUrl) => {
     useRuntimeConfigMock.mockReturnValue({
       public: { siteUrl },
@@ -139,6 +144,23 @@ describe('serverAuth database cache and secret validation', () => {
     expect(() => serverAuth()).toThrow('Must be a valid HTTP(S) URL without credentials')
     expect(createDatabaseMock).not.toHaveBeenCalled()
     expect(betterAuthMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    'https://example.com/@user',
+    'https://example.com?email=user@example.com',
+    'https://example.com#@user',
+  ])('accepts @ outside the siteUrl authority: %s', async (siteUrl) => {
+    useRuntimeConfigMock.mockReturnValue({
+      public: { siteUrl },
+      auth: {},
+      betterAuthSecret: 'test-secret-for-testing-only-32chars',
+    })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+    serverAuth()
+
+    expect(betterAuthMock.mock.calls[0]?.[0].baseURL).toBe('https://example.com')
   })
 
   it('does not expose credentials from an invalid siteUrl in the error', async () => {

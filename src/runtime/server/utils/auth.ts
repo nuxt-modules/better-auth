@@ -84,7 +84,10 @@ function validateURL(url: string): string {
     // surprising redirects or origin mismatches.
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
       throw new Error('unsupported protocol')
-    if (parsed.username || parsed.password)
+    // URL parsing discards empty userinfo. Inspect the original authority too,
+    // accounting for the whitespace and backslashes accepted by HTTP(S) URLs.
+    const hasUserinfo = /^https?:[/\\]*[^/\\?#]*@/i.test(url.trim().replace(/[\t\n\r]/g, ''))
+    if (parsed.username || parsed.password || hasUserinfo)
       throw new Error('credentials are not allowed')
 
     return normalizeLoopbackOrigin(parsed.origin)
