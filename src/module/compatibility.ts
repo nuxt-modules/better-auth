@@ -42,7 +42,16 @@ export function resolveNitro3RouteRulesTarget(nuxtRootDir: string): Nitro3RouteR
   try {
     const projectRequire = createRequire(join(nuxtRootDir, 'package.json'))
     const nuxtRequire = createRequire(projectRequire.resolve('nuxt/package.json'))
-    const nitroTypesPath = nuxtRequire.resolve('nitro/types')
+    // Nuxt 5 installs Nitro through its integration package in isolated pnpm layouts.
+    let nitroTypesPath: string
+    try {
+      const integrationRequire = createRequire(nuxtRequire.resolve('@nuxt/nitro-server'))
+      nitroTypesPath = integrationRequire.resolve('nitro/types')
+    }
+    catch {
+      // Earlier Nuxt snapshots depend on Nitro directly.
+      nitroTypesPath = nuxtRequire.resolve('nitro/types')
+    }
     const declarationCandidates = [
       nitroTypesPath.replace(/\.mjs$/, '.d.mts'),
       nitroTypesPath.replace(/\.js$/, '.d.ts'),
