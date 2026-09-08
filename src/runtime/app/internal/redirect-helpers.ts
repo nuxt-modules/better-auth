@@ -1,7 +1,7 @@
 import { navigateTo, useRuntimeConfig } from '#imports'
 import { isRecord } from './utils'
 
-const ENCODED_PATH_SEPARATOR_RE = /%(?:2f|5c)/i
+const ENCODED_PATH_SEPARATOR_RE = /%(?:2f|5c)/gi
 const REDIRECT_VALIDATION_ORIGIN = 'https://nuxt-better-auth.invalid'
 
 function containsControlCharacter(value: string): boolean {
@@ -16,12 +16,16 @@ export function isSafeLocalRedirect(redirect: unknown): string | undefined {
     return
   if (!redirect.startsWith('/') || redirect.startsWith('//'))
     return
-  if (redirect.includes('\\') || containsControlCharacter(redirect) || ENCODED_PATH_SEPARATOR_RE.test(redirect))
+  if (redirect.includes('\\') || containsControlCharacter(redirect))
     return
 
   try {
     const parsed = new URL(redirect, REDIRECT_VALIDATION_ORIGIN)
     if (parsed.origin !== REDIRECT_VALIDATION_ORIGIN || parsed.pathname.startsWith('//'))
+      return
+    const normalizedPath = parsed.pathname.replace(ENCODED_PATH_SEPARATOR_RE, '/')
+    const normalized = new URL(normalizedPath, REDIRECT_VALIDATION_ORIGIN)
+    if (normalized.origin !== REDIRECT_VALIDATION_ORIGIN || normalized.pathname.startsWith('//'))
       return
     return redirect
   }

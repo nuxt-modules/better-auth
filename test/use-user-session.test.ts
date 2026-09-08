@@ -1221,13 +1221,23 @@ describe('local redirect validation', () => {
     '/%2fevil.example/phish',
     '/%5cevil.example/phish',
     '/safe\nevil',
+    '/safe/..%2F%2Fevil.example/phish',
+    '/safe/%2e%2e/%5Cevil.example/phish',
     '/%2e%2e//evil.example/phish',
   ])('rejects unsafe redirect %j', async (redirect) => {
     const { isSafeLocalRedirect } = await loadRedirectHelpers()
     expect(isSafeLocalRedirect(redirect)).toBeUndefined()
   })
 
-  it.each(['/dashboard', '/dashboard?tab=billing', '/dashboard#security'])(
+  it.each([
+    '/dashboard',
+    '/dashboard?tab=billing',
+    '/dashboard#security',
+    '/user/eduardo%2Fsan%20martin',
+    '/user/name%5Cpart',
+    '/dashboard?next=%2Fsettings',
+    '/dashboard#%2Fsettings%5Cdetails',
+  ])(
     'accepts local redirect %j',
     async (redirect) => {
       const { isSafeLocalRedirect } = await loadRedirectHelpers()
