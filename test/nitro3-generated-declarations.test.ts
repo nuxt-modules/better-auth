@@ -74,6 +74,22 @@ export type NitroRouteRules = import('h3/rules').NormalizedRouteRules`,
     })
     linkDependency(fixtureDir, 'nuxt', nuxtDir)
     linkDependency(nitroDir, 'h3', h3Dir)
+    const consumerDir = join(fixtureDir, 'consumer')
+    linkDependency(consumerDir, 'h3', h3Dir)
+    writeFileSync(join(consumerDir, 'typecheck-target.ts'), `
+import type { RouteRuleConfig, RouteRules } from 'h3/rules'
+import type { AuthMeta } from '../auth-types'
+
+const authoredRule = { auth: 'user' } satisfies RouteRuleConfig
+declare const resolvedRule: RouteRules
+const resolvedAuth: AuthMeta | undefined = resolvedRule.auth
+// @ts-expect-error package-specifier imports retain the augmented auth contract
+const invalidRule = { auth: 'invalid-role' } satisfies RouteRuleConfig
+
+void authoredRule
+void resolvedAuth
+void invalidRule
+`)
     if (usesIntegration) {
       const integrationDir = createPackage('@nuxt/nitro-server', { '.': './index.mjs' }, {
         'index.d.mts': `export type { NitroRouteConfig, NitroRouteRules } from 'nitro/types'`,
@@ -136,6 +152,7 @@ void resolvedAuth
         './auth-types.d.ts',
         './nuxt-better-auth-nitro.d.ts',
         './typecheck-target.ts',
+        './consumer/typecheck-target.ts',
       ],
     }, null, 2))
 
