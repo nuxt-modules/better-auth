@@ -121,12 +121,14 @@ export function useUserSession(): UseUserSessionReturn {
     }
   }
 
+  let mountedReconciliationStarted = false
+
   function queueHydrationReconciliation() {
     if (hydrationReconcileQueued.value)
       return
 
     hydrationReconcileQueued.value = true
-    nuxtApp.hook('app:mounted', async () => {
+    const reconcile = async () => {
       try {
         await fetchSession({ force: true })
       }
@@ -136,7 +138,17 @@ export function useUserSession(): UseUserSessionReturn {
       finally {
         hydrationReconcileQueued.value = false
       }
-    })
+    }
+
+    if (mountedReconciliationStarted) {
+      void reconcile()
+    }
+    else {
+      nuxtApp.hook('app:mounted', () => {
+        mountedReconciliationStarted = true
+        return reconcile()
+      })
+    }
   }
 
   // On client, subscribe to better-auth's reactive session store

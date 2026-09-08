@@ -393,7 +393,7 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.user.value).toBeNull()
   })
 
-  it('handles a rejected hydration refresh and allows reconciliation to be queued again', async () => {
+  it('retries a rejected hydration refresh after app:mounted has already fired', async () => {
     payload.serverRendered = true
     nuxtApp.isHydrating = true
     seedHydratedState()
@@ -417,10 +417,16 @@ describe('useUserSession hydration bootstrap', () => {
       )
       expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(false)
 
+      mockClient.getSession.mockResolvedValueOnce({
+        data: { session: { id: 'session-2' }, user: { id: 'user-2' } },
+      })
       sessionAtom.value = { ...sessionAtom.value }
-      await flushPromises()
-      expect(nuxtHooks.get('app:mounted')).toHaveLength(2)
-      expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(true)
+      await vi.waitFor(() => {
+        expect(mockClient.getSession).toHaveBeenCalledTimes(2)
+        expect(auth.session.value).toEqual({ id: 'session-2' })
+        expect(auth.user.value).toEqual({ id: 'user-2' })
+        expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(false)
+      })
     }
     finally {
       logError.mockRestore()
