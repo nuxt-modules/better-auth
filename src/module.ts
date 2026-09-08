@@ -9,7 +9,7 @@ import { consola as _consola } from 'consola'
 import { dirname, isAbsolute, join, relative } from 'pathe'
 import { version } from '../package.json'
 import { resolveAuthConfigDescriptors, resolveAuthConfigFile } from './module/config-paths'
-import { resolveNitroCompatibilityImports } from './module/compatibility'
+import { resolveNitro3RouteRulesTarget, resolveNitroCompatibilityImports } from './module/compatibility'
 import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
@@ -203,7 +203,9 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
           runtimeTypesPath: resolver.resolve('./runtime/types'),
           sharedServerConfigSafe: [setup.configs.server.path, ...setup.pluginSources.server].every(isServerConfigSharedTypeSafe),
           h3TypesPath: nitroImports.h3,
-          nitroTypesPath: nitroImports.types,
+          nitro3RouteRulesTarget: nitroImports.runtime === 'nitro3'
+            ? resolveNitro3RouteRulesTarget(nuxt.options.rootDir)
+            : undefined,
         })
       }
 

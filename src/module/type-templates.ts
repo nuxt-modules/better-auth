@@ -1,4 +1,5 @@
 import { addTypeTemplate } from '@nuxt/kit'
+import type { Nitro3RouteRulesTarget } from './compatibility'
 
 // Preserve Nuxt's ordinary fetch contract without adding auth routes to global InternalApi.
 function buildNuxtFetchFallback(name: 'useFetch' | 'useLazyFetch'): string {
@@ -23,23 +24,39 @@ interface RegisterServerTypeTemplatesInput {
   runtimeTypesPath: string
   sharedServerConfigSafe: boolean
   h3TypesPath: 'h3' | 'nitro/h3'
-  nitroTypesPath: 'nitropack/types' | 'nitro/types'
+  nitro3RouteRulesTarget?: Nitro3RouteRulesTarget
 }
 
 export function registerServerTypeTemplates(input: RegisterServerTypeTemplatesInput): void {
-  const { serverConfigPath, hasHubDb, runtimeTypesPath, sharedServerConfigSafe, h3TypesPath, nitroTypesPath } = input
-  const routeRuleAugmentations = (nitroTypesPath === 'nitro/types'
-    ? [nitroTypesPath]
-    : ['nitropack', nitroTypesPath])
-    .map(moduleName => `declare module '${moduleName}' {
+  const { serverConfigPath, hasHubDb, runtimeTypesPath, sharedServerConfigSafe, h3TypesPath, nitro3RouteRulesTarget } = input
+  // Nitro 3 removed these typed-fetch helpers, while Nitro 2 still uses them to constrain Nuxt's fetch overloads.
+  const fetchRoutingTypeDeclarations = h3TypesPath === 'nitro/h3'
+    ? `type NitroFetchRequest = string & {}
+type AvailableRouterMethod<_ReqT extends NitroFetchRequest> = 'get' | 'head' | 'patch' | 'post' | 'put' | 'delete' | 'connect' | 'options' | 'trace'`
+    : `import type { AvailableRouterMethod, NitroFetchRequest } from 'nitropack/types'`
+  const resolvedNitro3RouteRulesTarget = nitro3RouteRulesTarget ?? {
+    moduleName: 'nitro/types',
+    configInterface: 'NitroRouteConfig',
+    rulesInterface: 'NitroRouteRules',
+  }
+  // Early Nitro 3 releases own these interfaces. Newer releases alias them to h3/rules.
+  const routeRuleAugmentations = h3TypesPath === 'nitro/h3'
+    ? `declare module ${JSON.stringify(resolvedNitro3RouteRulesTarget.moduleName)} {
+  interface ${resolvedNitro3RouteRulesTarget.configInterface} {
+    auth?: import('${runtimeTypesPath}').AuthMeta
+  }
+  interface ${resolvedNitro3RouteRulesTarget.rulesInterface} {
+    auth?: import('${runtimeTypesPath}').AuthMeta
+  }
+}`
+    : (['nitropack', 'nitropack/types'].map(moduleName => `declare module '${moduleName}' {
   interface NitroRouteRules {
     auth?: import('${runtimeTypesPath}').AuthMeta
   }
   interface NitroRouteConfig {
     auth?: import('${runtimeTypesPath}').AuthMeta
   }
-}`)
-    .join('\n')
+}`).join('\n'))
   const serverConfigTypeTemplateOptions = sharedServerConfigSafe
     ? { nuxt: true, nitro: true, node: true, shared: true }
     : { nuxt: true, nitro: true, node: true }
@@ -177,10 +194,37 @@ declare module '#nuxt-better-auth' {
 import type createServerAuth from '${serverConfigPath}'
 import type { BetterAuthOptions } from 'better-auth'
 import type { getEndpoints } from 'better-auth/api'
-import type { AvailableRouterMethod, NitroFetchRequest, Serialize, Simplify } from '${nitroTypesPath}'
 import type { useFetch as _NuxtUseFetch } from '#app/composables/fetch'
+${fetchRoutingTypeDeclarations}
 
 type _NuxtFetchError = NonNullable<ReturnType<typeof _NuxtUseFetch<void>>['error']['value']>
+
+type _JsonPrimitive = string | number | boolean | null
+type _NonJsonPrimitive = undefined | Function | symbol
+type _IsAny<T> = 0 extends 1 & T ? true : false
+type _FilterKeys<TObj extends object, TFilter> = {
+  [TKey in keyof TObj]: TObj[TKey] extends TFilter ? TKey : never
+}[keyof TObj]
+type _Serialize<T> = _IsAny<T> extends true
+  ? any
+  : T extends _JsonPrimitive | undefined
+    ? T
+    : T extends Map<any, any> | Set<any>
+      ? Record<string, never>
+      : T extends _NonJsonPrimitive
+        ? never
+        : T extends { toJSON: () => infer U }
+          ? U
+          : T extends []
+            ? []
+            : T extends [unknown, ...unknown[]]
+              ? { [K in keyof T]: T[K] extends _NonJsonPrimitive ? null : _Serialize<T[K]> }
+              : T extends ReadonlyArray<infer U>
+                ? (U extends _NonJsonPrimitive ? null : _Serialize<U>)[]
+                : T extends object
+                  ? { [K in keyof Omit<T, _FilterKeys<T, _NonJsonPrimitive>>]: _Serialize<T[K]> }
+                  : never
+type _Simplify<T> = T extends any[] | Date ? T : { [K in keyof T]: _Simplify<T[K]> }
 
 type _RawConfig = ReturnType<typeof createServerAuth>
 type _RawPlugins = _RawConfig extends { plugins: infer P } ? P : _RawConfig extends { plugins?: infer P } ? P : []
@@ -201,7 +245,7 @@ type _RoutePathFromEndpoint<E> = E extends { path: infer P extends string }
       ? never
       : \`/api/auth\${P}\`
   : never
-type _RouteResponseFromEndpoint<E> = E extends (...args: any[]) => Promise<infer R> ? Simplify<Serialize<Awaited<R>>> : never
+type _RouteResponseFromEndpoint<E> = E extends (...args: any[]) => Promise<infer R> ? _Simplify<_Serialize<Awaited<R>>> : never
 type _RouteDefaultResponse<E> = never
 type _UnionToIntersection<U> = (U extends unknown ? (value: U) => void : never) extends (value: infer I) => void ? I : never
 
@@ -319,7 +363,7 @@ export {}
 ${routeRuleAugmentations}
 export {}
 `,
-  }, { nitro: true, node: true })
+  }, { nuxt: h3TypesPath === 'nitro/h3', nitro: true, node: true })
 }
 
 interface RegisterSharedTypeTemplatesInput {
