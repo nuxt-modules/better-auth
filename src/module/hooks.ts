@@ -1,7 +1,7 @@
 import type { Nuxt, NuxtPage } from '@nuxt/schema'
 import type { AuthRouteRules } from '../runtime/types'
 import { existsSync, statSync } from 'node:fs'
-import { addComponentsDir, addImports, addPlugin, addServerHandler, addServerImports, addServerScanDir, extendPages, updateTemplates } from '@nuxt/kit'
+import { addComponentsDir, addImports, addPlugin, addServerHandler, addServerImports, extendPages, updateTemplates } from '@nuxt/kit'
 import { defu } from 'defu'
 import { isAbsolute, join } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
@@ -44,7 +44,7 @@ export function registerServerRuntime(input: RegisterServerRuntimeInput): void {
       ...['getRequestSession', 'getUserSession', 'setRequestSession', 'refreshSessionCookieCache', 'setSessionCookie', 'createSession', 'requireUserSession']
         .map(name => ({ name, from: resolve('./runtime/server/utils/session') })),
     ])
-    addServerScanDir(resolve('./runtime/server/middleware'))
+    addServerHandler({ middleware: true, handler: resolve('./runtime/server/middleware/route-access') })
     addServerHandler({ route: '/api/auth/**', handler: resolve('./runtime/server/api/auth/[...all]') })
   }
 
