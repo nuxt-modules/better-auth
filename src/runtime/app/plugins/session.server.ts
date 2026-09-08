@@ -16,12 +16,12 @@ export default defineNuxtPlugin({
     const event = useRequestEvent()
     if (event) {
       try {
-        const response = await useRequestFetch().raw<{ session: AuthSession & { token?: string }, user: AuthUser } | null>('/api/auth/get-session', {
+        const data = await useRequestFetch()<{ session: AuthSession & { token?: string }, user: AuthUser } | null>('/api/auth/get-session', {
           parseResponse: parseJSON,
-          ignoreResponseError: true,
+          onResponse({ response }) {
+            appendSetCookieHeaders(event, response.headers)
+          },
         })
-        appendSetCookieHeaders(event, response.headers)
-        const data = response.ok ? response._data : null
         if (data?.session && data?.user) {
           // Filter out sensitive token field from client state
           const { token: _, ...safeSession } = data.session
