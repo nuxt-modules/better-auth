@@ -7,10 +7,11 @@ export async function runWithSessionRefresh<TResult>(runner: () => Promise<TResu
     throw new TypeError('runWithSessionRefresh(runner) requires an async function')
 
   const auth = useUserSession()
+  const wasLoggedIn = auth.loggedIn.value
   const result = await runner()
 
   if (!isAuthActionErrorResult(result))
-    await refreshSessionAfterAuthAction(auth.fetchSession, auth.loggedIn, auth.waitForSession)
+    await refreshSessionAfterAuthAction(auth.fetchSession, auth.loggedIn, auth.waitForSession, true, wasLoggedIn)
 
   return result
 }
