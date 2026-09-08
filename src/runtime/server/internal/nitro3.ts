@@ -39,29 +39,39 @@ export function toWebRequest(event: ServerEvent): Request {
 
 export function splitCookiesString(header: string): string[] {
   const cookies: string[] = []
-  let start = 0
-  let inQuotes = false
-  for (let i = 0; i < header.length; i++) {
-    const char = header[i]
-    if (char === '"' && header[i - 1] !== '\\') {
-      inQuotes = !inQuotes
-      continue
-    }
-    if (char !== ',' || inQuotes)
-      continue
+  let position = 0
 
-    let position = i + 1
-    while (position < header.length && /\s/.test(header[position]!))
+  while (position < header.length) {
+    const start = position
+    let separator: number | undefined
+
+    while (position < header.length) {
+      if (header[position] !== ',') {
+        position += 1
+        continue
+      }
+
+      separator = position
       position += 1
-    let tokenEnd = position
-    while (tokenEnd < header.length && !['=', ';', ','].includes(header[tokenEnd]!))
-      tokenEnd += 1
-    if (header[tokenEnd] === '=') {
-      cookies.push(header.slice(start, i))
-      start = position
-      i = position - 1
+      while (position < header.length && /\s/.test(header[position]!))
+        position += 1
+
+      const nextStart = position
+      while (position < header.length && !['=', ';', ','].includes(header[position]!))
+        position += 1
+
+      if (header[position] === '=') {
+        cookies.push(header.slice(start, separator))
+        position = nextStart
+        break
+      }
+
+      position = separator + 1
     }
+
+    if (separator === undefined || position >= header.length)
+      cookies.push(header.slice(start))
   }
-  cookies.push(header.slice(start))
+
   return cookies
 }

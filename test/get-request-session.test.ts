@@ -198,20 +198,91 @@ describe('getRequestSession', () => {
     expect(cookies).toEqual([...existingCookies, ...forwardedCookies])
   })
 
-  it('splits combined response headers when getSetCookie is unavailable', async () => {
-    const cookies = [
-      'first=1; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/',
-      'second=2; Path=/',
+  it.each(['Node', 'Nitro 3'] as const)('preserves Cloudflare getAll cookie boundaries on %s responses', async (shape) => {
+    const existingCookie = 'existing=1; Extension=left, injected=right; Path=/'
+    const forwardedCookies = [
+      'first=1; Extension=left, injected=right; Path=/',
+      'second=2; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/',
     ]
-    const headers = new Headers({ 'set-cookie': cookies.join(', ') })
-    Object.defineProperty(headers, 'getSetCookie', { value: undefined })
+    const headers = new Headers()
+    for (const cookie of forwardedCookies)
+      headers.append('set-cookie', cookie)
+    const getAll = vi.fn(function (this: Headers, name: string) {
+      expect(this).toBe(headers)
+      expect(name).toBe('set-cookie')
+      return forwardedCookies
+    })
+    Object.defineProperties(headers, {
+      getSetCookie: { value: undefined },
+      getAll: { value: getAll },
+    })
     getSessionMock.mockResolvedValue({ headers, response: null })
     const { getRequestSession } = await import('../src/runtime/server/utils/session')
-    const event = createEvent()
+    const event = shape === 'Nitro 3' ? createNitroV3Event() : createEvent()
+    if (shape === 'Nitro 3') {
+      event.res.headers.append('set-cookie', existingCookie)
+      const nativeGetSetCookie = event.res.headers.getSetCookie.bind(event.res.headers)
+      Object.defineProperties(event.res.headers, {
+        getSetCookie: { value: undefined },
+        getAll: { value: (name: string) => {
+          expect(name).toBe('set-cookie')
+          return nativeGetSetCookie()
+        } },
+      })
+    }
+    else {
+      event.node.res.setHeader('set-cookie', existingCookie)
+    }
 
     await getRequestSession(event)
 
-    expect(event.node.res.getHeader('set-cookie')).toEqual(cookies)
+    expect(getAll).toHaveBeenCalledOnce()
+    const cookies = shape === 'Nitro 3' ? event.res.headers.getAll('set-cookie') : event.node.res.getHeader('set-cookie')
+    expect(cookies).toEqual([existingCookie, ...forwardedCookies])
+  })
+
+  it.each(['Node', 'Nitro 3'] as const)('preserves opaque cookie fields without a boundary API on %s responses', async (shape) => {
+    // A flattened value cannot distinguish an extension comma from multiple cookies.
+    const existingCookie = 'existing=1; Extension=left, injected=right; Path=/'
+    const forwardedCookie = 'first=1; Foo=x,y=z'
+    const headers = new Headers({ 'set-cookie': forwardedCookie })
+    Object.defineProperty(headers, 'getSetCookie', { value: undefined })
+    getSessionMock.mockResolvedValue({ headers, response: null })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = shape === 'Nitro 3' ? createNitroV3Event() : createEvent()
+    let getResponseCookies: () => string[]
+    if (shape === 'Nitro 3') {
+      event.res.headers.append('set-cookie', existingCookie)
+      getResponseCookies = event.res.headers.getSetCookie.bind(event.res.headers)
+      Object.defineProperty(event.res.headers, 'getSetCookie', { value: undefined })
+    }
+    else {
+      event.node.res.setHeader('set-cookie', existingCookie)
+      getResponseCookies = () => event.node.res.getHeader('set-cookie')
+    }
+
+    await getRequestSession(event)
+
+    expect(getResponseCookies()).toEqual([existingCookie, forwardedCookie])
+  })
+
+  it('appends multiple cookies without flattening existing Nitro 3 response fields', async () => {
+    const existingCookies = ['existing=1; Foo=x,y=z', 'other=2; Path=/']
+    const forwardedCookies = ['first=1; Path=/', 'second=2; Path=/']
+    const headers = new Headers()
+    for (const cookie of forwardedCookies)
+      headers.append('set-cookie', cookie)
+    getSessionMock.mockResolvedValue({ headers, response: null })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createNitroV3Event()
+    for (const cookie of existingCookies)
+      event.res.headers.append('set-cookie', cookie)
+    const getResponseCookies = event.res.headers.getSetCookie.bind(event.res.headers)
+    Object.defineProperty(event.res.headers, 'getSetCookie', { value: undefined })
+
+    await getRequestSession(event)
+
+    expect(getResponseCookies()).toEqual([...existingCookies, ...forwardedCookies])
   })
 
   it('deduplicates concurrent resolution within a single request', async () => {

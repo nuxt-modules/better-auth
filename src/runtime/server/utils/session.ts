@@ -1,7 +1,7 @@
 import type { AppSession, AuthSession, RequireSessionOptions } from '#nuxt-better-auth'
 import { matchesUser } from '../../utils/match-user'
 import type { ServerEvent } from '../internal/nitro-compat'
-import { createAuthError, splitCookiesString } from '../internal/nitro-compat'
+import { createAuthError } from '../internal/nitro-compat'
 import { serverAuth } from './auth'
 
 const requestSessionLoadKey = Symbol.for('nuxt-better-auth.requestSessionLoad')
@@ -223,22 +223,26 @@ function appendCookieHeader(event: ServerEvent, header: string): void {
     response?: { headers?: Headers }
   }
   const responseHeaders = eventWithResponse.res?.headers ?? eventWithResponse.response?.headers
-  if (responseHeaders) {
-    const cookies = getSetCookieHeaders(responseHeaders)
-    responseHeaders.delete('set-cookie')
-    for (const cookie of [...cookies, header])
-      responseHeaders.append('set-cookie', cookie)
-  }
+  responseHeaders?.append('set-cookie', header)
 }
 
 function getSetCookieHeaders(headers: Headers): string[] {
-  const getSetCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie
+  const cookieHeaders = headers as Headers & {
+    getSetCookie?: () => string[]
+    getAll?: (name: string) => string[]
+  }
+  const getSetCookie = cookieHeaders.getSetCookie
   // Preserve explicit header boundaries, including commas in extension attributes.
   if (getSetCookie)
     return getSetCookie.call(headers)
 
+  // Cloudflare Workers also exposes individual Set-Cookie fields through getAll.
+  if (cookieHeaders.getAll)
+    return cookieHeaders.getAll.call(headers, 'set-cookie')
+
+  // Flattened legacy headers lose field boundaries; splitting can invent cookies.
   const header = headers.get('set-cookie')
-  return header ? splitCookiesString(header) : []
+  return header ? [header] : []
 }
 
 function appendSetCookieHeaders(event: ServerEvent, headers: Headers): void {
