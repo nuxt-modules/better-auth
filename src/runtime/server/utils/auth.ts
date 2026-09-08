@@ -76,10 +76,29 @@ function logInferredBaseURL(baseURL: string, source: string): void {
 
 function validateURL(url: string): string {
   try {
-    return normalizeLoopbackOrigin(new URL(url).origin)
+    // WHATWG URL parsing strips leading spaces and C0 controls, which could otherwise
+    // turn a credential-bearing value into an apparently safe origin.
+    const firstCode = url.charCodeAt(0)
+    if (firstCode <= 32 || firstCode === 127)
+      throw new Error('leading whitespace and control characters are not allowed')
+    const parsed = new URL(url)
+
+    // Better Auth builds callback URLs and origin checks from this value. An
+    // opaque origin (for example `javascript:`) or a URL containing
+    // credentials is never a valid site origin and could otherwise result in
+    // surprising redirects or origin mismatches.
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+      throw new Error('unsupported protocol')
+    // URL parsing discards empty userinfo. Inspect the original authority too,
+    // accounting for the whitespace and backslashes accepted by HTTP(S) URLs.
+    const hasUserinfo = /^https?:[/\\]*[^/\\?#]*@/i.test(url.trim().replace(/[\t\n\r]/g, ''))
+    if (parsed.username || parsed.password || hasUserinfo)
+      throw new Error('credentials are not allowed')
+
+    return normalizeLoopbackOrigin(parsed.origin)
   }
   catch {
-    throw new Error(`Invalid siteUrl: "${url}". Must be a valid URL.`)
+    throw new Error('Invalid siteUrl. Must be a valid HTTP(S) URL without credentials.')
   }
 }
 

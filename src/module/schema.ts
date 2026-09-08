@@ -6,8 +6,11 @@ import type { NuxtHubOptions } from './hub'
 import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate } from '@nuxt/kit'
+import { Diagnostic, formatDiagnostic } from 'nostics'
 import { join } from 'pathe'
 import { generateDrizzleSchema, loadUserAuthConfig } from '../schema-generator'
+import { resolveAuthConfigFile } from './config-paths'
+import { diagnostics } from './diagnostics'
 import { getHubCasing, getHubDialect } from './hub'
 
 interface SchemaContext {
@@ -18,13 +21,12 @@ interface SchemaContext {
 type HubSecondaryStorageMode = BetterAuthModuleOptions['hubSecondaryStorage']
 
 const NODE_MODULES_SEGMENT_RE = /[\\/]/
-const CONFIG_EXTENSION_RE = /\.[cm]?[jt]s$/
 
 export function resolveSchemaSecondaryStorageInjection(
   hubSecondaryStorage: HubSecondaryStorageMode,
   userHasSecondaryStorage: boolean,
   isProduction: boolean,
-): { inject: boolean, warn?: string, error?: string } {
+): { inject: boolean, warn?: Diagnostic, error?: Diagnostic } {
   if (hubSecondaryStorage === true)
     return { inject: false }
 
@@ -34,11 +36,11 @@ export function resolveSchemaSecondaryStorageInjection(
   if (userHasSecondaryStorage)
     return { inject: true }
 
-  const message = '[nuxt-better-auth] hubSecondaryStorage: "custom" requires secondaryStorage in defineServerAuth() to omit the session table from the generated schema.'
+  const diagnostic = diagnostics.NUXT_AUTH_SCHEMA_STORAGE_REQUIRED()
   if (isProduction)
-    return { inject: false, error: message }
+    return { inject: false, error: diagnostic }
 
-  return { inject: false, warn: message }
+  return { inject: false, warn: diagnostic }
 }
 
 function isInsideNodeModules(path: string): boolean {
@@ -84,7 +86,7 @@ export function registerNuxtHubSchemaHook(
 
 async function loadAuthOptions(context: SchemaContext) {
   const isProduction = !context.nuxt.options.dev
-  const configFile = CONFIG_EXTENSION_RE.test(context.serverConfigPath) ? context.serverConfigPath : `${context.serverConfigPath}.ts`
+  const configFile = resolveAuthConfigFile(context.serverConfigPath) ?? context.serverConfigPath
   const alias = Object.fromEntries(
     Object.entries(context.nuxt.options.alias)
       .filter(([, value]) => typeof value === 'string')
@@ -111,7 +113,7 @@ export async function setupBetterAuthSchema(
   const hub = (nuxt.options as { hub?: NuxtHubOptions }).hub
   const dialect = getHubDialect(hub)
   if (!dialect || !['sqlite', 'postgresql', 'mysql'].includes(dialect)) {
-    consola.warn(`Unsupported database dialect: ${dialect}`)
+    consola.warn(formatDiagnostic(diagnostics.NUXT_AUTH_UNSUPPORTED_DIALECT({ dialect })))
     return
   }
 
@@ -129,9 +131,9 @@ export async function setupBetterAuthSchema(
     const userHasSecondaryStorage = userConfig.secondaryStorage != null
     const secondaryStorageResolution = resolveSchemaSecondaryStorageInjection(hubSecondaryStorage, userHasSecondaryStorage, !nuxt.options.dev)
     if (secondaryStorageResolution.error)
-      throw new Error(secondaryStorageResolution.error)
+      throw secondaryStorageResolution.error
     if (secondaryStorageResolution.warn)
-      consola.warn(secondaryStorageResolution.warn)
+      consola.warn(formatDiagnostic(secondaryStorageResolution.warn))
 
     const authOptions = {
       ...userConfig,
@@ -172,12 +174,10 @@ export async function setupBetterAuthSchema(
     consola.info(`Generated ${dialect} schema (.ts + .mjs)`)
   }
   catch (error) {
-    const isProduction = !nuxt.options.dev
-    if (isProduction)
-      throw error
-
-    consola.error('Failed to generate schema:', error)
-    // NuxtHub provider now relies on the generated schema file.
-    throw error
+    // Nuxt reports this failure in both dev and production. Preserve an existing
+    // diagnostic so config failures keep their original code and cause.
+    throw error instanceof Diagnostic
+      ? error
+      : diagnostics.NUXT_AUTH_SCHEMA_GENERATION_FAILED({ cause: error })
   }
 }

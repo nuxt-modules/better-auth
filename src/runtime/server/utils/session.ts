@@ -1,10 +1,12 @@
 import type { AppSession, AuthSession, RequireSessionOptions } from '#nuxt-better-auth'
 import { matchesUser } from '../../utils/match-user'
 import type { ServerEvent } from '../internal/nitro-compat'
-import { createAuthError, splitCookiesString } from '../internal/nitro-compat'
+import { createAuthError } from '../internal/nitro-compat'
+import { appendCookieHeader, appendSetCookieHeaders } from '../internal/cookie-headers'
 import { serverAuth } from './auth'
 
 const requestSessionLoadKey = Symbol.for('nuxt-better-auth.requestSessionLoad')
+const requestSessionMutationKey = Symbol.for('nuxt-better-auth.requestSessionMutation')
 const signingAlgorithm: HmacImportParams = { name: 'HMAC', hash: 'SHA-256' }
 const cookiePairSeparatorRE = /;\s*/
 
@@ -44,6 +46,7 @@ interface RequestSessionContext {
   requestSession?: AppSession | null
   requestHeaders?: Headers
   [requestSessionLoadKey]?: Promise<AppSession | null>
+  [requestSessionMutationKey]?: number
 }
 
 interface SessionWithHeaders {
@@ -75,9 +78,19 @@ function getRequestHeaders(event: ServerEvent): Headers {
   return getRequestSessionContext(event).requestHeaders ?? getIncomingRequestHeaders(event)
 }
 
-function loadSession(event: ServerEvent): Promise<AppSession | null> {
+async function loadSession(event: ServerEvent): Promise<SessionWithHeaders> {
   const auth = serverAuth(event)
-  return auth.api.getSession({ headers: getRequestHeaders(event) }) as Promise<AppSession | null>
+  const result = await auth.api.getSession({
+    headers: getRequestHeaders(event),
+    returnHeaders: true,
+  }) as unknown
+
+  // Keep unit-level and forward-compatible resilience if an auth adapter ignores
+  // returnHeaders, while Better Auth 1.7.3+ returns SessionWithHeaders here.
+  if (result && typeof result === 'object' && 'headers' in result && result.headers instanceof Headers && 'response' in result)
+    return result as SessionWithHeaders
+
+  return { headers: new Headers(), response: result as AppSession | null }
 }
 
 function loadFreshSession(event: ServerEvent): Promise<SessionWithHeaders> {
@@ -182,51 +195,12 @@ async function serializeSignedCookie(name: string, value: string, secret: string
   return serializeCookieHeader(name, await signCookieValue(value, secret), attributes, true)
 }
 
-function appendCookieHeader(event: ServerEvent, header: string): void {
-  const nodeResponse = (event as ServerEvent & {
-    node?: {
-      res?: {
-        getHeader?: (name: string) => string | string[] | number | undefined
-        setHeader?: (name: string, value: string | string[]) => void
-      }
-    }
-    response?: {
-      headers?: Headers
-    }
-  }).node?.res
-
-  if (nodeResponse?.setHeader) {
-    const current = nodeResponse.getHeader?.('set-cookie')
-    if (Array.isArray(current))
-      nodeResponse.setHeader('set-cookie', [...current, header])
-    else if (typeof current === 'string')
-      nodeResponse.setHeader('set-cookie', [current, header])
-    else
-      nodeResponse.setHeader('set-cookie', [header])
-    return
-  }
-
-  const eventWithResponse = event as ServerEvent & {
-    res?: { headers?: Headers }
-    response?: { headers?: Headers }
-  }
-  const responseHeaders = eventWithResponse.res?.headers ?? eventWithResponse.response?.headers
-  responseHeaders?.append('set-cookie', header)
+function getRequestSessionMutation(context: RequestSessionContext): number {
+  return context[requestSessionMutationKey] ?? 0
 }
 
-function getSetCookieHeaders(headers: Headers): string[] {
-  const getSetCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie
-  const cookies = getSetCookie?.call(headers)
-  if (cookies?.length)
-    return cookies.flatMap(cookie => splitCookiesString(cookie))
-
-  const header = headers.get('set-cookie')
-  return header ? splitCookiesString(header) : []
-}
-
-function appendSetCookieHeaders(event: ServerEvent, headers: Headers): void {
-  for (const header of getSetCookieHeaders(headers))
-    appendCookieHeader(event, header)
+function markRequestSessionMutation(context: RequestSessionContext): void {
+  context[requestSessionMutationKey] = getRequestSessionMutation(context) + 1
 }
 
 function parseRequestCookies(cookieHeader: string | null): Map<string, string> {
@@ -313,7 +287,11 @@ export async function getRequestSession(event: ServerEvent): Promise<AppSession 
   if (context.requestSession !== undefined)
     return context.requestSession
 
-  const load = loadSession(event)
+  const load: Promise<AppSession | null> = loadSession(event).then(({ headers, response }) => {
+    if (context[requestSessionLoadKey] === load)
+      appendSetCookieHeaders(event, headers)
+    return response
+  })
 
   context[requestSessionLoadKey] = load
   try {
@@ -337,11 +315,16 @@ export async function getUserSession(event: ServerEvent): Promise<AppSession | n
   if (context.requestSession !== undefined)
     return context.requestSession
 
-  return loadSession(event)
+  const mutation = getRequestSessionMutation(context)
+  const { headers, response } = await loadSession(event)
+  if (getRequestSessionMutation(context) === mutation)
+    appendSetCookieHeaders(event, headers)
+  return response
 }
 
 export function setRequestSession(event: ServerEvent, session: AppSession | null): void {
   const context = getRequestSessionContext(event)
+  markRequestSessionMutation(context)
   context.requestSession = session
   delete context[requestSessionLoadKey]
 }
@@ -364,6 +347,7 @@ export async function refreshSessionCookieCache(event: ServerEvent): Promise<App
     return response
   })
 
+  markRequestSessionMutation(context)
   context[requestSessionLoadKey] = load
   try {
     return await load
@@ -391,6 +375,7 @@ export async function setSessionCookie(event: ServerEvent, token: string): Promi
   expireCookies(event, context.authCookies.dontRememberToken)
 
   const requestContext = getRequestSessionContext(event)
+  markRequestSessionMutation(requestContext)
   delete requestContext.requestSession
   delete requestContext[requestSessionLoadKey]
   updateRequestHeaders(event, sessionCookie, [
@@ -401,7 +386,13 @@ export async function setSessionCookie(event: ServerEvent, token: string): Promi
 
 export async function createSession(event: ServerEvent, userId: string): Promise<AuthSession> {
   const context = await getServerAuthContext(event)
-  return context.internalAdapter.createSession?.(userId, false) as Promise<AuthSession>
+  if (typeof context.internalAdapter.createSession !== 'function') {
+    throw new TypeError(
+      '[@nuxtjs/better-auth] Cannot create a session: the installed Better Auth version does not expose internalAdapter.createSession().',
+    )
+  }
+
+  return context.internalAdapter.createSession(userId, false) as Promise<AuthSession>
 }
 
 export async function requireUserSession(event: ServerEvent, options?: RequireSessionOptions): Promise<AppSession> {

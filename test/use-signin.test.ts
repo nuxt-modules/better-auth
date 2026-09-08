@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { deferred } from './helpers/deferred'
 
 let sessionMock: any
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 vi.mock('#imports', async () => {
   const vue = await import('vue')

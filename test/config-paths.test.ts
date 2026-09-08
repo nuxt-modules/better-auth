@@ -2,7 +2,7 @@ import type { Nuxt } from '@nuxt/schema'
 import { fileURLToPath } from 'node:url'
 import { loadNuxt } from '@nuxt/kit'
 import { afterEach, describe, expect, it } from 'vitest'
-import { resolveAuthConfigDescriptor, resolveAuthConfigDescriptors, resolveAuthPluginSources } from '../src/module/config-paths'
+import { resolveAuthConfigDescriptor, resolveAuthConfigDescriptors, resolveAuthConfigFile, resolveAuthPluginSources } from '../src/module/config-paths'
 
 const loadedNuxtInstances: Nuxt[] = []
 
@@ -25,6 +25,13 @@ afterEach(async () => {
 })
 
 describe('resolveAuthConfigDescriptor', () => {
+  it.each(['.mts', '.mjs'])('resolves an extensionless path to a %s config', (extension) => {
+    const configPath = '/project/server/auth.config'
+
+    expect(resolveAuthConfigFile(configPath, candidate => candidate === `${configPath}${extension}`))
+      .toBe(`${configPath}${extension}`)
+  })
+
   it('resolves plugin sources from each declaring layer in Nuxt priority order', async () => {
     const nuxt = await loadCase('layer-plugin-contributions')
 
@@ -47,7 +54,7 @@ describe('resolveAuthConfigDescriptor', () => {
     expect(configs.server).toMatchObject({
       kind: 'server',
       configuredFile: 'server/auth.config',
-      file: '../core-auth/server/auth.config',
+      file: '../core-auth/server/auth.config.ts',
       path: expect.stringContaining('/test/cases/core-auth/server/auth.config'),
       declaringLayerRoot: expect.stringContaining('/test/cases/core-auth'),
       isDefault: true,
@@ -58,7 +65,7 @@ describe('resolveAuthConfigDescriptor', () => {
     expect(configs.client).toMatchObject({
       kind: 'client',
       configuredFile: 'app/auth.config',
-      file: '../core-auth/app/auth.config',
+      file: '../core-auth/app/auth.config.ts',
       path: expect.stringContaining('/test/cases/core-auth/app/auth.config'),
       declaringLayerRoot: expect.stringContaining('/test/cases/core-auth'),
       isDefault: true,
@@ -75,7 +82,7 @@ describe('resolveAuthConfigDescriptor', () => {
     expect(configs.server).toMatchObject({
       kind: 'server',
       configuredFile: 'custom/server-auth',
-      file: '../layer-explicit-configs-base/custom/server-auth',
+      file: '../layer-explicit-configs-base/custom/server-auth.ts',
       path: expect.stringContaining('/test/cases/layer-explicit-configs-base/custom/server-auth'),
       declaringLayerRoot: expect.stringContaining('/test/cases/layer-explicit-configs-base'),
       isDefault: false,
@@ -86,7 +93,7 @@ describe('resolveAuthConfigDescriptor', () => {
     expect(configs.client).toMatchObject({
       kind: 'client',
       configuredFile: 'custom/client-auth',
-      file: '../layer-explicit-configs-base/custom/client-auth',
+      file: '../layer-explicit-configs-base/custom/client-auth.ts',
       path: expect.stringContaining('/test/cases/layer-explicit-configs-base/custom/client-auth'),
       declaringLayerRoot: expect.stringContaining('/test/cases/layer-explicit-configs-base'),
       isDefault: false,
@@ -103,7 +110,7 @@ describe('resolveAuthConfigDescriptor', () => {
     expect(configs.server).toMatchObject({
       kind: 'server',
       configuredFile: 'custom/server-auth',
-      file: 'custom/server-auth',
+      file: 'custom/server-auth.ts',
       path: expect.stringContaining('/test/cases/project-explicit-configs/custom/server-auth'),
       declaringLayerRoot: expect.stringContaining('/test/cases/project-explicit-configs'),
       isDefault: false,
@@ -114,7 +121,7 @@ describe('resolveAuthConfigDescriptor', () => {
     expect(configs.client).toMatchObject({
       kind: 'client',
       configuredFile: 'custom/client-auth',
-      file: 'custom/client-auth',
+      file: 'custom/client-auth.ts',
       path: expect.stringContaining('/test/cases/project-explicit-configs/custom/client-auth'),
       declaringLayerRoot: expect.stringContaining('/test/cases/project-explicit-configs'),
       isDefault: false,
@@ -124,7 +131,7 @@ describe('resolveAuthConfigDescriptor', () => {
     })
   })
 
-  it('passes through absolute config paths unchanged', async () => {
+  it('resolves extensionless absolute config paths', async () => {
     const nuxt = await loadCase('database-less')
     const serverConfigFile = ((nuxt.options as { auth: { serverConfig: string } }).auth).serverConfig
     const clientConfigFile = ((nuxt.options as { auth: { clientConfig: string } }).auth).clientConfig
@@ -132,8 +139,8 @@ describe('resolveAuthConfigDescriptor', () => {
     expect(resolveAuthConfigDescriptor(nuxt, 'server')).toMatchObject({
       kind: 'server',
       configuredFile: serverConfigFile,
-      file: serverConfigFile,
-      path: serverConfigFile,
+      file: `${serverConfigFile}.ts`,
+      path: `${serverConfigFile}.ts`,
       declaringLayerRoot: expect.stringContaining('/test/cases/_base-module'),
       isDefault: false,
       isExplicit: true,
@@ -143,8 +150,8 @@ describe('resolveAuthConfigDescriptor', () => {
     expect(resolveAuthConfigDescriptor(nuxt, 'client')).toMatchObject({
       kind: 'client',
       configuredFile: clientConfigFile,
-      file: clientConfigFile,
-      path: clientConfigFile,
+      file: `${clientConfigFile}.ts`,
+      path: `${clientConfigFile}.ts`,
       declaringLayerRoot: expect.stringContaining('/test/cases/_base-module'),
       isDefault: false,
       isExplicit: true,

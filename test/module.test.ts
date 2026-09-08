@@ -19,6 +19,11 @@ describe('nuxt-better-auth module', async () => {
       expect(response.status).toBe(404)
     })
 
+    it('does not expose the auth test bridge in ordinary builds', async () => {
+      const response = await fetch(url('/api/auth/__test__'), { method: 'POST' })
+      expect(response.status).toBe(404)
+    })
+
     it('exposes runtime database metadata as nuxthub', async () => {
       const response = await $fetch('/api/test/config') as { useDatabase: boolean, databaseProvider: string }
       expect(response.useDatabase).toBe(true)

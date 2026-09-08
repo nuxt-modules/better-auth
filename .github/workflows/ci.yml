@@ -8,6 +8,12 @@ on:
   schedule:
     - cron: '37 6 * * *'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref to verify instead of the triggering workflow SHA
+        required: false
+        type: string
 
 permissions: {}
 
@@ -19,6 +25,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
       - run: corepack enable
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -35,7 +42,9 @@ jobs:
         env:
           BETTER_AUTH_SECRET: ci-test-secret-12345678901234567890
       - run: pnpm build:docs
+      - run: pnpm exec playwright-core install --with-deps chromium
       - run: pnpm test
+      - run: pnpm test:runtime
 
   compatibility:
     env:
@@ -59,6 +68,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
       - run: corepack enable
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -80,3 +90,53 @@ jobs:
       - run: corepack pnpm@11.21.0 build
         working-directory: /tmp/nuxt-better-auth-compatibility
       - run: node test/compatibility/check.mjs /tmp/nuxt-better-auth-compatibility
+
+  # Keep the published lower bounds executable without multiplying the current/latest matrix.
+  # This tests Nuxt 4.0.0 with the packed module's declared Kit dependency (^4.5.2),
+  # as consumers install it. It does not claim support for running the module on Kit 4.0.0.
+  minimum-compatibility:
+    env:
+      COMPATIBILITY_DATABASE: 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.19.0
+          cache: pnpm
+
+      - run: pnpm install
+      - run: pnpm pack --pack-destination /tmp
+      - run: cp -R test/compatibility/fixture /tmp/nuxt-better-auth-minimum-compatibility
+      - name: Install minimum compatibility dependencies
+        timeout-minutes: 5
+        working-directory: /tmp/nuxt-better-auth-minimum-compatibility
+        run: corepack pnpm@11.21.0 add --save-exact nuxt@4.0.0 better-auth@1.7.3 @nuxthub/core@0.10.5 @libsql/client@0.17.4 drizzle-orm@0.45.2 drizzle-kit@0.31.10 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/nuxtjs-better-auth-*.tgz
+      - name: Verify published minimum dependency graph
+        working-directory: /tmp/nuxt-better-auth-minimum-compatibility
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { createRequire } from 'node:module'
+
+          const consumerRequire = createRequire(import.meta.url)
+          const moduleRequire = createRequire(import.meta.resolve('@nuxtjs/better-auth'))
+          const nuxtVersion = consumerRequire('nuxt/package.json').version
+          const kitVersion = moduleRequire('@nuxt/kit/package.json').version
+          assert.equal(nuxtVersion, '4.0.0')
+          const [major, minor, patch] = kitVersion.split('.').map(Number)
+          assert.ok(major === 4 && (minor > 5 || (minor === 5 && patch >= 2)),
+            `Expected the module's declared Kit ^4.5.2, got ${kitVersion}`)
+          console.log(`Published consumer graph: Nuxt ${nuxtVersion}, module Kit ${kitVersion}`)
+          NODE
+      - run: corepack pnpm@11.21.0 typecheck
+        working-directory: /tmp/nuxt-better-auth-minimum-compatibility
+      - run: corepack pnpm@11.21.0 db:generate && corepack pnpm@11.21.0 db:migrate
+        working-directory: /tmp/nuxt-better-auth-minimum-compatibility
+      - run: corepack pnpm@11.21.0 build
+        working-directory: /tmp/nuxt-better-auth-minimum-compatibility
+      - run: node test/compatibility/check.mjs /tmp/nuxt-better-auth-minimum-compatibility

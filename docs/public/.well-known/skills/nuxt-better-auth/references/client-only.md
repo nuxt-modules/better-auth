@@ -17,6 +17,14 @@ export default defineNuxtConfig({
 NUXT_PUBLIC_SITE_URL=https://auth.example.com
 ```
 
+The site URL is the default auth client base URL. An explicit client config value takes precedence:
+
+```ts
+export default defineClientAuth({
+  baseURL: 'https://auth.example.com',
+})
+```
+
 ## What changes
 
 - no local `/api/auth/**` handlers

@@ -1,0 +1,22 @@
+{
+  "extends": "./.nuxt/tsconfig.app.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "types": [],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "files": [
+    "./.nuxt/types/nuxt-better-auth.d.ts",
+    "./.nuxt/types/nuxt-better-auth-client.d.ts",
+    "./typecheck-target.ts"
+  ],
+  "include": []
+}

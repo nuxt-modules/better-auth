@@ -8,10 +8,14 @@ import type {
 } from '../types/hooks'
 import type { AuthConfigDescriptor } from './config-paths'
 import type { NuxtHubOptions } from './hub'
+import type { RouteTable } from 'radix3'
 import { hasNuxtModule } from '@nuxt/kit'
+import { defu } from 'defu'
 import { dirname } from 'pathe'
+import { createRouter, toRouteMatcher } from 'radix3'
 import { resolveDatabaseProvider } from '../database-provider'
 import { resolveAuthConfigDescriptors, resolveAuthPluginSources } from './config-paths'
+import { diagnostics } from './diagnostics'
 import { getHubCasing, getHubDialect } from './hub'
 import { setupRuntimeConfig } from './runtime'
 import { buildDatabaseCode } from './templates'
@@ -30,34 +34,22 @@ export interface ResolvedAuthModuleSetup {
     server: string[]
     client: string[]
   }
-  hub: {
-    hasNuxtHub: boolean
-    options?: NuxtHubOptions
-    hasHubDbAvailable: boolean
-  }
   database: {
-    providerId: ModuleDatabaseProviderId
     hasHubDb: boolean
     providerDefinition?: BetterAuthDatabaseProviderDefinition
     buildContext?: BetterAuthDatabaseProviderBuildContext
-  }
-  runtime: {
-    secondaryStorageEnabled: boolean
   }
   prepareTypes?: {
     serverDir: string
     hasHubDb: boolean
   }
   serverTypes?: {
-    serverConfigPath: string
     hasHubDb: boolean
   }
   sharedTypes: {
     runtimeTypesAugmentPath: string
-    clientConfigPath: string
   }
   schemaGeneration?: {
-    serverConfigPath: string
     hubSecondaryStorage: BetterAuthModuleOptions['hubSecondaryStorage']
     externalizeNuxtHubDatabase: boolean
   }
@@ -78,10 +70,10 @@ interface ResolveAuthModuleSetupDependencies {
 
 function assertConfigPresence(configs: ResolvedAuthModuleSetup['configs'], clientOnly: boolean): void {
   if (!clientOnly && !configs.server.exists)
-    throw new Error(`[nuxt-better-auth] Missing ${configs.server.file}.ts - export default defineServerAuth(...)`)
+    throw diagnostics.NUXT_AUTH_MISSING_CONFIG({ file: configs.server.file, factory: 'defineServerAuth' })
 
   if (!configs.client.exists)
-    throw new Error(`[nuxt-better-auth] Missing ${configs.client.file}.ts - export default defineClientAuth(...)`)
+    throw diagnostics.NUXT_AUTH_MISSING_CONFIG({ file: configs.client.file, factory: 'defineClientAuth' })
 }
 
 function createDefaultDatabaseProviders(
@@ -107,11 +99,7 @@ function createDefaultDatabaseProviders(
 }
 
 export function collectAuthRouteRules(nuxt: Nuxt): Record<string, { auth: unknown }> {
-  const runtimeRouteRulesSource = (
-    (nuxt.options as { nitro?: { routeRules?: Record<string, unknown> } }).nitro?.routeRules
-    || (nuxt.options as { routeRules?: Record<string, unknown> }).routeRules
-    || {}
-  ) as Record<string, unknown>
+  const runtimeRouteRulesSource = getRuntimeRouteRules(nuxt)
 
   return Object.fromEntries(
     Object.entries(runtimeRouteRulesSource).flatMap(([path, rule]) => {
@@ -121,6 +109,97 @@ export function collectAuthRouteRules(nuxt: Nuxt): Record<string, { auth: unknow
       return [[path, { auth: (rule as { auth?: unknown }).auth }]]
     }),
   )
+}
+
+const authIncompatibleRouteRuleKeys = ['cache', 'swr', 'isr', 'static', 'prerender', 'proxy'] as const
+
+function getRuntimeRouteRules(nuxt: Nuxt): Record<string, unknown> {
+  return (
+    (nuxt.options as { nitro?: { routeRules?: Record<string, unknown> } }).nitro?.routeRules
+    || (nuxt.options as { routeRules?: Record<string, unknown> }).routeRules
+    || {}
+  ) as Record<string, unknown>
+}
+
+export function registerAuthRouteRulesValidation(nuxt: Nuxt): void {
+  // Nitro initialization follows all modules:done and nitro:config callbacks.
+  // @ts-expect-error Nitro augments NuxtHooks at runtime.
+  nuxt.hook('nitro:init', (nitro: { options: { routeRules: Record<string, unknown> } }) => {
+    assertSafeAuthRouteRules(nitro.options.routeRules)
+  })
+}
+
+export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>): void {
+  if (!Object.keys(routeRules).length)
+    return
+
+  const matcher = toRouteMatcher(createRouter({ routes: routeRules }))
+  const paths = new Set(Object.keys(routeRules))
+  const patterns = [...collectRouteRulePatterns(matcher.ctx.table)]
+  for (const path of collectRouteRulePaths(patterns, ''))
+    paths.add(path)
+  const conflicts = [...paths].flatMap((path) => {
+    const matches = matcher.matchAll(path) as Record<string, unknown>[]
+    const effectiveRule = defu({}, ...matches.reverse()) as Record<string, unknown>
+    if (effectiveRule.auth === undefined || effectiveRule.auth === false)
+      return []
+
+    const incompatibleKeys = authIncompatibleRouteRuleKeys.filter((key) => {
+      const value = effectiveRule[key]
+      return value !== undefined && value !== false && value !== 0
+    })
+
+    return incompatibleKeys.length ? [{ path, incompatibleKeys }] : []
+  })
+
+  if (!conflicts.length)
+    return
+
+  const details = conflicts
+    .map(({ path, incompatibleKeys }) => `${path} (${incompatibleKeys.join(', ')})`)
+    .join(', ')
+
+  throw new Error(
+    `[nuxt-better-auth] Auth route rules cannot be combined with cache, swr, isr, static, prerender, or proxy rules. `
+    + `These rules can run before authentication or share user-specific responses. Conflicts: ${details}`,
+  )
+}
+
+type RouteRulePattern = (string | null)[]
+
+function* collectRouteRulePatterns(table: RouteTable, prefix: RouteRulePattern = []): Generator<RouteRulePattern> {
+  const segments = (path: string) => path && path !== '/' ? path.slice(1).split('/') : []
+  // Read the matcher's resolved keys, rather than interpreting route syntax a
+  // second time. null represents the single segment consumed by a dynamic edge.
+  for (const path of [...table.static.keys(), ...table.wildcard.keys()])
+    yield [...prefix, ...segments(path)]
+
+  for (const [path, child] of table.dynamic)
+    yield* collectRouteRulePatterns(child, [...prefix, ...segments(path), null])
+}
+
+function* collectRouteRulePaths(patterns: RouteRulePattern[], prefix: string): Generator<string> {
+  yield prefix || '/'
+
+  // Literal branches partition the possible next segments. One fresh segment
+  // represents everything else, including paths beyond exact-rule exclusions.
+  const literals = new Set(patterns.flatMap(pattern => typeof pattern[0] === 'string' ? [pattern[0]] : []))
+  let other = '_'
+  while (literals.has(other))
+    other += '_'
+
+  for (const segment of [...literals, other]) {
+    const path = `${prefix}/${segment}`
+    const next = patterns
+      .filter(pattern => pattern[0] === null || pattern[0] === segment)
+      .map(pattern => pattern.slice(1))
+    // A terminal ** accepts every continuation. Once no finite branches remain,
+    // one continuation has the same effective rules as every deeper path.
+    if (next.length)
+      yield* collectRouteRulePaths(next, path)
+    else
+      yield path
+  }
 }
 
 export async function resolveAuthModuleSetup(
@@ -184,7 +263,7 @@ export async function resolveAuthModuleSetup(
     providerDefinition = resolvedProvider.definition
   }
 
-  const runtime = setupRuntimeConfig({
+  setupRuntimeConfig({
     nuxt,
     options,
     clientOnly,
@@ -196,7 +275,7 @@ export async function resolveAuthModuleSetup(
 
   const hasHubDb = providerId === 'nuxthub'
   if (hasHubDb && !nuxt.options.alias['hub:db']) {
-    throw new Error('[nuxt-better-auth] hub:db not found. Ensure @nuxthub/core is loaded before this module and hub.db is configured.')
+    throw diagnostics.NUXT_AUTH_MISSING_HUB_DB()
   }
 
   return {
@@ -204,18 +283,11 @@ export async function resolveAuthModuleSetup(
     configs,
     aliases,
     pluginSources,
-    hub: {
-      hasNuxtHub,
-      options: hub,
-      hasHubDbAvailable,
-    },
     database: {
-      providerId,
       hasHubDb,
       providerDefinition,
       buildContext: clientOnly ? undefined : { hubDialect, usePlural, camelCase },
     },
-    runtime,
     prepareTypes: clientOnly
       ? undefined
       : {
@@ -225,16 +297,13 @@ export async function resolveAuthModuleSetup(
     serverTypes: clientOnly
       ? undefined
       : {
-          serverConfigPath: configs.server.path,
           hasHubDb,
         },
     sharedTypes: {
       runtimeTypesAugmentPath,
-      clientConfigPath: configs.client.path,
     },
     schemaGeneration: hasHubDb
       ? {
-          serverConfigPath: configs.server.path,
           hubSecondaryStorage: options.hubSecondaryStorage ?? false,
           externalizeNuxtHubDatabase: true,
         }

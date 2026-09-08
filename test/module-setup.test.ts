@@ -1,9 +1,12 @@
+import type { Nitro } from 'nitropack'
 import type { Nuxt } from '@nuxt/schema'
 import type { BetterAuthModuleOptions } from '../src/runtime/config'
 import { fileURLToPath } from 'node:url'
 import { loadNuxt } from '@nuxt/kit'
+import { Diagnostic, formatDiagnostic } from 'nostics'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { collectAuthRouteRules, resolveAuthModuleSetup } from '../src/module/setup'
+import { diagnostics } from '../src/module/diagnostics'
+import { assertSafeAuthRouteRules, collectAuthRouteRules, registerAuthRouteRulesValidation, resolveAuthModuleSetup } from '../src/module/setup'
 
 const loadedNuxtInstances: Nuxt[] = []
 
@@ -57,6 +60,48 @@ afterEach(async () => {
 })
 
 describe('resolveAuthModuleSetup', () => {
+  it('includes diagnostic details once when a setup failure reaches Nuxt', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    nuxt.hook('better-auth:plugins:extend', (plugins) => {
+      plugins.client = ['relative.ts']
+    })
+
+    const error = await nuxt.ready().catch(error => error)
+    expect(error).toMatchObject({
+      message: expect.stringContaining('fix: Resolve the plugin source'),
+      cause: {
+        code: 'NUXT_AUTH_INVALID_PLUGIN_SOURCE',
+        message: 'Modules must register absolute plugin source paths. Received: relative.ts',
+        docs: 'https://better-auth.nuxt.dev/errors/nuxt-auth-invalid-plugin-source',
+      },
+    })
+    await expect(nuxt.callHook('modules:done')).rejects.toBe(error)
+    expect(error.message.match(/\[NUXT_AUTH_INVALID_PLUGIN_SOURCE\]/g)).toHaveLength(1)
+  })
+
+  it('preserves the structured diagnostic and its cause when formatting for Nuxt', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    const cause = new Error('Original failure')
+    const diagnostic = diagnostics.NUXT_AUTH_SCHEMA_GENERATION_FAILED({ cause })
+    const serialized = diagnostic.toJSON()
+    const formatted = formatDiagnostic(diagnostic)
+    nuxt.hook('better-auth:plugins:extend', () => {
+      throw diagnostic
+    })
+
+    const error = await nuxt.ready().catch(error => error)
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(Diagnostic)
+    expect(error.message).toBe(formatted)
+    expect(error.cause).toBe(diagnostic)
+    expect(diagnostic.cause).toBe(cause)
+    expect(diagnostic.message).toBe('Failed to generate schema: Original failure')
+    expect(diagnostic.why).toBe(diagnostic.message)
+    expect(diagnostic.toJSON()).toEqual(serialized)
+    expect(formatDiagnostic(diagnostic)).toBe(formatted)
+    await expect(nuxt.callHook('modules:done')).rejects.toBe(error)
+  })
+
   it('captures NuxtHub-backed setup state and auth route rules', async () => {
     const nuxt = await loadCase('core-auth')
     nuxt.options.alias['hub:db'] = '/virtual/hub-db'
@@ -68,9 +113,6 @@ describe('resolveAuthModuleSetup', () => {
       consola: createConsolaMock(),
     })
 
-    expect(setup.hub.hasNuxtHub).toBe(true)
-    expect(setup.hub.hasHubDbAvailable).toBe(true)
-    expect(setup.database.providerId).toBe('nuxthub')
     expect(setup.database.hasHubDb).toBe(true)
     expect(collectAuthRouteRules(nuxt)).toMatchObject({
       '/protected': { auth: 'user' },
@@ -80,7 +122,7 @@ describe('resolveAuthModuleSetup', () => {
     expect(setup.prepareTypes).toMatchObject({
       hasHubDb: true,
     })
-    expect(setup.serverTypes?.serverConfigPath).toContain('/test/cases/core-auth/server/auth.config')
+    expect(setup.serverTypes).toEqual({ hasHubDb: true })
   })
 
   it('captures a non-NuxtHub setup without selecting a database provider', async () => {
@@ -93,9 +135,6 @@ describe('resolveAuthModuleSetup', () => {
       consola: createConsolaMock(),
     })
 
-    expect(setup.hub.hasNuxtHub).toBe(false)
-    expect(setup.hub.hasHubDbAvailable).toBe(false)
-    expect(setup.database.providerId).toBe('none')
     expect(setup.database.hasHubDb).toBe(false)
     expect(setup.schemaGeneration).toBeUndefined()
   })
@@ -111,7 +150,6 @@ describe('resolveAuthModuleSetup', () => {
     })
 
     expect(setup.clientOnly).toBe(true)
-    expect(setup.database.providerId).toBe('none')
     expect(setup.aliases['#auth/server']).toBeUndefined()
     expect(setup.prepareTypes).toBeUndefined()
     expect(setup.serverTypes).toBeUndefined()
@@ -143,8 +181,9 @@ describe('resolveAuthModuleSetup', () => {
       consola: createConsolaMock(),
     })
 
-    expect(setup.database.providerId).toBe('external')
     expect(setup.database.hasHubDb).toBe(false)
+    expect(setup.database.providerDefinition?.buildDatabaseCode(setup.database.buildContext!))
+      .toBe('export function createDatabase() { return "external" }')
     expect(aliasesDuringProviderSelection).toEqual({
       server: setup.configs.server.path,
       client: setup.configs.client.path,
@@ -193,7 +232,79 @@ describe('resolveAuthModuleSetup', () => {
       runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
       consola: createConsolaMock(),
     }, {
-      configExists: path => !path.endsWith('/server/auth.config'),
-    })).rejects.toThrow('Missing')
+      configExists: path => /\/app\/auth\.config(?:\.[^/]+)?$/.test(path),
+    })).rejects.toMatchObject({
+      code: 'NUXT_AUTH_MISSING_CONFIG',
+      message: expect.stringContaining('Missing'),
+      fix: expect.stringContaining('export default defineServerAuth'),
+    })
+  })
+})
+
+describe('assertSafeAuthRouteRules', () => {
+  it.each(['cache', 'swr', 'isr', 'static', 'prerender', 'proxy'] as const)(
+    'rejects auth combined with %s',
+    async (key) => {
+      const nuxt = await loadCase('without-nuxthub')
+      nuxt.options.routeRules = {
+        '/api/private': { auth: 'user', [key]: true },
+      }
+
+      expect(() => assertSafeAuthRouteRules(nuxt.options.routeRules)).toThrow(`/api/private (${key})`)
+    },
+  )
+
+  it('rejects incompatible rules inherited from a broader auth rule', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    nuxt.options.routeRules = {
+      '/api/**': { auth: 'user' },
+      '/api/cached/**': { cache: true },
+    }
+
+    expect(() => assertSafeAuthRouteRules(nuxt.options.routeRules)).toThrow('/api/cached/** (cache)')
+  })
+
+  it('allows disabled auth and disabled response rules', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    nuxt.options.routeRules = {
+      '/api/public': { auth: false, cache: true },
+      '/api/private': { auth: 'user', cache: false, swr: 0, prerender: false },
+    }
+
+    expect(() => assertSafeAuthRouteRules(nuxt.options.routeRules)).not.toThrow()
+  })
+})
+
+describe('registerAuthRouteRulesValidation', () => {
+  it.each(['modules:done', 'nitro:config'] as const)('rejects unsafe rules added by a later %s callback', async (phase) => {
+    const nuxt = await loadCase('without-nuxthub')
+    registerAuthRouteRulesValidation(nuxt)
+    nuxt.options.routeRules = { '/private/**': { auth: 'user' } }
+
+    if (phase === 'modules:done') {
+      nuxt.hook('modules:done', () => {
+        nuxt.options.routeRules['/private/cached'] = { cache: true }
+      })
+      await nuxt.callHook('modules:done')
+    }
+    else {
+      nuxt.hook('nitro:config', (config) => {
+        config.routeRules!['/private/cached'] = { proxy: 'https://example.com' }
+      })
+    }
+
+    const config = { routeRules: { ...nuxt.options.routeRules } }
+    await nuxt.callHook('nitro:config', config)
+    const nitro = { options: config } as Nitro
+    await expect(nuxt.callHook('nitro:init', nitro)).rejects.toThrow('/private/cached')
+  })
+
+  it('uses resolved Nitro rules instead of the earlier Nuxt rules', async () => {
+    const nuxt = await loadCase('without-nuxthub')
+    registerAuthRouteRulesValidation(nuxt)
+    nuxt.options.routeRules = { '/private': { auth: 'user', cache: true } }
+    const nitro = { options: { routeRules: { '/private': { auth: 'user', cache: false } } } } as Nitro
+
+    await expect(nuxt.callHook('nitro:init', nitro)).resolves.toBeUndefined()
   })
 })

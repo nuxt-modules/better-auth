@@ -17,6 +17,7 @@ describe('public auto-imports', () => {
 
     const appImports = readFileSync(`${fixtureDir}/.nuxt/imports.d.ts`, 'utf8')
     const serverImports = readFileSync(`${fixtureDir}/.nuxt/types/nitro-imports.d.ts`, 'utf8')
+    const sharedAuthTypes = readFileSync(`${fixtureDir}/.nuxt/types/nuxt-better-auth.d.ts`, 'utf8')
     for (const name of ['runWithSessionRefresh', 'useAction', 'useAuthAsyncData', 'useAuthClient', 'useAuthClientAction', 'useAuthRequestFetch', 'useSignIn', 'useSignOut', 'useSignUp', 'useUserSession', 'useUserSessionState', 'SignOutOptions', 'UseUserSessionReturn', 'UseUserSessionStateReturn', 'UseAuthAsyncDataOptions'])
       expect(appImports).toMatch(new RegExp(`export (?:type )?\\{[^}]*\\b${name}\\b[^}]*\\}`))
     for (const name of ['serverAuth', 'defineServerAuth', 'getRequestSession', 'getUserSession', 'setRequestSession', 'refreshSessionCookieCache', 'setSessionCookie', 'createSession', 'requireUserSession'])
@@ -25,5 +26,6 @@ describe('public auto-imports', () => {
       expect(appImports).not.toMatch(new RegExp(`\\b${name}\\b`))
       expect(serverImports).not.toMatch(new RegExp(`\\b${name}\\b`))
     }
+    expect(sharedAuthTypes.includes('export type AuthApiEndpointPath = string')).toBe(clientOnly)
   }, 150_000)
 })

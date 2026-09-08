@@ -3,7 +3,7 @@ import type { AuthSocialProviderRegistry, AuthUser, UserMatch } from '#nuxt-bett
 // Re-export augmentable types
 export type { AppSession, AuthSession, AuthSocialProviderRegistry, AuthUser, AuthUserUpdateInput, ClientAuthSession, RequireSessionOptions, ServerAuthContext, UserMatch, UserSessionComposable } from './types/augment'
 
-export type AuthSocialProviderId = AuthSocialProviderRegistry extends { ids: infer T } ? Extract<T, string> : never
+export type AuthSocialProviderId = AuthSocialProviderRegistry extends { ids: infer T } ? Extract<T, string> : string
 
 // Re-export better-auth types for $Infer access
 export type { Auth, InferPluginTypes, InferSessionFromClient as InferSession, InferUserFromClient as InferUser } from 'better-auth'

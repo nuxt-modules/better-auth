@@ -12,6 +12,13 @@ Use this module if you want Better Auth in a Nuxt app and you want the Nuxt-spec
 - generated `server/auth.config.ts` and `app/auth.config.ts`
 - optional NuxtHub database integration and schema generation
 
+## Requirements
+
+- Nuxt 4.0 or newer
+- Node.js `^22.19.0`, `^24.11.0`, or `>=26.0.0`
+- A Better Auth 1.x version that satisfies this package's peer dependency range
+- NuxtHub 0.10.5 or newer when using the optional NuxtHub integration
+
 ## Install the module
 
 For the fastest path in a Nuxt app:
@@ -59,8 +66,13 @@ Useful commands:
 - `pnpm dev` to run the playground
 - `pnpm dev:docs` to run the docs site
 - `pnpm lint` to lint the repo
+- `pnpm typecheck` to check module types
+- `pnpm prepack` to build the publishable package
 - `pnpm test` to run the test suite
+- `BETTER_AUTH_SECRET=ci-test-secret-12345678901234567890 pnpm dev:build` to build the playground with a test secret for local verification only
 - `pnpm build:docs` to build the docs site
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the complete local CI sequence and pull request guidelines.
 
 ## License
 

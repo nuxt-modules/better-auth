@@ -8,8 +8,9 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     try {
       await fetchSession()
     }
-    catch {
-      // Session fetch failed - user will be unauthenticated
+    catch (error) {
+      // Do not block app startup, but keep the last known session and surface the failure.
+      console.error('[nuxt-better-auth] Failed to fetch session during app startup:', error)
     }
   }
 

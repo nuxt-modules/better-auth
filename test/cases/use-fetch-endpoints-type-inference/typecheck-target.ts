@@ -56,6 +56,15 @@ async function assertUseFetchPathInference() {
   void customerStatePost
 
   const requestFetch = useAuthRequestFetch()
+  const reportViaRequestFetch = await requestFetch('/api/report')
+  reportViaRequestFetch.title.toUpperCase()
+  reportViaRequestFetch.count.toFixed()
+  // @ts-expect-error ordinary Nuxt routes retain their response types
+  void reportViaRequestFetch.missingField
+  const explicitViaRequestFetch = await requestFetch<{ label: string }>('/api/unrelated')
+  explicitViaRequestFetch.label.toUpperCase()
+  // @ts-expect-error explicit response generics remain checked
+  void explicitViaRequestFetch.count
   const dynamicViaRequestFetch = await requestFetch('/api/auth/customer/123/state')
   dynamicViaRequestFetch.customerId.toUpperCase()
 

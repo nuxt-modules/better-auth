@@ -19,6 +19,7 @@ describe('requireUserSession typing regression #130', () => {
       mkdirSync(runtimeUtilsDir, { recursive: true })
 
       copyFileSync(join(import.meta.dirname, '../src/runtime/server/utils/session.ts'), join(serverUtilsDir, 'session.ts'))
+      copyFileSync(join(import.meta.dirname, '../src/runtime/server/internal/cookie-headers.ts'), join(serverInternalDir, 'cookie-headers.ts'))
 
       writeFileSync(join(serverInternalDir, 'nitro-compat.ts'), `export interface ServerEvent {
   headers: Headers

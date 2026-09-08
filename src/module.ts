@@ -6,14 +6,16 @@ import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
 import { consola as _consola } from 'consola'
+import { Diagnostic, formatDiagnostic } from 'nostics'
 import { dirname, isAbsolute, join, relative } from 'pathe'
 import { version } from '../package.json'
-import { resolveAuthConfigDescriptors } from './module/config-paths'
-import { resolveNitroCompatibilityImports } from './module/compatibility'
-import { registerAuthMiddlewareHook, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
+import { resolveAuthConfigDescriptors, resolveAuthConfigFile } from './module/config-paths'
+import { resolveNitro3RouteRulesTarget, resolveNitroCompatibilityImports } from './module/compatibility'
+import { diagnostics } from './module/diagnostics'
+import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
-import { collectAuthRouteRules, resolveAuthModuleSetup } from './module/setup'
+import { collectAuthRouteRules, registerAuthRouteRulesValidation, resolveAuthModuleSetup } from './module/setup'
 import { buildAuthRouteRulesCode, buildExtendedClientAuthCode, buildExtendedServerAuthCode, buildSchemaExportCode } from './module/templates'
 import { registerServerTypeTemplates, registerSharedTypeTemplates } from './module/type-templates'
 
@@ -29,15 +31,7 @@ const sessionHookAfterIdentifierRE = /\bsessionHookAfter\b/
 const nuxtHubDbImportRE = /@nuxthub\/db/
 
 function isServerConfigSharedTypeSafe(serverConfigPath: string): boolean {
-  const resolvedPath = [
-    serverConfigPath,
-    `${serverConfigPath}.ts`,
-    `${serverConfigPath}.mts`,
-    `${serverConfigPath}.cts`,
-    `${serverConfigPath}.js`,
-    `${serverConfigPath}.mjs`,
-    `${serverConfigPath}.cjs`,
-  ].find(path => existsSync(path))
+  const resolvedPath = resolveAuthConfigFile(serverConfigPath)
 
   if (!resolvedPath)
     return false
@@ -94,7 +88,7 @@ async function ensureSchemaBootstrap(schemaPath: string, dialect: DbDialect): Pr
   await writeFile(schemaPath, buildSchemaExportCode(false, dialect))
 }
 
-export type { BetterAuthModuleOptions } from './runtime/config'
+export type { BetterAuthModuleOptions, BetterAuthModuleOptions as ModuleOptions } from './runtime/config'
 
 export default defineNuxtModule<BetterAuthModuleOptions>({
   meta: { name: '@nuxtjs/better-auth', version, configKey: 'auth', compatibility: { nuxt: '>=4.0.0' } },
@@ -125,7 +119,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       await nuxt.callHook('better-auth:plugins:extend', registeredPluginSources)
       for (const source of [...(registeredPluginSources.server || []), ...(registeredPluginSources.client || [])]) {
         if (!isAbsolute(source))
-          throw new Error(`[nuxt-better-auth] Modules must register absolute plugin source paths. Received: ${source}`)
+          throw diagnostics.NUXT_AUTH_INVALID_PLUGIN_SOURCE({ source })
       }
 
       const setup = await resolveAuthModuleSetup({
@@ -197,6 +191,8 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
         await setup.database.providerDefinition.setup?.(setupCtx)
       }
 
+      registerAuthRouteRulesValidation(nuxt)
+
       const authRouteRulesTemplate = addTemplate({
         filename: 'better-auth/route-rules.mjs',
         getContents: () => buildAuthRouteRulesCode(collectAuthRouteRules(nuxt)),
@@ -211,7 +207,9 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
           runtimeTypesPath: resolver.resolve('./runtime/types'),
           sharedServerConfigSafe: [setup.configs.server.path, ...setup.pluginSources.server].every(isServerConfigSharedTypeSafe),
           h3TypesPath: nitroImports.h3,
-          nitroTypesPath: nitroImports.types,
+          nitro3RouteRulesTarget: nitroImports.runtime === 'nitro3'
+            ? resolveNitro3RouteRulesTarget(nuxt.options.rootDir)
+            : undefined,
         })
       }
 
@@ -233,11 +231,12 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
         runtimeTypesPath: resolver.resolve('./runtime/types'),
         clientConfigPath,
         h3TypesPath: nitroImports.h3,
+        clientOnly: setup.clientOnly,
       })
 
       registerTemplateHmrHook(nuxt)
       registerServerRuntime({ clientOnly: setup.clientOnly, resolve: resolver.resolve })
-      registerAuthMiddlewareHook(nuxt, resolver.resolve)
+      registerAuthMiddleware(resolver.resolve)
 
       await registerDevtools({ nuxt, clientOnly: setup.clientOnly, hasHubDb: setup.database.hasHubDb, resolve: resolver.resolve })
       registerRouteRulesMetaHook(nuxt)
@@ -247,7 +246,13 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 
     let setupPromise: Promise<boolean> | undefined
     const finishSetupOnce = () => {
-      setupPromise ||= finishSetup()
+      setupPromise ||= finishSetup().catch((error: unknown) => {
+        // Nuxt's CLI prints Error.message without the diagnostic fields. Keep
+        // the structured diagnostic intact as the presentation error's cause.
+        if (error instanceof Diagnostic)
+          throw new Error(formatDiagnostic(error), { cause: error })
+        throw error
+      })
       return setupPromise
     }
 
@@ -259,4 +264,4 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 })
 
 export { defineClientAuth, defineServerAuth } from './runtime/config'
-export type { AppSession, Auth, AuthActionError, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthSocialProviderId, AuthUser, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'
+export type { AppSession, Auth, AuthActionError, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthSocialProviderId, AuthUser, ClientAuthSession, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'

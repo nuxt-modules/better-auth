@@ -2,12 +2,14 @@ import { configDefaults, defineConfig } from 'vitest/config'
 import { fileURLToPath } from 'node:url'
 
 const typeTests = [
+  'test/client-only-types.test.ts',
   'test/config-extend-hook.test.ts',
   'test/define-server-auth-literal-inference.test.ts',
   'test/infer-nitro-endpoints-types.test.ts',
   'test/infer-plugins-types.test.ts',
   'test/infer-use-fetch-endpoints-types.test.ts',
   'test/require-user-session-typing.test.ts',
+  'test/root-entrypoint-typing.test.ts',
   'test/use-signin-provider-alias-typing.test.ts',
 ]
 
@@ -22,6 +24,7 @@ const integrationTests = [
   'test/layer-plugin-contributions.test.ts',
   'test/module-setup.test.ts',
   'test/module.test.ts',
+  'test/test-utils-e2e.test.ts',
   'test/no-db.test.ts',
   'test/no-hub.test.ts',
   'test/non-tty-secret-prompt.test.ts',

@@ -127,6 +127,164 @@ describe('getRequestSession', () => {
     expect(event.context.requestSession).toBe(first)
   })
 
+  it('forwards session cookies returned by an ordinary session load', async () => {
+    const session = {
+      user: { id: 'u1' },
+      session: { id: 's1' },
+    }
+    const sessionDataCookie = `${authContextMock.authCookies.sessionData.name}=fresh; Path=/; HttpOnly`
+    const sessionTokenCookie = `${authContextMock.authCookies.sessionToken.name}=token; Path=/; HttpOnly`
+    const headers = new Headers()
+    headers.append('set-cookie', sessionDataCookie)
+    headers.append('set-cookie', sessionTokenCookie)
+    getSessionMock.mockResolvedValue({ headers, response: session })
+
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    await expect(getRequestSession(event)).resolves.toEqual(session)
+    expect(getSessionMock).toHaveBeenCalledWith({
+      headers: event.headers,
+      returnHeaders: true,
+    })
+    expect(event.node.res.getHeader('set-cookie')).toEqual([
+      sessionDataCookie,
+      sessionTokenCookie,
+    ])
+  })
+
+  it('preserves a single cookie with an extension comma on Node string responses', async () => {
+    const existingCookie = 'first=1; Extension=left, injected=right; Path=/'
+    const forwardedCookie = 'better-auth.session_data=fresh; Path=/; HttpOnly'
+    getSessionMock.mockResolvedValue({
+      headers: new Headers({ 'set-cookie': forwardedCookie }),
+      response: null,
+    })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+    event.node.res.setHeader('set-cookie', existingCookie)
+
+    await getRequestSession(event)
+
+    expect(event.node.res.getHeader('set-cookie')).toEqual([existingCookie, forwardedCookie])
+  })
+
+  it.each(['array', 'Nitro 3'] as const)('preserves individual cookies on %s responses', async (shape) => {
+    const existingCookies = [
+      'first=1; Extension=left, injected=right; Path=/',
+      'second=2; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/',
+    ]
+    const forwardedCookies = [
+      'better-auth.session_data=fresh; Extension=left, extra=right; Path=/; HttpOnly',
+      'better-auth.session_token=token; Path=/; HttpOnly',
+    ]
+    const headers = new Headers()
+    for (const cookie of forwardedCookies)
+      headers.append('set-cookie', cookie)
+    getSessionMock.mockResolvedValue({ headers, response: null })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = shape === 'Nitro 3' ? createNitroV3Event() : createEvent()
+    if (shape === 'Nitro 3') {
+      for (const cookie of existingCookies)
+        event.res.headers.append('set-cookie', cookie)
+    }
+    else {
+      event.node.res.setHeader('set-cookie', existingCookies)
+    }
+
+    await getRequestSession(event)
+
+    const cookies = shape === 'Nitro 3' ? event.res.headers.getSetCookie() : event.node.res.getHeader('set-cookie')
+    expect(cookies).toEqual([...existingCookies, ...forwardedCookies])
+  })
+
+  it.each(['Node', 'Nitro 3'] as const)('preserves Cloudflare getAll cookie boundaries on %s responses', async (shape) => {
+    const existingCookie = 'existing=1; Extension=left, injected=right; Path=/'
+    const forwardedCookies = [
+      'first=1; Extension=left, injected=right; Path=/',
+      'second=2; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/',
+    ]
+    const headers = new Headers()
+    for (const cookie of forwardedCookies)
+      headers.append('set-cookie', cookie)
+    const getAll = vi.fn(function (this: Headers, name: string) {
+      expect(this).toBe(headers)
+      expect(name).toBe('set-cookie')
+      return forwardedCookies
+    })
+    Object.defineProperties(headers, {
+      getSetCookie: { value: undefined },
+      getAll: { value: getAll },
+    })
+    getSessionMock.mockResolvedValue({ headers, response: null })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = shape === 'Nitro 3' ? createNitroV3Event() : createEvent()
+    if (shape === 'Nitro 3') {
+      event.res.headers.append('set-cookie', existingCookie)
+      const nativeGetSetCookie = event.res.headers.getSetCookie.bind(event.res.headers)
+      Object.defineProperties(event.res.headers, {
+        getSetCookie: { value: undefined },
+        getAll: { value: (name: string) => {
+          expect(name).toBe('set-cookie')
+          return nativeGetSetCookie()
+        } },
+      })
+    }
+    else {
+      event.node.res.setHeader('set-cookie', existingCookie)
+    }
+
+    await getRequestSession(event)
+
+    expect(getAll).toHaveBeenCalledOnce()
+    const cookies = shape === 'Nitro 3' ? event.res.headers.getAll('set-cookie') : event.node.res.getHeader('set-cookie')
+    expect(cookies).toEqual([existingCookie, ...forwardedCookies])
+  })
+
+  it.each(['Node', 'Nitro 3'] as const)('preserves opaque cookie fields without a boundary API on %s responses', async (shape) => {
+    // A flattened value cannot distinguish an extension comma from multiple cookies.
+    const existingCookie = 'existing=1; Extension=left, injected=right; Path=/'
+    const forwardedCookie = 'first=1; Foo=x,y=z'
+    const headers = new Headers({ 'set-cookie': forwardedCookie })
+    Object.defineProperty(headers, 'getSetCookie', { value: undefined })
+    getSessionMock.mockResolvedValue({ headers, response: null })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = shape === 'Nitro 3' ? createNitroV3Event() : createEvent()
+    let getResponseCookies: () => string[]
+    if (shape === 'Nitro 3') {
+      event.res.headers.append('set-cookie', existingCookie)
+      getResponseCookies = event.res.headers.getSetCookie.bind(event.res.headers)
+      Object.defineProperty(event.res.headers, 'getSetCookie', { value: undefined })
+    }
+    else {
+      event.node.res.setHeader('set-cookie', existingCookie)
+      getResponseCookies = () => event.node.res.getHeader('set-cookie')
+    }
+
+    await getRequestSession(event)
+
+    expect(getResponseCookies()).toEqual([existingCookie, forwardedCookie])
+  })
+
+  it('appends multiple cookies without flattening existing Nitro 3 response fields', async () => {
+    const existingCookies = ['existing=1; Foo=x,y=z', 'other=2; Path=/']
+    const forwardedCookies = ['first=1; Path=/', 'second=2; Path=/']
+    const headers = new Headers()
+    for (const cookie of forwardedCookies)
+      headers.append('set-cookie', cookie)
+    getSessionMock.mockResolvedValue({ headers, response: null })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createNitroV3Event()
+    for (const cookie of existingCookies)
+      event.res.headers.append('set-cookie', cookie)
+    const getResponseCookies = event.res.headers.getSetCookie.bind(event.res.headers)
+    Object.defineProperty(event.res.headers, 'getSetCookie', { value: undefined })
+
+    await getRequestSession(event)
+
+    expect(getResponseCookies()).toEqual([...existingCookies, ...forwardedCookies])
+  })
+
   it('deduplicates concurrent resolution within a single request', async () => {
     let resolveSession: ((value: unknown) => void) | undefined
     getSessionMock.mockImplementation(() => new Promise((resolve) => {
@@ -168,16 +326,25 @@ describe('getRequestSession', () => {
   })
 
   it('reads request headers from Nitro 3 events', async () => {
-    getSessionMock.mockResolvedValue({
+    const session = {
       user: { id: 'u1' },
       session: { id: 's1' },
+    }
+    const sessionCookie = 'better-auth.session_data=fresh; Path=/; HttpOnly'
+    getSessionMock.mockResolvedValue({
+      headers: new Headers({ 'set-cookie': sessionCookie }),
+      response: session,
     })
     const { getRequestSession } = await import('../src/runtime/server/utils/session')
     const event = createNitroV3Event()
 
-    await getRequestSession(event)
+    await expect(getRequestSession(event)).resolves.toEqual(session)
 
-    expect(getSessionMock).toHaveBeenCalledWith({ headers: event.req.headers })
+    expect(getSessionMock).toHaveBeenCalledWith({
+      headers: event.req.headers,
+      returnHeaders: true,
+    })
+    expect(event.res.headers.getSetCookie()).toEqual([sessionCookie])
   })
 })
 
@@ -269,6 +436,37 @@ describe('getUserSession', () => {
     expect(getSessionMock).toHaveBeenCalledTimes(1)
     expect('context' in event).toBe(false)
   })
+
+  it('does not forward stale cookies after a trusted request-session mutation', async () => {
+    let resolveSession: ((value: unknown) => void) | undefined
+    getSessionMock.mockImplementation(() => new Promise((resolve) => {
+      resolveSession = resolve
+    }))
+
+    const staleSession = {
+      user: { id: 'cookie-user' },
+      session: { id: 'cookie-session' },
+    }
+    const suppliedSession = {
+      user: { id: 'bearer-user' },
+      session: { id: 'bearer-session' },
+    }
+    const staleCookie = 'better-auth.session_data=stale; Path=/; HttpOnly'
+    const { getRequestSession, getUserSession, setRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    const earlierLookup = getUserSession(event)
+    setRequestSession(event, suppliedSession as any)
+    resolveSession?.({
+      headers: new Headers({ 'set-cookie': staleCookie }),
+      response: staleSession,
+    })
+
+    await expect(earlierLookup).resolves.toEqual(staleSession)
+    await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
+    expect(event.context.requestSession).toBe(suppliedSession)
+    expect(event.node.res.getHeader('set-cookie')).toBeUndefined()
+  })
 })
 
 describe('setRequestSession', () => {
@@ -336,7 +534,11 @@ describe('setRequestSession', () => {
     const laterUserLookup = getUserSession(event)
     const laterRequiredLookup = requireUserSession(event)
 
-    resolveSession?.(staleSession)
+    const staleCookie = 'better-auth.session_data=stale; Path=/; HttpOnly'
+    resolveSession?.({
+      headers: new Headers({ 'set-cookie': staleCookie }),
+      response: staleSession,
+    })
 
     await expect(earlierLookup).resolves.toEqual(staleSession)
     await expect(laterRequestLookup).resolves.toBe(suppliedSession)
@@ -344,6 +546,7 @@ describe('setRequestSession', () => {
     await expect(laterRequiredLookup).resolves.toBe(suppliedSession)
     await expect(getRequestSession(event)).resolves.toBe(suppliedSession)
     expect(event.context.requestSession).toBe(suppliedSession)
+    expect(event.node.res.getHeader('set-cookie')).toBeUndefined()
   })
 
   it('supplies the session when an earlier lookup rejects', async () => {
@@ -440,7 +643,8 @@ describe('refreshSessionCookieCache', () => {
     const sessionDataCookie = `${authContextMock.authCookies.sessionData.name}=fresh; Path=/; Expires=Wed, 21 Oct 2030 07:28:00 GMT; HttpOnly`
     const sessionTokenCookie = `${authContextMock.authCookies.sessionToken.name}=token; Path=/; HttpOnly`
     const headers = new Headers()
-    headers.set('set-cookie', `${sessionDataCookie}, ${sessionTokenCookie}`)
+    headers.append('set-cookie', sessionDataCookie)
+    headers.append('set-cookie', sessionTokenCookie)
 
     getSessionMock
       .mockResolvedValueOnce(staleSession)
@@ -664,6 +868,7 @@ describe('createSession', () => {
     vi.clearAllMocks()
     getSessionMock.mockReset()
     createSessionMock.mockReset()
+    authContextMock.internalAdapter.createSession = createSessionMock
   })
 
   it('delegates to Better Auth internalAdapter.createSession with dontRememberMe disabled', async () => {
@@ -686,5 +891,17 @@ describe('createSession', () => {
       userId: 'u1',
       token: 'token-1',
     })
+  })
+
+  it('throws a compatibility error when Better Auth does not expose createSession', async () => {
+    const internalAdapter = authContextMock.internalAdapter as { createSession?: typeof createSessionMock }
+    internalAdapter.createSession = undefined
+
+    const { createSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    await expect(createSession(event, 'u1')).rejects.toThrow(
+      '[@nuxtjs/better-auth] Cannot create a session: the installed Better Auth version does not expose internalAdapter.createSession().',
+    )
   })
 })

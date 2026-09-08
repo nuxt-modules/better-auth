@@ -22,9 +22,23 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  release:
+  # Release PRs are created with GITHUB_TOKEN, so their pull_request CI may not run.
+  # Re-run every merge gate against the exact commit that uppt/release will tag.
+  verify-release:
     if: |
       github.event_name == 'pull_request'
+      && github.event.pull_request.merged == true
+      && startsWith(github.event.pull_request.head.ref, 'release/v')
+      && github.event.pull_request.head.repo.full_name == github.repository
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+  release:
+    needs: verify-release
+    if: |
+      needs.verify-release.result == 'success'
+      && github.event_name == 'pull_request'
       && github.event.pull_request.merged == true
       && startsWith(github.event.pull_request.head.ref, 'release/v')
       && github.event.pull_request.head.repo.full_name == github.repository

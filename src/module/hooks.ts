@@ -1,7 +1,7 @@
 import type { Nuxt, NuxtPage } from '@nuxt/schema'
 import type { AuthRouteRules } from '../runtime/types'
 import { existsSync, statSync } from 'node:fs'
-import { addComponentsDir, addImports, addPlugin, addServerHandler, addServerImports, extendPages, updateTemplates } from '@nuxt/kit'
+import { addComponentsDir, addImports, addPlugin, addRouteMiddleware, addServerHandler, addServerImports, extendPages, updateTemplates } from '@nuxt/kit'
 import { defu } from 'defu'
 import { isAbsolute, join } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
@@ -29,8 +29,11 @@ interface RegisterPrepareTypesHookInput {
 
 export function registerTemplateHmrHook(nuxt: Nuxt): void {
   nuxt.hook('builder:watch', async (_event, relativePath) => {
-    if (relativePath.includes('auth.config'))
-      await updateTemplates({ filter: t => t.filename.includes('nuxt-better-auth') })
+    if (relativePath.includes('auth.config')) {
+      await updateTemplates({
+        filter: template => template.filename.startsWith('better-auth/') || template.filename.startsWith('types/nuxt-better-auth'),
+      })
+    }
   })
 }
 
@@ -72,9 +75,11 @@ export function registerServerRuntime(input: RegisterServerRuntimeInput): void {
   addComponentsDir({ path: resolve('./runtime/app/components') })
 }
 
-export function registerAuthMiddlewareHook(nuxt: Nuxt, resolve: (path: string) => string): void {
-  nuxt.hook('app:resolve', (app) => {
-    app.middleware.push({ name: 'auth', path: resolve('./runtime/app/middleware/auth.global'), global: true })
+export function registerAuthMiddleware(resolve: (path: string) => string): void {
+  addRouteMiddleware({
+    name: 'auth',
+    path: resolve('./runtime/app/middleware/auth.global'),
+    global: true,
   })
 }
 
