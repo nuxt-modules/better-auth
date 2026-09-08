@@ -1,6 +1,18 @@
-import type { UseUserSessionStateReturn } from '@nuxtjs/better-auth/composables'
+import type { ActionHandleFor, UseAuthAsyncDataOptions, UserAuthActionHandle, UserAuthActionStatus, UseUserSessionStateReturn } from '@nuxtjs/better-auth/composables'
 import { useSignOut as autoUseSignOut } from '#imports'
-import { runWithSessionRefresh, useAuthAsyncData, useAuthClient, useAuthRequestFetch, useSignIn, useSignOut, useSignUp, useUserSession, useUserSessionState } from '@nuxtjs/better-auth/composables'
+import { runWithSessionRefresh, useAction, useAuthAsyncData, useAuthClient, useAuthClientAction, useAuthRequestFetch, useSignIn, useSignOut, useSignUp, useUserSession, useUserSessionState } from '@nuxtjs/better-auth/composables'
+
+type AsyncAction = (value: string) => Promise<number>
+
+const actionOptions: UseAuthAsyncDataOptions<{ ok: boolean }> = { requireAuth: false }
+void useAuthAsyncData('typed-options', async () => ({ ok: true }), actionOptions)
+const action = useAction(async (value: string) => value.length)
+action satisfies UserAuthActionHandle<[value: string], number>
+action.status.value satisfies UserAuthActionStatus
+action satisfies ActionHandleFor<AsyncAction>
+
+const clientAction = useAuthClientAction(client => client.signOut)
+clientAction.status.value satisfies UserAuthActionStatus
 
 const auth = useUserSession()
 auth.loggedIn.value satisfies boolean
