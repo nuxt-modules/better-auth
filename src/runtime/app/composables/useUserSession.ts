@@ -127,8 +127,15 @@ export function useUserSession(): UseUserSessionReturn {
 
     hydrationReconcileQueued.value = true
     nuxtApp.hook('app:mounted', async () => {
-      await fetchSession({ force: true })
-      hydrationReconcileQueued.value = false
+      try {
+        await fetchSession({ force: true })
+      }
+      catch (error) {
+        console.error('[nuxt-better-auth] Failed to fetch session during hydration reconciliation:', error)
+      }
+      finally {
+        hydrationReconcileQueued.value = false
+      }
     })
   }
 

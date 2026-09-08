@@ -354,6 +354,40 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.user.value).toBeNull()
   })
 
+  it('handles a rejected hydration refresh and allows reconciliation to be queued again', async () => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    seedHydratedState()
+    const error = new Error('Session backend unavailable')
+    const logError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockClient.getSession.mockRejectedValueOnce(error)
+
+    try {
+      const useUserSession = await loadUseUserSession()
+      const auth = useUserSession()
+      await flushPromises()
+
+      await expect(triggerNuxtHook('app:mounted')).resolves.toBeUndefined()
+
+      expect(mockClient.getSession).toHaveBeenCalledOnce()
+      expect(auth.session.value).toEqual({ id: 'session-1' })
+      expect(auth.user.value).toEqual({ id: 'user-1' })
+      expect(logError).toHaveBeenCalledWith(
+        '[nuxt-better-auth] Failed to fetch session during hydration reconciliation:',
+        error,
+      )
+      expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(false)
+
+      sessionAtom.value = { ...sessionAtom.value }
+      await flushPromises()
+      expect(nuxtHooks.get('app:mounted')).toHaveLength(2)
+      expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(true)
+    }
+    finally {
+      logError.mockRestore()
+    }
+  })
+
   it('does not run hydration reconciliation when SSR state is not hydrated', async () => {
     payload.serverRendered = true
     nuxtApp.isHydrating = true
