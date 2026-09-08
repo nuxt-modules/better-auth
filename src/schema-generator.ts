@@ -1,6 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth'
+import type { generateDrizzleSchema as GenerateDrizzleSchema } from 'auth/api'
 import { existsSync } from 'node:fs'
-import { generateDrizzleSchema as _generateDrizzleSchema } from 'auth/api'
 import { consola } from 'consola'
 import { join } from 'pathe'
 import type { SchemaCasing } from './runtime/config'
@@ -9,9 +9,9 @@ export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?
 
 type Dialect = 'sqlite' | 'postgresql' | 'mysql'
 type Provider = 'sqlite' | 'pg' | 'mysql'
-type DrizzleSchemaInput = Parameters<typeof _generateDrizzleSchema>[0]
+type DrizzleSchemaInput = Parameters<typeof GenerateDrizzleSchema>[0]
 
-// Minimal interface matching what _generateDrizzleSchema actually uses from adapter
+// Minimal interface matching what generateDrizzleSchema actually uses from adapter
 interface SchemaGeneratorAdapter {
   id: 'drizzle'
   options: { provider: Provider, camelCase: boolean, schemaName?: string, adapterConfig: { usePlural: boolean } }
@@ -22,6 +22,7 @@ function dialectToProvider(dialect: Dialect): Provider {
 }
 
 export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dialect: Dialect, schemaOptions?: SchemaOptions): Promise<string> {
+  const { generateDrizzleSchema } = await import('auth/api')
   const provider = dialectToProvider(dialect)
 
   const options: BetterAuthOptions = {
@@ -45,7 +46,7 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
     },
   }
 
-  const result = await _generateDrizzleSchema({
+  const result = await generateDrizzleSchema({
     adapter: adapter as unknown as DrizzleSchemaInput['adapter'],
     options: options as unknown as DrizzleSchemaInput['options'],
   })
