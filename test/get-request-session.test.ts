@@ -153,11 +153,8 @@ describe('getRequestSession', () => {
     ])
   })
 
-  it('normalizes existing combined cookies on Node string responses', async () => {
-    const existingCookies = [
-      'first=1; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/',
-      'second=2; Path=/',
-    ]
+  it('preserves a single cookie with an extension comma on Node string responses', async () => {
+    const existingCookie = 'first=1; Extension=left, injected=right; Path=/'
     const forwardedCookie = 'better-auth.session_data=fresh; Path=/; HttpOnly'
     getSessionMock.mockResolvedValue({
       headers: new Headers({ 'set-cookie': forwardedCookie }),
@@ -165,11 +162,11 @@ describe('getRequestSession', () => {
     })
     const { getRequestSession } = await import('../src/runtime/server/utils/session')
     const event = createEvent()
-    event.node.res.setHeader('set-cookie', existingCookies.join(', '))
+    event.node.res.setHeader('set-cookie', existingCookie)
 
     await getRequestSession(event)
 
-    expect(event.node.res.getHeader('set-cookie')).toEqual([...existingCookies, forwardedCookie])
+    expect(event.node.res.getHeader('set-cookie')).toEqual([existingCookie, forwardedCookie])
   })
 
   it.each(['array', 'Nitro 3'] as const)('preserves individual cookies on %s responses', async (shape) => {

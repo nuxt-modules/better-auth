@@ -212,7 +212,7 @@ function appendCookieHeader(event: ServerEvent, header: string): void {
     if (Array.isArray(current))
       nodeResponse.setHeader('set-cookie', [...current, header])
     else if (typeof current === 'string')
-      nodeResponse.setHeader('set-cookie', [...splitCookiesString(current), header])
+      nodeResponse.setHeader('set-cookie', [current, header])
     else
       nodeResponse.setHeader('set-cookie', [header])
     return
