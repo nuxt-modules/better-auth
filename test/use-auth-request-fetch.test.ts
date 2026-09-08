@@ -55,6 +55,17 @@ describe('useAuthRequestFetch', () => {
     })
   })
 
+  it.each(['/api/report', '/api/authors', 'https://app.example.com/api/report', new Request('https://app.example.com/api/report')])('preserves native requests for %s in client-only mode', async (request) => {
+    runtimeConfig.public.auth.clientOnly = true
+    const response = { total: 1 }
+    requestFetch.mockResolvedValue(response)
+    const { useAuthRequestFetch } = await import('../src/runtime/app/composables/useAuthRequestFetch')
+    const options = { credentials: 'omit' as const, headers: { 'x-client': 'nuxt' } }
+
+    expect(await useAuthRequestFetch()(request, options)).toBe(response)
+    expect(requestFetch).toHaveBeenCalledWith(request, options)
+  })
+
   it.each([
     [{ baseURL: '' }, '/api/auth'],
     [{ baseURL: '', basePath: '/custom/auth' }, '/custom/auth'],

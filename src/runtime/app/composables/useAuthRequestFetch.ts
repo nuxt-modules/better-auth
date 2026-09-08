@@ -21,7 +21,7 @@ type AuthRequestFetchResolvedMethod<Path extends AuthApiEndpointPath, Options> =
   : never
 
 type AuthRequestFetch = <
-  Path extends AuthApiEndpointPath,
+  Path extends AuthApiEndpointPath & ('/api/auth' | `/api/auth/${string}`),
   Options extends RequestFetchOptions = RequestFetchOptions,
 >(
   request: Path,
@@ -43,11 +43,16 @@ export function useAuthRequestFetch(): AuthRequestFetch & ReturnType<typeof useR
   const baseURL = configuredBaseURL && new URL(configuredBaseURL).pathname.replace(/\/+$/, '')
     ? configuredBaseURL
     : joinURL(configuredBaseURL || '/', clientOptions.basePath ?? '/api/auth')
-  const externalRequestFetch = requestFetch as unknown as (request: string, opts?: RequestFetchOptions) => Promise<unknown>
+  const externalRequestFetch = requestFetch as unknown as (request: Parameters<typeof requestFetch>[0], opts?: RequestFetchOptions) => Promise<unknown>
   // Keep Nuxt's request-scoped fetch so incoming cookies are forwarded during SSR.
-  return ((request: AuthApiEndpointPath, opts?: RequestFetchOptions) => externalRequestFetch(request.replace(/^\/api\/auth(?=\/|$)/, ''), {
-    ...opts,
-    baseURL,
-    credentials: 'include',
-  })) as AuthRequestFetch & ReturnType<typeof useRequestFetch>
+  return ((request: Parameters<typeof requestFetch>[0], opts?: RequestFetchOptions) => {
+    if (typeof request !== 'string' || !/^\/api\/auth(?=\/|$)/.test(request))
+      return externalRequestFetch(request, opts)
+
+    return externalRequestFetch(request.slice('/api/auth'.length), {
+      ...opts,
+      baseURL,
+      credentials: 'include',
+    })
+  }) as AuthRequestFetch & ReturnType<typeof useRequestFetch>
 }
