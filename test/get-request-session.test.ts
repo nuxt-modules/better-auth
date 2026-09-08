@@ -135,7 +135,8 @@ describe('getRequestSession', () => {
     const sessionDataCookie = `${authContextMock.authCookies.sessionData.name}=fresh; Path=/; HttpOnly`
     const sessionTokenCookie = `${authContextMock.authCookies.sessionToken.name}=token; Path=/; HttpOnly`
     const headers = new Headers()
-    headers.set('set-cookie', `${sessionDataCookie}, ${sessionTokenCookie}`)
+    headers.append('set-cookie', sessionDataCookie)
+    headers.append('set-cookie', sessionTokenCookie)
     getSessionMock.mockResolvedValue({ headers, response: session })
 
     const { getRequestSession } = await import('../src/runtime/server/utils/session')
@@ -152,7 +153,7 @@ describe('getRequestSession', () => {
     ])
   })
 
-  it.each(['string', 'array', 'Nitro 3'] as const)('normalizes existing combined cookies on %s responses', async (shape) => {
+  it('normalizes existing combined cookies on Node string responses', async () => {
     const existingCookies = [
       'first=1; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/',
       'second=2; Path=/',
@@ -163,17 +164,57 @@ describe('getRequestSession', () => {
       response: null,
     })
     const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+    event.node.res.setHeader('set-cookie', existingCookies.join(', '))
+
+    await getRequestSession(event)
+
+    expect(event.node.res.getHeader('set-cookie')).toEqual([...existingCookies, forwardedCookie])
+  })
+
+  it.each(['array', 'Nitro 3'] as const)('preserves individual cookies on %s responses', async (shape) => {
+    const existingCookies = [
+      'first=1; Extension=left, injected=right; Path=/',
+      'second=2; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/',
+    ]
+    const forwardedCookies = [
+      'better-auth.session_data=fresh; Extension=left, extra=right; Path=/; HttpOnly',
+      'better-auth.session_token=token; Path=/; HttpOnly',
+    ]
+    const headers = new Headers()
+    for (const cookie of forwardedCookies)
+      headers.append('set-cookie', cookie)
+    getSessionMock.mockResolvedValue({ headers, response: null })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
     const event = shape === 'Nitro 3' ? createNitroV3Event() : createEvent()
-    const combined = existingCookies.join(', ')
-    if (shape === 'Nitro 3')
-      event.res.headers.set('set-cookie', combined)
-    else
-      event.node.res.setHeader('set-cookie', shape === 'array' ? [combined] : combined)
+    if (shape === 'Nitro 3') {
+      for (const cookie of existingCookies)
+        event.res.headers.append('set-cookie', cookie)
+    }
+    else {
+      event.node.res.setHeader('set-cookie', existingCookies)
+    }
 
     await getRequestSession(event)
 
     const cookies = shape === 'Nitro 3' ? event.res.headers.getSetCookie() : event.node.res.getHeader('set-cookie')
-    expect(cookies).toEqual([...existingCookies, forwardedCookie])
+    expect(cookies).toEqual([...existingCookies, ...forwardedCookies])
+  })
+
+  it('splits combined response headers when getSetCookie is unavailable', async () => {
+    const cookies = [
+      'first=1; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/',
+      'second=2; Path=/',
+    ]
+    const headers = new Headers({ 'set-cookie': cookies.join(', ') })
+    Object.defineProperty(headers, 'getSetCookie', { value: undefined })
+    getSessionMock.mockResolvedValue({ headers, response: null })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    await getRequestSession(event)
+
+    expect(event.node.res.getHeader('set-cookie')).toEqual(cookies)
   })
 
   it('deduplicates concurrent resolution within a single request', async () => {
@@ -534,7 +575,8 @@ describe('refreshSessionCookieCache', () => {
     const sessionDataCookie = `${authContextMock.authCookies.sessionData.name}=fresh; Path=/; Expires=Wed, 21 Oct 2030 07:28:00 GMT; HttpOnly`
     const sessionTokenCookie = `${authContextMock.authCookies.sessionToken.name}=token; Path=/; HttpOnly`
     const headers = new Headers()
-    headers.set('set-cookie', `${sessionDataCookie}, ${sessionTokenCookie}`)
+    headers.append('set-cookie', sessionDataCookie)
+    headers.append('set-cookie', sessionTokenCookie)
 
     getSessionMock
       .mockResolvedValueOnce(staleSession)

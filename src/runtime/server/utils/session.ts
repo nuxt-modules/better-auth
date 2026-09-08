@@ -210,7 +210,7 @@ function appendCookieHeader(event: ServerEvent, header: string): void {
   if (nodeResponse?.setHeader) {
     const current = nodeResponse.getHeader?.('set-cookie')
     if (Array.isArray(current))
-      nodeResponse.setHeader('set-cookie', [...current.flatMap(cookie => splitCookiesString(cookie)), header])
+      nodeResponse.setHeader('set-cookie', [...current, header])
     else if (typeof current === 'string')
       nodeResponse.setHeader('set-cookie', [...splitCookiesString(current), header])
     else
@@ -233,9 +233,9 @@ function appendCookieHeader(event: ServerEvent, header: string): void {
 
 function getSetCookieHeaders(headers: Headers): string[] {
   const getSetCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie
-  const cookies = getSetCookie?.call(headers)
-  if (cookies?.length)
-    return cookies.flatMap(cookie => splitCookiesString(cookie))
+  // Preserve explicit header boundaries, including commas in extension attributes.
+  if (getSetCookie)
+    return getSetCookie.call(headers)
 
   const header = headers.get('set-cookie')
   return header ? splitCookiesString(header) : []
