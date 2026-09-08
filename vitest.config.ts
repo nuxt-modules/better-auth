@@ -8,6 +8,7 @@ const typeTests = [
   'test/infer-plugins-types.test.ts',
   'test/infer-use-fetch-endpoints-types.test.ts',
   'test/require-user-session-typing.test.ts',
+  'test/root-entrypoint-typing.test.ts',
   'test/use-signin-provider-alias-typing.test.ts',
 ]
 
