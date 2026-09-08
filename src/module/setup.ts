@@ -8,6 +8,7 @@ import type {
 } from '../types/hooks'
 import type { AuthConfigDescriptor } from './config-paths'
 import type { NuxtHubOptions } from './hub'
+import type { RouteTable } from 'radix3'
 import { hasNuxtModule } from '@nuxt/kit'
 import { defu } from 'defu'
 import { dirname } from 'pathe'
@@ -144,7 +145,11 @@ export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>): v
     return
 
   const matcher = toRouteMatcher(createRouter({ routes: routeRules }))
-  const conflicts = Object.keys(routeRules).flatMap((path) => {
+  const paths = new Set(Object.keys(routeRules))
+  const patterns = [...collectRouteRulePatterns(matcher.ctx.table)]
+  for (const path of collectRouteRulePaths(patterns, ''))
+    paths.add(path)
+  const conflicts = [...paths].flatMap((path) => {
     const matches = matcher.matchAll(path) as Record<string, unknown>[]
     const effectiveRule = defu({}, ...matches.reverse()) as Record<string, unknown>
     if (effectiveRule.auth === undefined || effectiveRule.auth === false)
@@ -169,6 +174,43 @@ export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>): v
     `[nuxt-better-auth] Auth route rules cannot be combined with cache, swr, isr, static, prerender, or proxy rules. `
     + `These rules can run before authentication or share user-specific responses. Conflicts: ${details}`,
   )
+}
+
+type RouteRulePattern = (string | null)[]
+
+function* collectRouteRulePatterns(table: RouteTable, prefix: RouteRulePattern = []): Generator<RouteRulePattern> {
+  const segments = (path: string) => path && path !== '/' ? path.slice(1).split('/') : []
+  // Read the matcher's resolved keys, rather than interpreting route syntax a
+  // second time. null represents the single segment consumed by a dynamic edge.
+  for (const path of [...table.static.keys(), ...table.wildcard.keys()])
+    yield [...prefix, ...segments(path)]
+
+  for (const [path, child] of table.dynamic)
+    yield* collectRouteRulePatterns(child, [...prefix, ...segments(path), null])
+}
+
+function* collectRouteRulePaths(patterns: RouteRulePattern[], prefix: string): Generator<string> {
+  yield prefix || '/'
+
+  // Literal branches partition the possible next segments. One fresh segment
+  // represents everything else, including paths beyond exact-rule exclusions.
+  const literals = new Set(patterns.flatMap(pattern => typeof pattern[0] === 'string' ? [pattern[0]] : []))
+  let other = '_'
+  while (literals.has(other))
+    other += '_'
+
+  for (const segment of [...literals, other]) {
+    const path = `${prefix}/${segment}`
+    const next = patterns
+      .filter(pattern => pattern[0] === null || pattern[0] === segment)
+      .map(pattern => pattern.slice(1))
+    // A terminal ** accepts every continuation. Once no finite branches remain,
+    // one continuation has the same effective rules as every deeper path.
+    if (next.length)
+      yield* collectRouteRulePaths(next, path)
+    else
+      yield path
+  }
 }
 
 export async function resolveAuthModuleSetup(
