@@ -1,13 +1,16 @@
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
-import { shouldSkipAuthRouteRules } from '../../internal/auth-route-rules'
+import { normalizeAuthRoutePath, shouldSkipAuthRouteRules } from '../../internal/auth-route-rules'
 import { matchesUser } from '../../utils/match-user'
-import { createAuthError, defineEventHandler, getAuthRouteRules, getRequestURL } from '../internal/nitro-compat'
+import { createAuthError, defineEventHandler, getAuthRouteRules, getRequestURL, useRuntimeConfig } from '../internal/nitro-compat'
 import { getUserSession, requireUserSession } from '../utils/session'
 
 export default defineEventHandler(async (event) => {
-  const path = getRequestURL(event).pathname
+  const path = normalizeAuthRoutePath(
+    getRequestURL(event).pathname,
+    useRuntimeConfig().app?.baseURL,
+  )
 
-  if (!path.startsWith('/api/'))
+  if (path !== '/api' && !path.startsWith('/api/'))
     return
 
   if (shouldSkipAuthRouteRules(path))

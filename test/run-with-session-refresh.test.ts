@@ -56,6 +56,19 @@ describe('runWithSessionRefresh', () => {
     expect(mocks.nextTick).toHaveBeenCalledOnce()
   })
 
+  it('does not wait when a custom action destroys the existing session', async () => {
+    const runWithSessionRefresh = await loadRunWithSessionRefresh()
+
+    await runWithSessionRefresh(async () => {
+      mocks.loggedIn.value = false
+      return { ok: true }
+    })
+
+    expect(mocks.fetchSession).toHaveBeenCalledWith({ force: true })
+    expect(mocks.waitForSession).not.toHaveBeenCalled()
+    expect(mocks.nextTick).toHaveBeenCalledOnce()
+  })
+
   it('does not refresh after rejected actions', async () => {
     const runWithSessionRefresh = await loadRunWithSessionRefresh()
     const error = new Error('boom')

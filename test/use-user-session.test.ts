@@ -107,6 +107,11 @@ async function loadAuthComposables() {
   return import('../src/runtime/app/composables/useUserSession')
 }
 
+async function loadRedirectHelpers() {
+  vi.resetModules()
+  return import('../src/runtime/app/internal/redirect-helpers')
+}
+
 async function flushPromises() {
   await Promise.resolve()
   await Promise.resolve()
@@ -201,6 +206,45 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.session.value).toEqual({ id: 'session-1' })
     expect(auth.user.value).toEqual({ id: 'user-1' })
     expect(mockClient.useSession).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    { status: 500, message: 'Auth database unavailable' },
+    new TypeError('Network unavailable'),
+  ])('preserves the SSR session when the initial client atom settles with %s', async (error) => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    seedHydratedState()
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error }
+    await flushPromises()
+
+    expect(auth.session.value).toEqual({ id: 'session-1' })
+    expect(auth.user.value).toEqual({ id: 'user-1' })
+    expect(auth.loggedIn.value).toBe(true)
+    expect(auth.ready.value).toBe(true)
+  })
+
+  it.each([null, { status: 401 }, { code: 'UNAUTHORIZED' }])('clears the SSR session when the initial client atom confirms sign-out: %s', async (error) => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    seedHydratedState()
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error }
+    await flushPromises()
+
+    expect(auth.session.value).toBeNull()
+    expect(auth.user.value).toBeNull()
+    expect(auth.loggedIn.value).toBe(false)
+    expect(auth.ready.value).toBe(true)
   })
 
   it('bootstraps client session when SSR payload is not hydrated', async () => {
@@ -352,6 +396,46 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.getSession).toHaveBeenCalledTimes(1)
     expect(auth.session.value).toBeNull()
     expect(auth.user.value).toBeNull()
+  })
+
+  it('retries a rejected hydration refresh after app:mounted has already fired', async () => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    seedHydratedState()
+    const error = new Error('Session backend unavailable')
+    const logError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockClient.getSession.mockRejectedValueOnce(error)
+
+    try {
+      const useUserSession = await loadUseUserSession()
+      const auth = useUserSession()
+      await flushPromises()
+
+      await expect(triggerNuxtHook('app:mounted')).resolves.toBeUndefined()
+
+      expect(mockClient.getSession).toHaveBeenCalledOnce()
+      expect(auth.session.value).toEqual({ id: 'session-1' })
+      expect(auth.user.value).toEqual({ id: 'user-1' })
+      expect(logError).toHaveBeenCalledWith(
+        '[nuxt-better-auth] Failed to fetch session during hydration reconciliation:',
+        error,
+      )
+      expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(false)
+
+      mockClient.getSession.mockResolvedValueOnce({
+        data: { session: { id: 'session-2' }, user: { id: 'user-2' } },
+      })
+      sessionAtom.value = { ...sessionAtom.value }
+      await vi.waitFor(() => {
+        expect(mockClient.getSession).toHaveBeenCalledTimes(2)
+        expect(auth.session.value).toEqual({ id: 'session-2' })
+        expect(auth.user.value).toEqual({ id: 'user-2' })
+        expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(false)
+      })
+    }
+    finally {
+      logError.mockRestore()
+    }
   })
 
   it('does not run hydration reconciliation when SSR state is not hydrated', async () => {
@@ -778,7 +862,7 @@ describe('useUserSession hydration bootstrap', () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
     mockClient.getSession.mockResolvedValueOnce({ data: null })
     mockClient.signUp.email.mockImplementation(async (_data, opts) => {
-      await opts?.onSuccess?.('ctx')
+      await opts?.onSuccess?.({ data: { token: null, user: { id: 'user-1' } } })
     })
 
     const { useAuthActionNamespaces } = await loadAuthComposables()
@@ -787,7 +871,91 @@ describe('useUserSession hydration bootstrap', () => {
     await auth.signUp.email({ email: 'user@example.com', password: 'password', name: 'User' })
 
     expect(navigateTo).not.toHaveBeenCalled()
-  }, 10000)
+  })
+
+  it('does not wait five seconds when email-verification sign-up creates no session', async () => {
+    vi.useFakeTimers()
+    let settledBeforeTimeout = false
+    let timerCountBeforeCleanup = 0
+    const onSuccess = vi.fn()
+
+    try {
+      mockClient.getSession.mockResolvedValueOnce({ data: null })
+      mockClient.signUp.email.mockImplementation(async (_data, opts) => {
+        await opts?.onSuccess?.({ data: { token: null, user: { id: 'user-1' } } })
+      })
+
+      const { useAuthActionNamespaces } = await loadAuthComposables()
+      const auth = useAuthActionNamespaces()
+      let settled = false
+      const pending = auth.signUp.email(
+        { email: 'user@example.com', password: 'password', name: 'User' },
+        { onSuccess },
+      ).then(() => {
+        settled = true
+      })
+
+      await vi.advanceTimersByTimeAsync(0)
+      settledBeforeTimeout = settled
+      timerCountBeforeCleanup = vi.getTimerCount()
+      await vi.runAllTimersAsync()
+      await pending
+    }
+    finally {
+      vi.useRealTimers()
+    }
+
+    expect(settledBeforeTimeout).toBe(true)
+    expect(timerCountBeforeCleanup).toBe(0)
+    expect(onSuccess).toHaveBeenCalledOnce()
+  })
+
+  it('still waits for a session-creating sign-up before running onSuccess', async () => {
+    vi.useFakeTimers()
+    let callbackBeforeSession = false
+    let settledAfterSession = false
+
+    try {
+      mockClient.getSession.mockResolvedValueOnce({ data: null })
+      mockClient.signUp.email.mockImplementation(async (_data, opts) => {
+        await opts?.onSuccess?.({ data: { token: 'session-token', user: { id: 'user-1' } } })
+      })
+      const onSuccess = vi.fn()
+
+      const { useAuthActionNamespaces } = await loadAuthComposables()
+      const auth = useAuthActionNamespaces()
+      let settled = false
+      const pending = auth.signUp.email(
+        { email: 'user@example.com', password: 'password', name: 'User' },
+        { onSuccess },
+      ).then(() => {
+        settled = true
+      })
+
+      await vi.advanceTimersByTimeAsync(0)
+      callbackBeforeSession = onSuccess.mock.calls.length > 0
+      sessionAtom.value = {
+        data: {
+          session: { id: 'session-1' },
+          user: { id: 'user-1' },
+        },
+        isPending: false,
+        isRefetching: false,
+        error: null,
+      }
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(0)
+      settledAfterSession = settled
+      await vi.runAllTimersAsync()
+      await pending
+    }
+    finally {
+      vi.useRealTimers()
+    }
+
+    expect(callbackBeforeSession).toBe(false)
+    expect(settledAfterSession).toBe(true)
+  })
 
   it('signUp uses auth.redirects.authenticated when no callback is provided', async () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
@@ -1206,4 +1374,37 @@ describe('useUserSession hydration bootstrap', () => {
 
     await expect(auth.signOut()).rejects.toThrow('signOut can only be called on client-side')
   })
+})
+
+describe('local redirect validation', () => {
+  it.each([
+    'https://evil.example/phish',
+    '//evil.example/phish',
+    '/\\evil.example/phish',
+    '/%2fevil.example/phish',
+    '/%5cevil.example/phish',
+    '/safe\nevil',
+    '/safe/..%2F%2Fevil.example/phish',
+    '/safe/%2e%2e/%5Cevil.example/phish',
+    '/%2e%2e//evil.example/phish',
+  ])('rejects unsafe redirect %j', async (redirect) => {
+    const { isSafeLocalRedirect } = await loadRedirectHelpers()
+    expect(isSafeLocalRedirect(redirect)).toBeUndefined()
+  })
+
+  it.each([
+    '/dashboard',
+    '/dashboard?tab=billing',
+    '/dashboard#security',
+    '/user/eduardo%2Fsan%20martin',
+    '/user/name%5Cpart',
+    '/dashboard?next=%2Fsettings',
+    '/dashboard#%2Fsettings%5Cdetails',
+  ])(
+    'accepts local redirect %j',
+    async (redirect) => {
+      const { isSafeLocalRedirect } = await loadRedirectHelpers()
+      expect(isSafeLocalRedirect(redirect)).toBe(redirect)
+    },
+  )
 })

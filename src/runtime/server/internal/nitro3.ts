@@ -1,5 +1,6 @@
 import type { H3Event } from 'nitro/h3'
 import type { AuthRouteRules } from '../../types'
+import { normalizeAuthRouteRule } from '../../internal/auth-route-rules'
 import { getRouteRules } from 'nitro/app'
 import {
   defineEventHandler,
@@ -25,8 +26,8 @@ export {
 export type ServerEvent = H3Event
 
 export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
-  const auth = getRouteRules(event.req.method, getRequestURL(event).pathname).routeRules.auth?.options
-  return { auth: auth as AuthRouteRules['auth'] }
+  const auth = getRouteRules(event.req.method, getRequestURL(event).pathname).routeRules?.auth
+  return { auth: normalizeAuthRouteRule(auth) }
 }
 
 export function createAuthError(status: number, statusText: string): Error {
