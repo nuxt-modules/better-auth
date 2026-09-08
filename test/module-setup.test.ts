@@ -205,6 +205,56 @@ describe('resolveAuthModuleSetup', () => {
     expect(setup.database.providerId).toBe('nuxthub')
   })
 
+  it.each([
+    ['sqlite', 'libsql', '@libsql/client'],
+    ['mysql', 'mysql2', 'mysql2'],
+    ['postgresql', 'pglite', '@electric-sql/pglite'],
+    ['postgresql', 'postgres-js', 'postgres'],
+  ])('checks the resolved %s driver when the configured driver is omitted', async (dialect, driver, driverPackage) => {
+    const nuxt = await loadCase('core-auth')
+    nuxt.options.alias['hub:db'] = '/virtual/hub-db'
+    Object.assign(nuxt.options.runtimeConfig, { hub: { db: { dialect, driver } } })
+    const input = {
+      nuxt,
+      options: createModuleOptions(nuxt),
+      runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
+      consola: createConsolaMock(),
+    }
+
+    for (const db of [dialect, { dialect }]) {
+      Object.assign(nuxt.options, { hub: { db } })
+      await expect(resolveAuthModuleSetup(input, {
+        packageExists: packageName => packageName !== driverPackage,
+      })).rejects.toThrow(`Install it in your Nuxt app, for example with \`pnpm add ${driverPackage}\`.`)
+
+      const installedPackages = new Set(['drizzle-orm', driverPackage])
+      if (dialect === 'postgresql')
+        installedPackages.add('postgres')
+      const setup = await resolveAuthModuleSetup(input, {
+        packageExists: packageName => installedPackages.has(packageName),
+      })
+      expect(setup.database.providerId).toBe('nuxthub')
+    }
+  })
+
+  it('checks the resolved driver when NuxtHub overrides the configured driver', async () => {
+    const nuxt = await loadCase('core-auth')
+    nuxt.options.alias['hub:db'] = '/virtual/hub-db'
+    Object.assign(nuxt.options, { hub: { db: { dialect: 'sqlite', driver: 'libsql' } } })
+    Object.assign(nuxt.options.runtimeConfig, { hub: { db: { dialect: 'sqlite', driver: 'd1' } } })
+    const packageExists = vi.fn((packageName: string) => packageName === 'drizzle-orm')
+
+    const setup = await resolveAuthModuleSetup({
+      nuxt,
+      options: createModuleOptions(nuxt),
+      runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
+      consola: createConsolaMock(),
+    }, { packageExists })
+
+    expect(setup.database.providerId).toBe('nuxthub')
+    expect(packageExists.mock.calls.map(([packageName]) => packageName)).toEqual(['drizzle-orm'])
+  })
+
   it.each(['d1', 'd1-http'])('does not require a client package for %s', async (driver) => {
     const nuxt = await loadCase('core-auth')
     nuxt.options.alias['hub:db'] = '/virtual/hub-db'

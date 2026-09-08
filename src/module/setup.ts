@@ -240,9 +240,13 @@ export async function resolveAuthModuleSetup(
     throw new Error('[nuxt-better-auth] hub:db not found. Ensure @nuxthub/core is loaded before this module and hub.db is configured.')
   }
   if (hasHubDb) {
+    // NuxtHub publishes driver defaults and hosting overrides in runtimeConfig.
+    const resolvedHub = (nuxt.options.runtimeConfig as { hub?: NuxtHubOptions }).hub
+    const resolvedDriver = typeof resolvedHub?.db === 'object' ? resolvedHub.db.driver : undefined
+    const configuredDriver = typeof hub?.db === 'object' ? hub.db.driver : undefined
     assertNuxtHubDatabaseDependencies(
       hubDialect,
-      typeof hub?.db === 'object' ? hub.db.driver : undefined,
+      resolvedDriver ?? configuredDriver,
       nuxt.options.rootDir,
       dependencies.packageExists ?? packageExists,
     )
