@@ -35,6 +35,7 @@ jobs:
         env:
           BETTER_AUTH_SECRET: ci-test-secret-12345678901234567890
       - run: pnpm build:docs
+      - run: pnpm exec playwright-core install --with-deps chromium
       - run: pnpm test
 
   compatibility:

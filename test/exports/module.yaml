@@ -19,3 +19,7 @@
   defineServerAuth: function
   extendClientAuth: function
   extendServerAuth: function
+./test-utils/runtime:
+  createUserSessionMock: function
+./test-utils/e2e:
+  createAuthTestContext: function

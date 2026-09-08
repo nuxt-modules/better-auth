@@ -23,6 +23,14 @@
     "./config": {
       "types": "./dist/runtime/config.d.ts",
       "import": "./dist/runtime/config.js"
+    },
+    "./test-utils/runtime": {
+      "types": "./dist/runtime/test-utils/runtime.d.ts",
+      "import": "./dist/runtime/test-utils/runtime.js"
+    },
+    "./test-utils/e2e": {
+      "types": "./dist/runtime/test-utils/e2e.d.ts",
+      "import": "./dist/runtime/test-utils/e2e.js"
     }
   },
   "main": "./dist/module.mjs",
@@ -36,6 +44,12 @@
       ],
       "config": [
         "./dist/runtime/config.d.ts"
+      ],
+      "test-utils/runtime": [
+        "./dist/runtime/test-utils/runtime.d.ts"
+      ],
+      "test-utils/e2e": [
+        "./dist/runtime/test-utils/e2e.d.ts"
       ]
     }
   },
@@ -59,14 +73,19 @@
     "typecheck": "vue-tsc --noEmit",
     "typecheck:runtime-server": "cd test/cases/plugins-type-inference && nuxi prepare && vue-tsc --noEmit --pretty false -p .nuxt/tsconfig.server.json",
     "typecheck:playground": "pnpm -C playground exec nuxi prepare && pnpm -C playground exec vue-tsc --noEmit -p .nuxt/tsconfig.app.json",
-    "test": "vitest run",
-    "test:watch": "vitest watch"
+    "test": "vitest run && pnpm test:runtime",
+    "test:watch": "vitest watch",
+    "test:runtime": "vitest run --config vitest.runtime.config.ts"
   },
   "peerDependencies": {
+    "@nuxt/test-utils": "^4.1.0",
     "@nuxthub/core": ">=0.10.5",
     "better-auth": ">=1.7.3 <2"
   },
   "peerDependenciesMeta": {
+    "@nuxt/test-utils": {
+      "optional": true
+    },
     "@nuxthub/core": {
       "optional": true
     }
@@ -77,6 +96,7 @@
     "auth": "1.7.3",
     "consola": "^3.4.2",
     "defu": "^6.1.7",
+    "get-port-please": "^3.2.0",
     "h3": "^1.15.11",
     "jiti": "^2.7.0",
     "pathe": "^2.0.3",
@@ -97,16 +117,19 @@
     "@pinia/nuxt": "^1.0.2",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.13.3",
+    "@vue/test-utils": "^2.4.6",
     "better-auth": "1.7.3",
     "better-call": "1.4.0",
     "better-sqlite3": "^12.11.1",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "eslint": "^10.8.1",
+    "happy-dom": "^20.8.9",
     "nitropack": "2.13.4",
     "nuxt": "^4.5.2",
     "pinia": "^4.0.3",
     "pkg-pr-new": "0.0.88",
+    "playwright-core": "1.58.2",
     "postgres": "^3.4.9",
     "typescript": "~5.9.3",
     "unstorage": "^1.17.5",

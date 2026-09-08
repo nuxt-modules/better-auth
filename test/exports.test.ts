@@ -30,6 +30,8 @@ describe('exports-snapshot', async () => {
       '.': exportTypes(moduleExports),
       './composables': exportTypes(composableExports),
       './config': exportTypes(configExports),
+      './test-utils/runtime': exportTypes(await import('@nuxtjs/better-auth/test-utils/runtime')),
+      './test-utils/e2e': exportTypes(await import('@nuxtjs/better-auth/test-utils/e2e')),
     }
 
     await expect(yaml.stringify(manifest)).toMatchFileSnapshot('./exports/module.yaml')
