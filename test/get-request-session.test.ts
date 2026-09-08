@@ -152,6 +152,30 @@ describe('getRequestSession', () => {
     ])
   })
 
+  it.each(['string', 'array', 'Nitro 3'] as const)('normalizes existing combined cookies on %s responses', async (shape) => {
+    const existingCookies = [
+      'first=1; Expires=Wed, 21 Oct 2037 07:28:00 GMT; Path=/',
+      'second=2; Path=/',
+    ]
+    const forwardedCookie = 'better-auth.session_data=fresh; Path=/; HttpOnly'
+    getSessionMock.mockResolvedValue({
+      headers: new Headers({ 'set-cookie': forwardedCookie }),
+      response: null,
+    })
+    const { getRequestSession } = await import('../src/runtime/server/utils/session')
+    const event = shape === 'Nitro 3' ? createNitroV3Event() : createEvent()
+    const combined = existingCookies.join(', ')
+    if (shape === 'Nitro 3')
+      event.res.headers.set('set-cookie', combined)
+    else
+      event.node.res.setHeader('set-cookie', shape === 'array' ? [combined] : combined)
+
+    await getRequestSession(event)
+
+    const cookies = shape === 'Nitro 3' ? event.res.headers.getSetCookie() : event.node.res.getHeader('set-cookie')
+    expect(cookies).toEqual([...existingCookies, forwardedCookie])
+  })
+
   it('deduplicates concurrent resolution within a single request', async () => {
     let resolveSession: ((value: unknown) => void) | undefined
     getSessionMock.mockImplementation(() => new Promise((resolve) => {
