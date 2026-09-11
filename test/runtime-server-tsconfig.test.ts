@@ -8,5 +8,14 @@ describe('published runtime server tsconfig', () => {
 
     expect(config).not.toHaveProperty('extends')
     expect(config.compilerOptions).not.toHaveProperty('baseUrl')
+    expect(config.compilerOptions).toMatchObject({
+      target: 'ESNext',
+      module: 'ESNext',
+      moduleResolution: 'bundler',
+      types: ['node'],
+      strict: true,
+      esModuleInterop: true,
+      skipLibCheck: true,
+    })
   })
 })

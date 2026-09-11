@@ -1,5 +1,14 @@
 {
   "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
     "paths": {
       "#better-auth/nitro-compat": ["./internal/nitro2"],
       "#nuxt-better-auth": ["../types/augment"]
