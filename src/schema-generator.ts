@@ -1,5 +1,5 @@
 import type { BetterAuthOptions } from 'better-auth'
-import type { generateDrizzleSchema as GenerateDrizzleSchema } from 'better-auth/api'
+import type { generateDrizzleSchema as GenerateDrizzleSchema } from 'auth/api'
 import { existsSync } from 'node:fs'
 import { consola } from 'consola'
 import { Diagnostic, formatDiagnostic } from 'nostics'
@@ -24,7 +24,7 @@ function dialectToProvider(dialect: Dialect): Provider {
 }
 
 export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dialect: Dialect, schemaOptions?: SchemaOptions): Promise<string> {
-  const { generateDrizzleSchema } = await import('better-auth/api')
+  const { generateDrizzleSchema } = await import('auth/api')
   const provider = dialectToProvider(dialect)
 
   const options: BetterAuthOptions = {

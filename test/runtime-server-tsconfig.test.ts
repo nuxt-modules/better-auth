@@ -6,6 +6,10 @@ describe('published runtime server tsconfig', () => {
   it('does not reference files omitted from the npm package or deprecated options', async () => {
     const config = JSON.parse(await readFile(resolve('src/runtime/server/tsconfig.json'), 'utf8'))
 
+    const manifest = JSON.parse(await readFile(resolve('package.json'), 'utf8'))
+    for (const type of config.compilerOptions.types)
+      expect(manifest.dependencies).toHaveProperty(`@types/${type}`)
+
     expect(config).not.toHaveProperty('extends')
     expect(config.compilerOptions).not.toHaveProperty('baseUrl')
     expect(config.compilerOptions).toMatchObject({
