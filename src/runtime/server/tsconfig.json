@@ -1,11 +1,18 @@
 {
-  "extends": "../../../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "paths": {
       "#better-auth/nitro-compat": ["./internal/nitro2"],
       "#nuxt-better-auth": ["../types/augment"]
-    }
+    },
+    "types": ["node"],
+    "strict": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
   },
   "include": ["./**/*.ts", "./**/*.d.ts"],
   "exclude": ["node_modules"]
