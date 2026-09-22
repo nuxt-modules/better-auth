@@ -182,6 +182,13 @@ export function useUserSession(): UseUserSessionReturn {
   if (runtimeFlags.client && rawClient && !_sessionSyncApps.has(nuxtApp)) {
     const clientSession = rawClient.useSession()
     const initialClientSession = clientSession.value
+    let hydrationSessionWasActive
+      = nuxtApp.isHydrating
+        && nuxtApp.payload.serverRendered
+        && Boolean(session.value && user.value)
+        && !initialClientSession?.data?.session
+        && !initialClientSession?.data?.user
+        && Boolean(initialClientSession?.isPending || initialClientSession?.isRefetching)
 
     const shouldReconcileInitialHydration
       = nuxtApp.isHydrating
@@ -208,6 +215,7 @@ export function useUserSession(): UseUserSessionReturn {
 
         if (newSession?.data?.session && newSession?.data?.user) {
           sessionExpiredRedirecting = false
+          hydrationSessionWasActive = false
           session.value = stripToken(newSession.data.session as AuthSession & { token?: string })
           user.value = newSession.data.user as AuthUser
         }
@@ -224,11 +232,13 @@ export function useUserSession(): UseUserSessionReturn {
             return
           }
 
-          const sessionWasActive = Boolean(previousSession?.data?.session && previousSession?.data?.user)
+          const sessionWasActive = hydrationSessionWasActive || Boolean(previousSession?.data?.session && previousSession?.data?.user)
           const sessionWasInvalidated = !newSession?.error || isExpectedSignedOutSessionError(newSession.error)
 
-          if (sessionWasInvalidated)
+          if (sessionWasInvalidated) {
+            hydrationSessionWasActive = false
             clearSession()
+          }
 
           if (sessionWasActive && sessionWasInvalidated)
             scheduleSessionExpiredRedirect()

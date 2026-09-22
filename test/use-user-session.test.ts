@@ -418,6 +418,23 @@ describe('useUserSession hydration bootstrap', () => {
     await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
   })
 
+  it('redirects when a pending initial session settles after hydration', async () => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    runtimeConfig.public.auth.redirects = { sessionExpired: '/login' }
+    seedHydratedState()
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error: null }
+    await flushPromises()
+
+    expect(auth.loggedIn.value).toBe(false)
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+  })
+
   it('redirects when an active session expires and a redirect is configured', async () => {
     runtimeConfig.public.auth.redirects = { sessionExpired: '/login' }
     state.set('auth:session', ref({ id: 'session-1' }))
