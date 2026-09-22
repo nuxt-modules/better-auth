@@ -50,6 +50,7 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryS
       guest: options.redirects?.guest ?? '/',
       authenticated: options.redirects?.authenticated,
       logout: options.redirects?.logout,
+      sessionExpired: options.redirects?.sessionExpired,
     },
     preserveRedirect: options.preserveRedirect ?? true,
     redirectQueryKey: options.redirectQueryKey ?? 'redirect',

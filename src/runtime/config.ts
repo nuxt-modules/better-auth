@@ -52,6 +52,8 @@ export interface BetterAuthModuleOptions {
     authenticated?: string
     /** Where to navigate after logout. Default: no automatic navigation */
     logout?: string
+    /** Where to navigate when a previously authenticated session expires or is revoked. Default: no automatic navigation */
+    sessionExpired?: string
   }
   /**
    * When redirecting unauthenticated users to the login route, append a query param
@@ -86,7 +88,7 @@ export interface BetterAuthModuleOptions {
 
 // Runtime config type for public.auth
 export interface AuthRuntimeConfig {
-  redirects: { login: string, guest: string, authenticated?: string, logout?: string }
+  redirects: { login: string, guest: string, authenticated?: string, logout?: string, sessionExpired?: string }
   preserveRedirect: boolean
   redirectQueryKey: string
   useDatabase: boolean

@@ -37,5 +37,6 @@ describe('auth.redirects option', async () => {
 
     const payload = await response.json()
     expect(payload.config.module.redirects.authenticated).toBe('/app')
+    expect(payload.config.module.redirects.sessionExpired).toBe('/session-expired')
   })
 })

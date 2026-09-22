@@ -8,6 +8,7 @@ export default defineNuxtConfig({
       login: '/custom-login',
       guest: '/protected',
       authenticated: '/app',
+      sessionExpired: '/session-expired',
     },
   },
 })
