@@ -129,6 +129,23 @@ export function useUserSession(): UseUserSessionReturn {
   }
 
   let mountedReconciliationStarted = false
+  let sessionExpiredRedirecting = false
+
+  function getSessionExpiredRedirect(): string | undefined {
+    return (runtimeConfig.public.auth as { redirects?: { sessionExpired?: string } } | undefined)?.redirects?.sessionExpired
+  }
+
+  function scheduleSessionExpiredRedirect() {
+    const sessionExpiredRedirect = getSessionExpiredRedirect()
+    if (!sessionExpiredRedirect || signOutInProgress.value || sessionExpiredRedirecting)
+      return
+
+    sessionExpiredRedirecting = true
+    void nextTick().then(() => {
+      if (sessionExpiredRedirecting)
+        void navigateTo(sessionExpiredRedirect)
+    })
+  }
 
   function queueHydrationReconciliation() {
     if (hydrationReconcileQueued.value)
@@ -136,8 +153,11 @@ export function useUserSession(): UseUserSessionReturn {
 
     hydrationReconcileQueued.value = true
     const reconcile = async () => {
+      const sessionWasActive = loggedIn.value
       try {
         await fetchSession({ force: true })
+        if (sessionWasActive && !loggedIn.value)
+          scheduleSessionExpiredRedirect()
       }
       catch (error) {
         console.error('[nuxt-better-auth] Failed to fetch session during hydration reconciliation:', error)
@@ -162,7 +182,6 @@ export function useUserSession(): UseUserSessionReturn {
   if (runtimeFlags.client && rawClient && !_sessionSyncApps.has(nuxtApp)) {
     const clientSession = rawClient.useSession()
     const initialClientSession = clientSession.value
-    let sessionExpiredRedirecting = false
 
     const shouldReconcileInitialHydration
       = nuxtApp.isHydrating
@@ -188,6 +207,7 @@ export function useUserSession(): UseUserSessionReturn {
           return
 
         if (newSession?.data?.session && newSession?.data?.user) {
+          sessionExpiredRedirecting = false
           session.value = stripToken(newSession.data.session as AuthSession & { token?: string })
           user.value = newSession.data.user as AuthUser
         }
@@ -210,13 +230,8 @@ export function useUserSession(): UseUserSessionReturn {
           if (sessionWasInvalidated)
             clearSession()
 
-          const sessionExpiredRedirect = (runtimeConfig.public.auth as { redirects?: { sessionExpired?: string } } | undefined)?.redirects?.sessionExpired
-          if (sessionWasActive && sessionWasInvalidated && !signOutInProgress.value && sessionExpiredRedirect && !sessionExpiredRedirecting) {
-            sessionExpiredRedirecting = true
-            void nextTick().then(() => {
-              void navigateTo(sessionExpiredRedirect)
-            })
-          }
+          if (sessionWasActive && sessionWasInvalidated)
+            scheduleSessionExpiredRedirect()
         }
         if (!authReady.value && !newSession?.isPending && !newSession?.isRefetching)
           authReady.value = true
