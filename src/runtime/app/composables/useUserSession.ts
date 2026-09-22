@@ -188,7 +188,6 @@ export function useUserSession(): UseUserSessionReturn {
         && Boolean(session.value && user.value)
         && !initialClientSession?.data?.session
         && !initialClientSession?.data?.user
-        && Boolean(initialClientSession?.isPending || initialClientSession?.isRefetching)
 
     const shouldReconcileInitialHydration
       = nuxtApp.isHydrating
