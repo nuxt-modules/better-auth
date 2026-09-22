@@ -44,7 +44,7 @@ const nuxtApp = {
   }),
 }
 
-const sessionAtom = ref<SessionState>({
+let sessionAtom = ref<SessionState>({
   data: null,
   isPending: false,
   isRefetching: false,
@@ -166,12 +166,12 @@ describe('useUserSession hydration bootstrap', () => {
     $fetch.mockResolvedValue(null)
     activeClient = mockClient
 
-    sessionAtom.value = {
+    sessionAtom = ref({
       data: null,
       isPending: false,
       isRefetching: false,
       error: null,
-    }
+    })
 
     mockClient.useSession.mockReset()
     mockClient.useSession.mockImplementation(() => sessionAtom)
@@ -396,6 +396,141 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.getSession).toHaveBeenCalledTimes(1)
     expect(auth.session.value).toBeNull()
     expect(auth.user.value).toBeNull()
+  })
+
+  it('redirects when SSR auth state expires during hydration and a redirect is configured', async () => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    runtimeConfig.public.auth.redirects = { sessionExpired: '/login' }
+    seedHydratedState()
+    mockClient.getSession.mockResolvedValueOnce({ data: null })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await flushPromises()
+
+    expect(mockClient.getSession).not.toHaveBeenCalled()
+    nuxtApp.isHydrating = false
+    await triggerNuxtHook('app:mounted')
+    await flushPromises()
+
+    expect(auth.loggedIn.value).toBe(false)
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+  })
+
+  it('redirects when a pending initial session settles after hydration', async () => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    runtimeConfig.public.auth.redirects = { sessionExpired: '/login' }
+    seedHydratedState()
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error: null }
+    await flushPromises()
+
+    expect(auth.loggedIn.value).toBe(false)
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+  })
+
+  it('preserves SSR activity when the client session becomes pending after initialization', async () => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    runtimeConfig.public.auth.redirects = { sessionExpired: '/login' }
+    seedHydratedState()
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
+    await flushPromises()
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error: null }
+    await flushPromises()
+
+    expect(auth.loggedIn.value).toBe(false)
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+  })
+
+  it('redirects when an active session expires and a redirect is configured', async () => {
+    runtimeConfig.public.auth.redirects = { sessionExpired: '/login' }
+    state.set('auth:session', ref({ id: 'session-1' }))
+    state.set('auth:user', ref({ id: 'user-1' }))
+    state.set('auth:ready', ref(true))
+    sessionAtom.value = {
+      data: {
+        session: { id: 'session-1' },
+        user: { id: 'user-1' },
+      },
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    sessionAtom.value = {
+      data: null,
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+    await flushPromises()
+
+    expect(auth.loggedIn.value).toBe(false)
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+    navigateTo.mockClear()
+    sessionAtom.value = {
+      data: {
+        session: { id: 'session-2' },
+        user: { id: 'user-2' },
+      },
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+    await flushPromises()
+    expect(auth.loggedIn.value).toBe(true)
+
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error: null }
+    await flushPromises()
+
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+  })
+
+  it('does not use the session-expired redirect for explicit sign-out', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out', sessionExpired: '/expired' }
+    state.set('auth:session', ref({ id: 'session-1' }))
+    state.set('auth:user', ref({ id: 'user-1' }))
+    state.set('auth:ready', ref(true))
+    sessionAtom.value = {
+      data: {
+        session: { id: 'session-1' },
+        user: { id: 'user-1' },
+      },
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+    mockClient.signOut.mockImplementationOnce(async () => {
+      sessionAtom.value = {
+        data: null,
+        isPending: false,
+        isRefetching: false,
+        error: null,
+      }
+      await flushPromises()
+    })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await auth.signOut()
+
+    expect(navigateTo).toHaveBeenCalledWith('/logged-out')
+    expect(navigateTo).not.toHaveBeenCalledWith('/expired')
   })
 
   it('retries a rejected hydration refresh after app:mounted has already fired', async () => {

@@ -61,6 +61,7 @@ export function useUserSession(): UseUserSessionReturn {
   const authReady = useState('auth:ready', () => false)
   const prerenderReadyResetQueued = useState('auth:prerender-ready-reset-queued', () => false)
   const hydrationReconcileQueued = useState('auth:hydration-reconcile-queued', () => false)
+  const signOutInProgress = useState('auth:sign-out-in-progress', () => false)
   const ready = computed(() => authReady.value)
   const loggedIn = computed(() => Boolean(session.value && user.value))
   const isPrerenderedPayload = computed(() => Boolean(nuxtApp.payload.prerenderedAt || nuxtApp.payload.isCached))
@@ -128,6 +129,23 @@ export function useUserSession(): UseUserSessionReturn {
   }
 
   let mountedReconciliationStarted = false
+  let sessionExpiredRedirecting = false
+
+  function getSessionExpiredRedirect(): string | undefined {
+    return (runtimeConfig.public.auth as { redirects?: { sessionExpired?: string } } | undefined)?.redirects?.sessionExpired
+  }
+
+  function scheduleSessionExpiredRedirect() {
+    const sessionExpiredRedirect = getSessionExpiredRedirect()
+    if (!sessionExpiredRedirect || signOutInProgress.value || sessionExpiredRedirecting)
+      return
+
+    sessionExpiredRedirecting = true
+    void nextTick().then(() => {
+      if (sessionExpiredRedirecting)
+        void navigateTo(sessionExpiredRedirect)
+    })
+  }
 
   function queueHydrationReconciliation() {
     if (hydrationReconcileQueued.value)
@@ -135,8 +153,11 @@ export function useUserSession(): UseUserSessionReturn {
 
     hydrationReconcileQueued.value = true
     const reconcile = async () => {
+      const sessionWasActive = loggedIn.value
       try {
         await fetchSession({ force: true })
+        if (sessionWasActive && !loggedIn.value)
+          scheduleSessionExpiredRedirect()
       }
       catch (error) {
         console.error('[nuxt-better-auth] Failed to fetch session during hydration reconciliation:', error)
@@ -161,6 +182,12 @@ export function useUserSession(): UseUserSessionReturn {
   if (runtimeFlags.client && rawClient && !_sessionSyncApps.has(nuxtApp)) {
     const clientSession = rawClient.useSession()
     const initialClientSession = clientSession.value
+    let hydrationSessionWasActive
+      = nuxtApp.isHydrating
+        && nuxtApp.payload.serverRendered
+        && Boolean(session.value && user.value)
+        && !initialClientSession?.data?.session
+        && !initialClientSession?.data?.user
 
     const shouldReconcileInitialHydration
       = nuxtApp.isHydrating
@@ -176,7 +203,7 @@ export function useUserSession(): UseUserSessionReturn {
 
     watch(
       () => clientSession.value,
-      (newSession) => {
+      (newSession, previousSession) => {
         const shouldWaitForPrerenderResolution
           = isPrerenderHydrationEmptySnapshot.value
             && !newSession?.data?.session
@@ -186,6 +213,8 @@ export function useUserSession(): UseUserSessionReturn {
           return
 
         if (newSession?.data?.session && newSession?.data?.user) {
+          sessionExpiredRedirecting = false
+          hydrationSessionWasActive = false
           session.value = stripToken(newSession.data.session as AuthSession & { token?: string })
           user.value = newSession.data.user as AuthUser
         }
@@ -202,8 +231,16 @@ export function useUserSession(): UseUserSessionReturn {
             return
           }
 
-          if (!newSession?.error || isExpectedSignedOutSessionError(newSession.error))
+          const sessionWasActive = hydrationSessionWasActive || Boolean(previousSession?.data?.session && previousSession?.data?.user)
+          const sessionWasInvalidated = !newSession?.error || isExpectedSignedOutSessionError(newSession.error)
+
+          if (sessionWasInvalidated) {
+            hydrationSessionWasActive = false
             clearSession()
+          }
+
+          if (sessionWasActive && sessionWasInvalidated)
+            scheduleSessionExpiredRedirect()
         }
         if (!authReady.value && !newSession?.isPending && !newSession?.isRefetching)
           authReady.value = true
@@ -242,21 +279,27 @@ export function useUserSession(): UseUserSessionReturn {
     }
 
     _signOutPromise = (async () => {
-      const result = await rawClient.signOut()
-      if (isRecord(result) && result.error)
-        throw new Error(normalizeAuthActionError(result.error).message)
-      clearSession()
+      signOutInProgress.value = true
+      try {
+        const result = await rawClient.signOut()
+        if (isRecord(result) && result.error)
+          throw new Error(normalizeAuthActionError(result.error).message)
+        clearSession()
 
-      if (options?.onSuccess) {
-        await options.onSuccess()
-        return
+        if (options?.onSuccess) {
+          await options.onSuccess()
+          return
+        }
+
+        const authConfig = runtimeConfig.public.auth as { redirects?: { logout?: string } } | undefined
+        const logoutRedirect = authConfig?.redirects?.logout
+        if (logoutRedirect) {
+          await nextTick()
+          await navigateTo(logoutRedirect)
+        }
       }
-
-      const authConfig = runtimeConfig.public.auth as { redirects?: { logout?: string } } | undefined
-      const logoutRedirect = authConfig?.redirects?.logout
-      if (logoutRedirect) {
-        await nextTick()
-        await navigateTo(logoutRedirect)
+      finally {
+        signOutInProgress.value = false
       }
     })().finally(() => {
       _signOutPromise = null
