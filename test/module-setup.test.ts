@@ -276,29 +276,17 @@ describe('assertSafeAuthRouteRules', () => {
 })
 
 describe('registerAuthRouteRulesValidation', () => {
-  it.each([
-    { dev: true, baseURL: '/', handlerRoute: '/_assets/', skipped: true },
-    { dev: true, baseURL: '/app/', handlerRoute: '/app/_assets/', skipped: true },
-    { dev: false, baseURL: '/', handlerRoute: '/_assets', skipped: false },
-    { dev: true, baseURL: '/app/', handlerRoute: '/_assets', skipped: false },
-    { dev: true, baseURL: '/app/', handlerRoute: '/application/_assets', ruleRoute: '/application/_assets', skipped: false },
-    { dev: true, baseURL: '/', handlerRoute: '/', skipped: false },
-  ])('validates handler ownership for $dev $baseURL $handlerRoute', async ({ dev, baseURL, handlerRoute, ruleRoute = '/_assets', skipped }) => {
+  it.each([true, false])('rejects unsafe rules under a fallthrough handler with dev=%s', async (dev) => {
     const nuxt = await loadCase('without-nuxthub')
     nuxt.options.dev = dev
-    nuxt.options.app.baseURL = baseURL
-    nuxt.options.devServerHandlers = [{ route: handlerRoute, handler: () => 'asset' }]
+    nuxt.options.devServerHandlers = [{ route: '/api/private', handler: () => undefined }]
     registerAuthRouteRulesValidation(nuxt)
     const nitro = { options: { routeRules: {
       '/**': { auth: 'user' },
-      [`${ruleRoute}/**`]: { cache: true },
+      '/api/private/**': { cache: true },
     } } } as Nitro
 
-    const validation = nuxt.callHook('nitro:init', nitro)
-    if (skipped)
-      await expect(validation).resolves.toBeUndefined()
-    else
-      await expect(validation).rejects.toThrow(ruleRoute)
+    await expect(nuxt.callHook('nitro:init', nitro)).rejects.toThrow('/api/private')
   })
 
   it.each(['modules:done', 'nitro:config'] as const)('rejects unsafe rules added by a later %s callback', async (phase) => {

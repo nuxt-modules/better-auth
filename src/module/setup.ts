@@ -13,8 +13,8 @@ import { hasNuxtModule } from '@nuxt/kit'
 import { defu } from 'defu'
 import { dirname } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
-import { withoutBase, withoutTrailingSlash } from 'ufo'
 import { resolveDatabaseProvider } from '../database-provider'
+import { isInternalAssetPath } from '../runtime/internal/auth-route-rules'
 import { resolveAuthConfigDescriptors, resolveAuthPluginSources } from './config-paths'
 import { diagnostics } from './diagnostics'
 import { getHubCasing, getHubDialect } from './hub'
@@ -126,43 +126,21 @@ export function registerAuthRouteRulesValidation(nuxt: Nuxt): void {
   // Nitro initialization follows all modules:done and nitro:config callbacks.
   // @ts-expect-error Nitro augments NuxtHooks at runtime.
   nuxt.hook('nitro:init', (nitro: { options: { routeRules: Record<string, unknown> } }) => {
-    assertSafeAuthRouteRules(nitro.options.routeRules, getDevServerHandlerRoutes(nuxt))
+    assertSafeAuthRouteRules(nitro.options.routeRules)
   })
 }
 
-// Dev server handlers answer before Nitro applies route rules or auth middleware,
-// e.g. @nuxt/fonts serves /_fonts this way and adds a dev-only cache rule for it.
-function getDevServerHandlerRoutes(nuxt: Nuxt): string[] {
-  if (!nuxt.options.dev)
-    return []
-
-  const { devServerHandlers = [] } = nuxt.options as { devServerHandlers?: { route?: string }[] }
-  const baseURL = withoutTrailingSlash(nuxt.options.app.baseURL)
-  return devServerHandlers.flatMap((handler) => {
-    // Handler paths belong to the outer dev server, before app.baseURL is removed.
-    if (baseURL !== '/' && !handler.route?.startsWith(`${baseURL}/`))
-      return []
-
-    const route = handler.route && withoutTrailingSlash(withoutBase(handler.route, nuxt.options.app.baseURL))
-    return route && route !== '/' ? [route] : []
-  })
-}
-
-export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>, skippedRoutes: string[] = []): void {
+export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>): void {
   if (!Object.keys(routeRules).length)
     return
 
   const matcher = toRouteMatcher(createRouter({ routes: routeRules }))
   const paths = new Set(Object.keys(routeRules))
-  // Include handler boundaries so a skipped sample cannot represent unhandled siblings.
-  const patterns = [
-    ...collectRouteRulePatterns(matcher.ctx.table),
-    ...skippedRoutes.map(route => route.slice(1).split('/')),
-  ]
+  const patterns = [...collectRouteRulePatterns(matcher.ctx.table)]
   for (const path of collectRouteRulePaths(patterns, ''))
     paths.add(path)
   const conflicts = [...paths].flatMap((path) => {
-    if (skippedRoutes.some(route => path === route || path.startsWith(`${route}/`)))
+    if (isInternalAssetPath(path))
       return []
 
     const matches = matcher.matchAll(path) as Record<string, unknown>[]
