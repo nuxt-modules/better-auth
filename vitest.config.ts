@@ -17,6 +17,7 @@ const integrationTests = [
   'test/auth-schema-export.test.ts',
   'test/composables-subpath-exports.test.ts',
   'test/config-paths.test.ts',
+  'test/dev-server-handler-route-rules.test.ts',
   'test/dev-trusted-origins.test.ts',
   'test/exports.test.ts',
   'test/layer-default-configs.test.ts',

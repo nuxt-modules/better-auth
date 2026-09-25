@@ -75,4 +75,19 @@ describe('auth route rule intersections', () => {
   ])('preserves matcher precedence for equivalent placeholder paths', (rules) => {
     expect(() => assertSafeAuthRouteRules(rules)).not.toThrow()
   })
+
+  it('skips paths served by dev server handlers', () => {
+    expect(() => assertSafeAuthRouteRules({
+      '/**': { auth: 'user' },
+      '/_fonts/**': { cache: { maxAge: 60 } },
+    }, ['/_fonts'])).not.toThrow()
+  })
+
+  it('checks paths outside dev server handler routes', () => {
+    expect(() => assertSafeAuthRouteRules({
+      '/**': { auth: 'user' },
+      '/_fonts/**': { cache: { maxAge: 60 } },
+      '/_fontsx/**': { cache: { maxAge: 60 } },
+    }, ['/_fonts'])).toThrow('/_fontsx')
+  })
 })

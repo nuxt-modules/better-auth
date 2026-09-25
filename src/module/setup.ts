@@ -13,6 +13,7 @@ import { hasNuxtModule } from '@nuxt/kit'
 import { defu } from 'defu'
 import { dirname } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
+import { withoutBase, withoutTrailingSlash } from 'ufo'
 import { resolveDatabaseProvider } from '../database-provider'
 import { resolveAuthConfigDescriptors, resolveAuthPluginSources } from './config-paths'
 import { diagnostics } from './diagnostics'
@@ -125,11 +126,24 @@ export function registerAuthRouteRulesValidation(nuxt: Nuxt): void {
   // Nitro initialization follows all modules:done and nitro:config callbacks.
   // @ts-expect-error Nitro augments NuxtHooks at runtime.
   nuxt.hook('nitro:init', (nitro: { options: { routeRules: Record<string, unknown> } }) => {
-    assertSafeAuthRouteRules(nitro.options.routeRules)
+    assertSafeAuthRouteRules(nitro.options.routeRules, getDevServerHandlerRoutes(nuxt))
   })
 }
 
-export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>): void {
+// Dev server handlers answer before Nitro applies route rules or auth middleware,
+// e.g. @nuxt/fonts serves /_fonts this way and adds a dev-only cache rule for it.
+function getDevServerHandlerRoutes(nuxt: Nuxt): string[] {
+  if (!nuxt.options.dev)
+    return []
+
+  const { devServerHandlers = [] } = nuxt.options as { devServerHandlers?: { route?: string }[] }
+  return devServerHandlers.flatMap((handler) => {
+    const route = handler.route && withoutTrailingSlash(withoutBase(handler.route, nuxt.options.app.baseURL))
+    return route && route !== '/' ? [route] : []
+  })
+}
+
+export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>, skippedRoutes: string[] = []): void {
   if (!Object.keys(routeRules).length)
     return
 
@@ -139,6 +153,9 @@ export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>): v
   for (const path of collectRouteRulePaths(patterns, ''))
     paths.add(path)
   const conflicts = [...paths].flatMap((path) => {
+    if (skippedRoutes.some(route => path === route || path.startsWith(`${route}/`)))
+      return []
+
     const matches = matcher.matchAll(path) as Record<string, unknown>[]
     const effectiveRule = defu({}, ...matches.reverse()) as Record<string, unknown>
     if (effectiveRule.auth === undefined || effectiveRule.auth === false)
