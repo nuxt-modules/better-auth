@@ -19,6 +19,7 @@ const integrationTests = [
   'test/config-paths.test.ts',
   'test/dev-trusted-origins.test.ts',
   'test/exports.test.ts',
+  'test/fonts-route-rules.test.ts',
   'test/layer-default-configs.test.ts',
   'test/layer-explicit-configs.test.ts',
   'test/layer-plugin-contributions.test.ts',

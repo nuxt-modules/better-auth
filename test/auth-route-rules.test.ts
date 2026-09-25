@@ -75,4 +75,19 @@ describe('auth route rule intersections', () => {
   ])('preserves matcher precedence for equivalent placeholder paths', (rules) => {
     expect(() => assertSafeAuthRouteRules(rules)).not.toThrow()
   })
+
+  it.each(['/_fonts', '/_nuxt', '/_ipx', '/api/_nuxt_icon'])('allows caching internal assets under %s', (path) => {
+    expect(() => assertSafeAuthRouteRules({
+      '/**': { auth: 'user' },
+      [`${path}/**`]: { cache: { maxAge: 60 } },
+    })).not.toThrow()
+  })
+
+  it.each(['/_fontsx', '/assets', '/api/private', '/api/auth', '/api/_better-auth'])('still checks application routes under %s', (path) => {
+    expect(() => assertSafeAuthRouteRules({
+      '/**': { auth: 'user' },
+      '/_fonts/**': { cache: { maxAge: 60 } },
+      [`${path}/**`]: { cache: { maxAge: 60 } },
+    })).toThrow(path)
+  })
 })

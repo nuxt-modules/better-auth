@@ -14,6 +14,7 @@ import { defu } from 'defu'
 import { dirname } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
 import { resolveDatabaseProvider } from '../database-provider'
+import { isInternalAssetPath } from '../runtime/internal/auth-route-rules'
 import { resolveAuthConfigDescriptors, resolveAuthPluginSources } from './config-paths'
 import { diagnostics } from './diagnostics'
 import { getHubCasing, getHubDialect } from './hub'
@@ -139,6 +140,9 @@ export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>): v
   for (const path of collectRouteRulePaths(patterns, ''))
     paths.add(path)
   const conflicts = [...paths].flatMap((path) => {
+    if (isInternalAssetPath(path))
+      return []
+
     const matches = matcher.matchAll(path) as Record<string, unknown>[]
     const effectiveRule = defu({}, ...matches.reverse()) as Record<string, unknown>
     if (effectiveRule.auth === undefined || effectiveRule.auth === false)
