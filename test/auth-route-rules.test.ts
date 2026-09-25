@@ -90,4 +90,11 @@ describe('auth route rule intersections', () => {
       '/_fontsx/**': { cache: { maxAge: 60 } },
     }, ['/_fonts'])).toThrow('/_fontsx')
   })
+
+  it('checks wildcard intersections beyond a skipped representative path', () => {
+    expect(() => assertSafeAuthRouteRules({
+      '/foo/*/*': { auth: 'user' },
+      '/*/bar/*': { cache: true },
+    }, ['/foo/bar/_'])).toThrow('/foo/bar/__')
+  })
 })

@@ -137,7 +137,12 @@ function getDevServerHandlerRoutes(nuxt: Nuxt): string[] {
     return []
 
   const { devServerHandlers = [] } = nuxt.options as { devServerHandlers?: { route?: string }[] }
+  const baseURL = withoutTrailingSlash(nuxt.options.app.baseURL)
   return devServerHandlers.flatMap((handler) => {
+    // Handler paths belong to the outer dev server, before app.baseURL is removed.
+    if (baseURL !== '/' && !handler.route?.startsWith(`${baseURL}/`))
+      return []
+
     const route = handler.route && withoutTrailingSlash(withoutBase(handler.route, nuxt.options.app.baseURL))
     return route && route !== '/' ? [route] : []
   })
@@ -149,7 +154,11 @@ export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>, sk
 
   const matcher = toRouteMatcher(createRouter({ routes: routeRules }))
   const paths = new Set(Object.keys(routeRules))
-  const patterns = [...collectRouteRulePatterns(matcher.ctx.table)]
+  // Include handler boundaries so a skipped sample cannot represent unhandled siblings.
+  const patterns = [
+    ...collectRouteRulePatterns(matcher.ctx.table),
+    ...skippedRoutes.map(route => route.slice(1).split('/')),
+  ]
   for (const path of collectRouteRulePaths(patterns, ''))
     paths.add(path)
   const conflicts = [...paths].flatMap((path) => {
