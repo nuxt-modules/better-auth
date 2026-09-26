@@ -1,0 +1,8 @@
+{
+  "extends": "./.nuxt/tsconfig.server.json",
+  "include": [
+    "server/schema-types.ts",
+    ".nuxt/types/auth-schema.d.ts",
+    "../../../src/runtime/server/virtual-modules.d.ts"
+  ]
+}

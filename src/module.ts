@@ -16,7 +16,7 @@ import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExtern
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
 import { promptForSecret } from './module/secret'
 import { collectAuthRouteRules, registerAuthRouteRulesValidation, resolveAuthModuleSetup } from './module/setup'
-import { buildAuthRouteRulesCode, buildExtendedClientAuthCode, buildExtendedServerAuthCode, buildSchemaExportCode } from './module/templates'
+import { buildAuthRouteRulesCode, buildExtendedClientAuthCode, buildExtendedServerAuthCode, buildSchemaExportCode, buildSchemaExportTypes } from './module/templates'
 import { registerServerTypeTemplates, registerSharedTypeTemplates } from './module/type-templates'
 
 import './types/hooks'
@@ -169,6 +169,11 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
           write: true,
         })
         nuxt.options.alias['#auth/schema'] = schemaTemplate.dst
+        addTemplate({
+          filename: 'better-auth/schema.d.ts',
+          getContents: () => buildSchemaExportTypes(setup.database.hasHubDb, setup.database.buildContext?.hubDialect ?? 'sqlite'),
+          write: true,
+        })
 
         if (setup.schemaGeneration)
           await ensureSchemaBootstrap(schemaTemplate.dst, setup.database.buildContext?.hubDialect ?? 'sqlite')

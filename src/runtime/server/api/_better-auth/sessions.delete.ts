@@ -1,3 +1,4 @@
+import type { DevtoolsSchema } from './_schema'
 import { z } from 'zod'
 import { createAuthError, defineEventHandler, readBody } from '../../internal/nitro-compat'
 
@@ -10,7 +11,7 @@ export default defineEventHandler(async (event) => {
     const body = deleteSessionSchema.parse(await readBody(event))
 
     const { db } = await import('@nuxthub/db')
-    const { schema } = await import('#auth/schema')
+    const { schema } = await import('#auth/schema') as { schema: DevtoolsSchema }
     if (!schema?.session)
       throw createAuthError(500, 'Session table not found')
 

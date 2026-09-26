@@ -180,6 +180,38 @@ export const schema = { ...generatedSchema, user, session, account, verification
 `
 }
 
+export function buildSchemaExportTypes(hasHubDb: boolean, hubDialect: DbDialect): string {
+  if (!hasHubDb) {
+    return `export declare const user: undefined
+export declare const session: undefined
+export declare const account: undefined
+export declare const verification: undefined
+export declare const schema: undefined
+`
+  }
+
+  return `export * from './schema.${hubDialect}.js'
+
+type GeneratedSchema = typeof import('./schema.${hubDialect}.js')
+type GeneratedTable<Name extends string> = Name extends keyof GeneratedSchema
+  ? GeneratedSchema[Name]
+  : \`\${Name}s\` extends keyof GeneratedSchema
+    ? GeneratedSchema[\`\${Name}s\`]
+    : undefined
+
+export declare const user: GeneratedTable<'user'>
+export declare const session: GeneratedTable<'session'>
+export declare const account: GeneratedTable<'account'>
+export declare const verification: GeneratedTable<'verification'>
+export declare const schema: GeneratedSchema & {
+  user: typeof user
+  session: typeof session
+  account: typeof account
+  verification: typeof verification
+}
+`
+}
+
 export function buildAuthRouteRulesCode(authRouteRules: Record<string, { auth: unknown }>): string {
   return `export const authRouteRules = ${JSON.stringify(authRouteRules, null, 2)}\n`
 }
