@@ -73,30 +73,10 @@ declare module '#auth/database' {
   }, { nitro: true })
 
   addTypeTemplate({
-    filename: 'types/auth-schema.d.ts',
-    getContents: () => `
-declare module '#auth/schema' {
-  export const user: any
-  export const session: any
-  export const account: any
-  export const verification: any
-  export const schema: {
-    user: any
-    session: any
-    account: any
-    verification: any
-    [key: string]: any
-  } | undefined
-}
-`,
-  }, { nitro: true })
-
-  addTypeTemplate({
     filename: 'types/nuxt-better-auth-server-context.d.ts',
     getContents: () => `
 /// <reference path="./nitro-imports.d.ts" />
 /// <reference path="./auth-database.d.ts" />
-/// <reference path="./auth-schema.d.ts" />
 ${hasHubDb ? '/// <reference path="../hub/db.d.ts" />' : ''}
 
 export {}

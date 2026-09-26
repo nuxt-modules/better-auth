@@ -93,7 +93,6 @@ export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): 
     const projectReferenceTypePaths = [
       join(nuxt.options.buildDir, 'types/nitro-imports.d.ts'),
       join(nuxt.options.buildDir, 'types/auth-database.d.ts'),
-      join(nuxt.options.buildDir, 'types/auth-schema.d.ts'),
     ]
 
     if (hasHubDb)
@@ -104,7 +103,8 @@ export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): 
       '#auth/server': nuxt.options.alias['#auth/server'],
       '#auth/client': nuxt.options.alias['#auth/client'],
       '#auth/database': nuxt.options.alias['#auth/database'],
-      '#auth/schema': nuxt.options.alias['#auth/schema'],
+      // An exact .mjs path bypasses declaration lookup in TypeScript paths.
+      '#auth/schema': join(nuxt.options.buildDir, 'better-auth/schema'),
       '#auth/route-rules': nuxt.options.alias['#auth/route-rules'],
     } as const
 

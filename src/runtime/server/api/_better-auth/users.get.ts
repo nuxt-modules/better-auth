@@ -1,10 +1,11 @@
+import type { DevtoolsSchema } from './_schema'
 import { paginationQuerySchema, sanitizeSearchPattern } from './_schema'
 import { defineEventHandler, getQuery } from '../../internal/nitro-compat'
 
 export default defineEventHandler(async (event) => {
   try {
     const { db } = await import('@nuxthub/db')
-    const { schema } = await import('#auth/schema')
+    const { schema } = await import('#auth/schema') as { schema: DevtoolsSchema }
     if (!schema?.user)
       return { users: [], total: 0, error: 'User table not found' }
 

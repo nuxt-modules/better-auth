@@ -2,6 +2,7 @@ import { configDefaults, defineConfig } from 'vitest/config'
 import { fileURLToPath } from 'node:url'
 
 const typeTests = [
+  'test/auth-schema-types.test.ts',
   'test/client-only-types.test.ts',
   'test/config-extend-hook.test.ts',
   'test/define-server-auth-literal-inference.test.ts',

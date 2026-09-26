@@ -50,6 +50,16 @@ describe('#auth/schema export', async () => {
     expect(res.hasVerification).toBe(true)
   })
 
+  it.each(['server', 'node'])('preserves generated Drizzle types in the %s context', (context) => {
+    const typecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', `tsconfig.schema-${context}.json`], {
+      cwd: rootDir,
+      encoding: 'utf8',
+      timeout: 120_000,
+    })
+
+    expect(typecheck.status, `vue-tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
+  })
+
   it('contributes the generated schema to NuxtHub on a clean prepare', () => {
     expect(hubSchemaEntry).toContain(`export * from '${betterAuthSchema}'`)
   })
