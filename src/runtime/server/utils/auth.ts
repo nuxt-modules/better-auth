@@ -5,6 +5,7 @@ import { withoutProtocol } from 'ufo'
 import { createDatabase, db } from '#auth/database'
 import createServerAuth from '#auth/server'
 import { getRequestHost, getRequestProtocol, useRuntimeConfig } from '../internal/nitro-compat'
+import { resolveAuthBaseURL } from '../../internal/auth-base-url'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
 
 type AuthOptions = ReturnType<typeof createServerAuth>
@@ -359,7 +360,7 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
     ...(rateLimit ? { rateLimit } : {}),
     ...(database ? { database } : {}),
     secret: betterAuthSecret,
-    baseURL: siteUrl,
+    baseURL: resolveAuthBaseURL(siteUrl, runtimeConfig.app?.baseURL),
     trustedOrigins,
   }
   const auth = betterAuth(authOptions)
