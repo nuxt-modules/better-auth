@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const runtimeConfig = {
   public: { siteUrl: '' as unknown },
+  app: { baseURL: '/' },
   auth: {},
   betterAuthSecret: 'test-secret-for-testing-only-32chars',
 }
@@ -52,6 +53,7 @@ beforeEach(() => {
   vi.resetModules()
   vi.resetAllMocks()
   runtimeConfig.public.siteUrl = ''
+  runtimeConfig.app.baseURL = '/'
   createServerAuthMock.mockReturnValue({})
   for (const name of [
     'BETTER_AUTH_SECRET',
@@ -84,6 +86,15 @@ describe('serverAuth origin configuration', () => {
     vi.stubEnv('VERCEL_URL', 'deployment.vercel.app')
     const options = await authOptions(createEvent('request.example.com', 'untrusted.example.com'))
     expect(options.baseURL).toBe('https://explicit.example.com')
+  })
+
+  it('uses the Nuxt app base path for the auth route', async () => {
+    runtimeConfig.public.siteUrl = 'https://explicit.example.com/ignored-path'
+    runtimeConfig.app.baseURL = '/app/'
+
+    const options = await authOptions(createEvent())
+
+    expect(options.baseURL).toBe('https://explicit.example.com/app/api/auth')
   })
 
   it('rejects an invalid configured URL instead of falling back', async () => {

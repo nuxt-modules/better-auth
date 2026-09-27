@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { isReactive, isRef } from 'vue'
 
 const runtimeConfig = {
   public: {
     siteUrl: 'http://localhost:3000',
+    auth: { clientOnly: false },
   },
+  app: { baseURL: '/' },
 }
 const requestURL = {
   origin: 'http://request-origin.test',
@@ -38,6 +40,13 @@ async function loadUseAuthClient() {
 }
 
 describe('useAuthClient', () => {
+  beforeEach(() => {
+    runtimeConfig.public.siteUrl = 'http://localhost:3000'
+    runtimeConfig.public.auth.clientOnly = false
+    runtimeConfig.app.baseURL = '/'
+    createAppAuthClient.mockClear()
+  })
+
   it('returns null on server runtime', async () => {
     setRuntimeFlags({ client: false, server: true })
 
@@ -68,5 +77,28 @@ describe('useAuthClient', () => {
     useAuthClient()
 
     expect(createAppAuthClient).toHaveBeenLastCalledWith(requestURL.origin)
+  })
+
+  it('uses the Nuxt app base path for the local auth client', async () => {
+    setRuntimeFlags({ client: true, server: false })
+    runtimeConfig.public.siteUrl = 'https://example.com/ignored-path'
+    runtimeConfig.app.baseURL = '/app/'
+
+    const useAuthClient = await loadUseAuthClient()
+    useAuthClient()
+
+    expect(createAppAuthClient).toHaveBeenLastCalledWith('https://example.com/app/api/auth')
+  })
+
+  it('preserves the external client URL in clientOnly mode', async () => {
+    setRuntimeFlags({ client: true, server: false })
+    runtimeConfig.public.siteUrl = 'https://auth.example.com/custom/auth'
+    runtimeConfig.public.auth.clientOnly = true
+    runtimeConfig.app.baseURL = '/app/'
+
+    const useAuthClient = await loadUseAuthClient()
+    useAuthClient()
+
+    expect(createAppAuthClient).toHaveBeenLastCalledWith('https://auth.example.com/custom/auth')
   })
 })
