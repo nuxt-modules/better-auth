@@ -24,30 +24,32 @@ describe('#auth/schema export', async () => {
     rootDir,
   })
 
-  it('exports stable auth tables with plural generation enabled', async () => {
+  it('exports stable aliases for custom core model names with plural generation enabled', async () => {
     const res = await $fetch('/api/test/schema') as {
       hasUser: boolean
       hasNamedUser: boolean
-      hasUsers: boolean
+      hasGeneratedUser: boolean
       hasSession: boolean
       hasNamedSession: boolean
-      hasSessions: boolean
+      hasGeneratedSession: boolean
       hasAccount: boolean
       hasNamedAccount: boolean
-      hasAccounts: boolean
+      hasGeneratedAccount: boolean
       hasVerification: boolean
+      hasGeneratedVerification: boolean
     }
 
     expect(res.hasUser).toBe(true)
     expect(res.hasNamedUser).toBe(true)
-    expect(res.hasUsers).toBe(true)
+    expect(res.hasGeneratedUser).toBe(true)
     expect(res.hasSession).toBe(true)
     expect(res.hasNamedSession).toBe(true)
-    expect(res.hasSessions).toBe(true)
+    expect(res.hasGeneratedSession).toBe(true)
     expect(res.hasAccount).toBe(true)
     expect(res.hasNamedAccount).toBe(true)
-    expect(res.hasAccounts).toBe(true)
+    expect(res.hasGeneratedAccount).toBe(true)
     expect(res.hasVerification).toBe(true)
+    expect(res.hasGeneratedVerification).toBe(true)
   })
 
   it.each(['server', 'node'])('preserves generated Drizzle types in the %s context', (context) => {
