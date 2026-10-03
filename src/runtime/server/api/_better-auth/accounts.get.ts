@@ -1,6 +1,9 @@
 import type { DevtoolsSchema } from './_schema'
+import type { Account } from 'better-auth/types'
 import { paginationQuerySchema, sanitizeSearchPattern } from './_schema'
 import { defineEventHandler, getQuery } from '../../internal/nitro-compat'
+
+type SafeAccount = Pick<Account, 'id' | 'userId' | 'providerId' | 'accountId' | 'createdAt'>
 
 export default defineEventHandler(async (event) => {
   try {
@@ -29,7 +32,17 @@ export default defineEventHandler(async (event) => {
       countQuery,
     ])
 
-    return { accounts, total: totalResult[0]?.count ?? 0, page, limit }
+    // Account rows contain OAuth credentials and credential-provider passwords.
+    // Keep the devtools response to the metadata rendered by the UI.
+    const safeAccounts: SafeAccount[] = accounts.map((account: Account) => ({
+      id: account.id,
+      userId: account.userId,
+      providerId: account.providerId,
+      accountId: account.accountId,
+      createdAt: account.createdAt,
+    }))
+
+    return { accounts: safeAccounts, total: totalResult[0]?.count ?? 0, page, limit }
   }
   catch (error: unknown) {
     console.error('[DevTools] Fetch accounts failed:', error)

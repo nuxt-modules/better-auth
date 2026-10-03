@@ -1,5 +1,7 @@
 import type { DbDialect } from './hub'
 
+export type AuthSchemaModelNames = Partial<Record<'user' | 'session' | 'account' | 'verification', string>>
+
 function buildImports(sources: string[]): { imports: string, names: string } {
   return {
     imports: sources.map((source, index) => `import plugin${index} from ${JSON.stringify(source)}`).join('\n'),
@@ -158,7 +160,7 @@ export { db }`
 export const db = undefined`
 }
 
-export function buildSchemaExportCode(hasHubDb: boolean, hubDialect: DbDialect): string {
+export function buildSchemaExportCode(hasHubDb: boolean, hubDialect: DbDialect, modelNames: AuthSchemaModelNames = {}): string {
   if (!hasHubDb) {
     return `export const user = undefined
 export const session = undefined
@@ -172,15 +174,15 @@ export const schema = undefined
 import * as generatedSchema from './schema.${hubDialect}.mjs'
 
 const getGeneratedTable = name => generatedSchema[name] ?? generatedSchema[\`\${name}s\`]
-export const user = getGeneratedTable('user')
-export const session = getGeneratedTable('session')
-export const account = getGeneratedTable('account')
-export const verification = getGeneratedTable('verification')
+export const user = getGeneratedTable(${JSON.stringify(modelNames.user ?? 'user')})
+export const session = getGeneratedTable(${JSON.stringify(modelNames.session ?? 'session')})
+export const account = getGeneratedTable(${JSON.stringify(modelNames.account ?? 'account')})
+export const verification = getGeneratedTable(${JSON.stringify(modelNames.verification ?? 'verification')})
 export const schema = { ...generatedSchema, user, session, account, verification }
 `
 }
 
-export function buildSchemaExportTypes(hasHubDb: boolean, hubDialect: DbDialect): string {
+export function buildSchemaExportTypes(hasHubDb: boolean, hubDialect: DbDialect, modelNames: AuthSchemaModelNames = {}): string {
   if (!hasHubDb) {
     return `export declare const user: undefined
 export declare const session: undefined
@@ -199,10 +201,10 @@ type GeneratedTable<Name extends string> = Name extends keyof GeneratedSchema
     ? GeneratedSchema[\`\${Name}s\`]
     : undefined
 
-export declare const user: GeneratedTable<'user'>
-export declare const session: GeneratedTable<'session'>
-export declare const account: GeneratedTable<'account'>
-export declare const verification: GeneratedTable<'verification'>
+export declare const user: GeneratedTable<${JSON.stringify(modelNames.user ?? 'user')}>
+export declare const session: GeneratedTable<${JSON.stringify(modelNames.session ?? 'session')}>
+export declare const account: GeneratedTable<${JSON.stringify(modelNames.account ?? 'account')}>
+export declare const verification: GeneratedTable<${JSON.stringify(modelNames.verification ?? 'verification')}>
 export declare const schema: GeneratedSchema & {
   user: typeof user
   session: typeof session
