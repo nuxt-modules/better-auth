@@ -24,6 +24,8 @@ vi.mock('#imports', () => ({
 
 describe('useAuthRequestFetch', () => {
   beforeEach(() => {
+    for (const key of ['raw', 'create', 'native'])
+      Reflect.deleteProperty(requestFetch, key)
     delete clientOptions.baseURL
     delete clientOptions.basePath
     requestFetch.mockReset()
@@ -53,6 +55,49 @@ describe('useAuthRequestFetch', () => {
       baseURL: 'https://auth.example.com/api/auth',
       credentials: 'include',
     })
+  })
+
+  it('preserves raw responses and routes auth requests to the external server', async () => {
+    runtimeConfig.public.auth.clientOnly = true
+    const response = { _data: { ok: true }, status: 200 }
+    const raw = vi.fn().mockResolvedValue(response)
+    Object.assign(requestFetch, { raw })
+    const { useAuthRequestFetch } = await import('../src/runtime/app/composables/useAuthRequestFetch')
+
+    expect(await useAuthRequestFetch().raw('/api/auth/get-session', {
+      headers: { 'x-client': 'nuxt' },
+    })).toBe(response)
+
+    expect(raw).toHaveBeenCalledWith('/get-session', {
+      headers: { 'x-client': 'nuxt' },
+      baseURL: 'https://auth.example.com/api/auth',
+      credentials: 'include',
+    })
+  })
+
+  it('preserves configured fetch instances and their native fetch implementation', async () => {
+    runtimeConfig.public.auth.clientOnly = true
+    const childFetch = vi.fn().mockResolvedValue({ ok: true })
+    const childRaw = vi.fn().mockResolvedValue({ _data: { ok: true } })
+    const native = vi.fn()
+    const create = vi.fn(() => Object.assign(childFetch, { raw: childRaw, native, create: vi.fn() }))
+    Object.assign(requestFetch, { create, native })
+    const { useAuthRequestFetch } = await import('../src/runtime/app/composables/useAuthRequestFetch')
+    const fetch = useAuthRequestFetch()
+    const defaults = { headers: { 'x-default': 'nuxt' } }
+    const configuredFetch = fetch.create(defaults)
+
+    expect(create).toHaveBeenCalledExactlyOnceWith(defaults)
+    expect(fetch.native).toBe(native)
+    expect(configuredFetch.native).toBe(native)
+    await configuredFetch('/api/auth/get-session')
+    await configuredFetch.raw('/api/report', { method: 'POST' })
+
+    expect(childFetch).toHaveBeenCalledWith('/get-session', {
+      baseURL: 'https://auth.example.com/api/auth',
+      credentials: 'include',
+    })
+    expect(childRaw).toHaveBeenCalledWith('/api/report', { method: 'POST' })
   })
 
   it.each(['/api/report', '/api/authors', 'https://app.example.com/api/report', new Request('https://app.example.com/api/report')])('preserves native requests for %s in client-only mode', async (request) => {
