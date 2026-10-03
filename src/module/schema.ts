@@ -154,11 +154,16 @@ export async function setupBetterAuthSchema(
     const schemaOptions = { ...options.schema, useUuid: userConfig.advanced?.database?.generateId === 'uuid', casing: options.schema?.casing ?? hubCasing }
     const schemaCode = await generateDrizzleSchema(authOptions, dialect as 'sqlite' | 'postgresql' | 'mysql', schemaOptions)
     const { getAuthTables } = await import('better-auth/db')
+    const { initGetModelName } = await import('better-auth/adapters')
     const authTables = getAuthTables(authOptions)
+    const getModelName = initGetModelName({
+      schema: authTables,
+      usePlural: schemaOptions.usePlural ?? false,
+    })
     const modelNames: AuthSchemaModelNames = {}
     for (const name of ['user', 'session', 'account', 'verification'] as const) {
       if (authTables[name])
-        modelNames[name] = authTables[name].modelName
+        modelNames[name] = getModelName(name)
     }
 
     const schemaDir = join(nuxt.options.buildDir, 'better-auth')
