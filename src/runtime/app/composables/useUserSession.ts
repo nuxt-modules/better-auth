@@ -104,6 +104,10 @@ export function useUserSession(): UseUserSessionReturn {
 
     const previousUser = user.value
     user.value = { ...user.value, ...updates }
+    // Keep the rollback attached to this optimistic snapshot. A session
+    // refresh, sign-out, or another update may replace the shared ref while
+    // the request is in flight; an older failure must not restore stale data.
+    const optimisticUser = user.value
 
     if (!rawClient)
       return
@@ -119,7 +123,8 @@ export function useUserSession(): UseUserSessionReturn {
       }
     }
     catch (error) {
-      user.value = previousUser
+      if (user.value === optimisticUser)
+        user.value = previousUser
       if (!(error instanceof Error)) {
         const normalizedError = normalizeAuthActionError(error)
         throw new Error(normalizedError.message)
