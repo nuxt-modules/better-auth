@@ -28,6 +28,7 @@ const integrationTests = [
   'test/module-setup.test.ts',
   'test/module.test.ts',
   'test/test-utils-e2e.test.ts',
+  'test/test-utils-base-url.test.ts',
   'test/no-db.test.ts',
   'test/no-hub.test.ts',
   'test/non-tty-secret-prompt.test.ts',
