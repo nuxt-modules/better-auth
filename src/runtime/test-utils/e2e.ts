@@ -3,10 +3,11 @@ import type { AuthSession, AuthUser } from '#nuxt-better-auth'
 import type { LoginResult, TestHelpers } from 'better-auth/plugins'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
-import { url } from '@nuxt/test-utils/e2e'
+import { url, useTestContext } from '@nuxt/test-utils/e2e'
 import { parseJSON } from 'better-auth/client'
 import { getRandomPort } from 'get-port-please'
 import { defu } from 'defu'
+import { joinURL } from 'ufo'
 
 export type TestLoginOptions = Parameters<TestHelpers['login']>[0]
 export type TestLoginResult = Omit<LoginResult, 'user' | 'session'> & { user: AuthUser, session: AuthSession }
@@ -32,7 +33,8 @@ export async function createAuthTestContext(options: Partial<TestOptions> = {}) 
   } satisfies Partial<TestOptions>, options)
 
   async function call<T>(action: string, data: unknown = {}): Promise<T> {
-    const response = await fetch(url(endpoint), {
+    const baseURL = useTestContext().nuxt?.options.app.baseURL ?? '/'
+    const response = await fetch(url(joinURL(baseURL, endpoint)), {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-nuxt-auth-test': token },
       body: JSON.stringify({ action, data }),
