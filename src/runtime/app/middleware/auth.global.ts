@@ -2,6 +2,7 @@ import type { AuthRuntimeConfig } from '../../config'
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
 import { defu } from 'defu'
 import { createRouter, toRouteMatcher } from 'radix3'
+import { parsePath, parseQuery } from 'ufo'
 import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useNuxtApp, useRequestHeaders, useRuntimeConfig } from '#imports'
 import { shouldSkipAuthRouteRules } from '../../internal/auth-route-rules'
 import { matchesUser } from '../../utils/match-user'
@@ -110,8 +111,8 @@ function resolveLoginRedirect(input: {
   if (!loginTarget.startsWith('/') || loginTarget.startsWith('//'))
     return { to: loginTarget, external: false }
 
-  const [beforeHash, hash = ''] = loginTarget.split('#', 2)
-  const [path, query = ''] = beforeHash.split('?', 2)
+  const { pathname: path, search, hash } = parsePath(loginTarget)
+  const query = search.slice(1)
 
   try {
     const params = new URLSearchParams(query)
@@ -126,18 +127,16 @@ function resolveLoginRedirect(input: {
   if (import.meta.server) {
     const separator = query ? '&' : ''
     const encodedRedirect = encodeURIComponent(route.fullPath)
-    const url = `${path}?${query}${separator}${redirectQueryKey}=${encodedRedirect}${hash ? `#${hash}` : ''}`
+    const encodedKey = encodeURIComponent(redirectQueryKey)
+    const url = `${path}?${query}${separator}${encodedKey}=${encodedRedirect}${hash}`
     return { to: url, external: true }
   }
 
   // Client: return a route location object to avoid a full reload.
-  const params = new URLSearchParams(query)
-  const queryObj: Record<string, string> = {}
-  for (const [k, v] of params.entries())
-    queryObj[k] = v
+  const queryObj = parseQuery(query)
   queryObj[redirectQueryKey] = route.fullPath
 
-  return { to: { path, query: queryObj, ...(hash ? { hash: `#${hash}` } : {}) }, external: false }
+  return { to: { path, query: queryObj, ...(hash ? { hash } : {}) }, external: false }
 }
 
 async function getAuthRouteRules(): Promise<Record<string, AuthRouteRules>> {
