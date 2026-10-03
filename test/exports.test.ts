@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import yaml from 'yaml'
@@ -17,7 +17,40 @@ function listRuntimeFiles(dir: string): string[] {
   })
 }
 
+function listExportTargets(value: unknown): string[] {
+  if (typeof value === 'string')
+    return [value]
+
+  if (Array.isArray(value))
+    return value.flatMap(listExportTargets)
+
+  if (value && typeof value === 'object')
+    return Object.values(value).flatMap(listExportTargets)
+
+  return []
+}
+
 describe('exports-snapshot', async () => {
+  it('keeps every package export target present in the publishable build', () => {
+    const packageRoot = new URL('..', import.meta.url)
+    const packageJSON = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+      exports: Record<string, unknown>
+    }
+
+    const missing = listExportTargets(packageJSON.exports)
+      .filter(target => target.startsWith('./'))
+      .filter((target) => {
+        try {
+          return !statSync(new URL(target, packageRoot)).isFile()
+        }
+        catch {
+          return true
+        }
+      })
+
+    expect(missing).toEqual([])
+  }, 360_000)
+
   it('module exports', async () => {
     const moduleExports = await import('../dist/module.mjs')
     const configExports = await import('../dist/runtime/config.js')
