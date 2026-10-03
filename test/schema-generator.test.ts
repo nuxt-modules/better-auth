@@ -49,7 +49,7 @@ const ADDITIONAL_FIELDS_CONFIG = `export default defineServerAuth({ user: { addi
  * reads: a sqlite hub dialect, a build dir to write into, and an auth config
  * whose contents each test chooses.
  */
-function createSchemaProject(options: { dev: boolean, config: string, configExtension?: '.js' | '.ts' }) {
+function createSchemaProject(options: { dev: boolean, config: string, configExtension?: '.js' | '.ts', moduleOptions?: Partial<BetterAuthModuleOptions> }) {
   const rootDir = mkdtempSync(join(tmpdir(), 'nuxt-better-auth-project-'))
   projectDirs.push(rootDir)
 
@@ -83,14 +83,18 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
   const logger = { ...silentConsola, warn: vi.fn(), error: vi.fn() }
 
   let setupPromise: Promise<boolean> | undefined
+  let schemaModelNames: Awaited<ReturnType<typeof setupBetterAuthSchema>>
   const finishSetup = () => {
     setupPromise ||= runWithNuxtContext(nuxt, () => setupBetterAuthSchema(
       nuxt,
       serverConfigPath,
-      {} as BetterAuthModuleOptions,
+      (options.moduleOptions ?? {}) as BetterAuthModuleOptions,
       logger,
       undefined,
-    )).then(() => true)
+    )).then((result) => {
+      schemaModelNames = result
+      return true
+    })
     return setupPromise
   }
   const run = async () => {
@@ -110,7 +114,7 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
     return paths
   }
 
-  return { run, schemaPath, writeExistingSchema, collectHubSchemaPaths, nuxt, logger }
+  return { run, schemaPath, writeExistingSchema, collectHubSchemaPaths, nuxt, logger, getSchemaModelNames: () => schemaModelNames }
 }
 
 describe('generateDrizzleSchema', () => {
@@ -400,6 +404,26 @@ describe('setupBetterAuthSchema when the auth config loads', () => {
     await project.run()
 
     expect(readFileSync(project.schemaPath, 'utf8')).toContain('customField')
+  })
+
+  it('returns the exact generated model names when plural schema exports collide', async () => {
+    const project = createSchemaProject({
+      dev: true,
+      config: `export default defineServerAuth({
+        user: { modelName: 'member' },
+        account: { modelName: 'members' },
+      })`,
+      moduleOptions: { schema: { usePlural: true } },
+    })
+
+    await project.run()
+
+    expect(project.getSchemaModelNames()).toMatchObject({
+      user: 'members',
+      session: 'sessions',
+      account: 'memberss',
+      verification: 'verifications',
+    })
   })
 })
 
