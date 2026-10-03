@@ -93,7 +93,7 @@ describe('setupRuntimeConfig siteUrl hydration', () => {
       consola,
     })
 
-    expect(consola.warn).toHaveBeenCalledWith('clientOnly mode: set runtimeConfig.public.siteUrl (or NUXT_PUBLIC_SITE_URL) to your frontend URL')
+    expect(consola.warn).toHaveBeenCalledWith('clientOnly mode: set runtimeConfig.public.siteUrl (or NUXT_PUBLIC_SITE_URL) to your auth backend URL, or set baseURL in defineClientAuth()')
   })
 })
 

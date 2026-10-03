@@ -62,7 +62,7 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryS
   if (clientOnly) {
     const siteUrl = nuxt.options.runtimeConfig.public.siteUrl as string | undefined
     if (!siteUrl)
-      consola.warn('clientOnly mode: set runtimeConfig.public.siteUrl (or NUXT_PUBLIC_SITE_URL) to your frontend URL')
+      consola.warn('clientOnly mode: set runtimeConfig.public.siteUrl (or NUXT_PUBLIC_SITE_URL) to your auth backend URL, or set baseURL in defineClientAuth()')
     consola.info('clientOnly mode enabled - server utilities (serverAuth, getRequestSession, getUserSession, requireUserSession) are not available')
     return { secondaryStorageEnabled }
   }
