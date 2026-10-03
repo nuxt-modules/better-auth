@@ -1,7 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { ServerEvent } from '../internal/nitro-compat'
 import { betterAuth, env } from 'better-auth'
-import { withoutProtocol } from 'ufo'
 import { createDatabase, db } from '#auth/database'
 import createServerAuth from '#auth/server'
 import { getRequestHost, getRequestProtocol, useRuntimeConfig } from '../internal/nitro-compat'
@@ -139,41 +138,33 @@ function getNitroOrigin(): string | undefined {
   let port: string | undefined
   if (import.meta.dev)
     port = process.env.NITRO_PORT || process.env.PORT || '3000'
-  let protocol = (cert && key) || !import.meta.dev ? 'https' : 'http'
+  const protocol = (cert && key) || !import.meta.dev ? 'https' : 'http'
 
   try {
     if ((import.meta.dev || import.meta.prerender) && process.env.__NUXT_DEV__) {
-      const origin = JSON.parse(process.env.__NUXT_DEV__).proxy.url
-      host = withoutProtocol(origin)
-      protocol = origin.includes('https') ? 'https' : 'http'
+      const url = new URL(JSON.parse(process.env.__NUXT_DEV__).proxy.url)
+      if (url.protocol === 'http:' || url.protocol === 'https:')
+        return url.origin
     }
     else if ((import.meta.dev || import.meta.prerender) && process.env.NUXT_VITE_NODE_OPTIONS) {
-      const origin = JSON.parse(process.env.NUXT_VITE_NODE_OPTIONS).baseURL.replace('/__nuxt_vite_node__', '')
-      host = withoutProtocol(origin)
-      protocol = origin.includes('https') ? 'https' : 'http'
+      const url = new URL(JSON.parse(process.env.NUXT_VITE_NODE_OPTIONS).baseURL)
+      if (url.protocol === 'http:' || url.protocol === 'https:')
+        return url.origin
     }
   }
   catch {
-    // JSON parse failed, continue with env fallbacks
+    // Invalid proxy configuration, continue with listener environment fallbacks.
   }
 
   if (!host)
     return undefined
 
-  if (host.startsWith('[') && host.includes(']:')) {
-    const lastBracketColon = host.lastIndexOf(']:')
-    const extractedPort = host.slice(lastBracketColon + 2)
-    host = host.slice(0, lastBracketColon + 1)
-    if (extractedPort)
-      port = extractedPort
-  }
-  else if (host.includes(':') && !host.startsWith('[')) {
-    const hostParts = host.split(':')
-    port = hostParts.pop()
-    host = hostParts.join(':')
-  }
+  // Listener hosts can be bare IPv6 addresses. Bracket them before adding a port.
+  if (!host.startsWith('[') && host.indexOf(':') !== host.lastIndexOf(':'))
+    host = `[${host}]`
 
-  const portSuffix = port ? `:${port}` : ''
+  const hasExplicitPort = host.startsWith('[') ? host.includes(']:') : host.includes(':')
+  const portSuffix = !hasExplicitPort && port ? `:${port}` : ''
   return `${protocol}://${host}${portSuffix}`
 }
 
@@ -241,8 +232,7 @@ function getDevTrustedOrigins(): string[] {
   try {
     const url = new URL(nitroOrigin)
     const protocol = url.protocol === 'https:' ? 'https' : 'http'
-    const port = url.port || '3000'
-    const localhostOrigin = `${protocol}://localhost:${port}`
+    const localhostOrigin = `${protocol}://localhost${url.port ? `:${url.port}` : ''}`
     return dedupeOrigins([localhostOrigin, url.origin])
   }
   catch {

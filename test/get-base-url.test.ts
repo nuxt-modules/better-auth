@@ -182,10 +182,15 @@ describe.runIf(Boolean(import.meta.dev))('serverAuth development origins', () =>
 
   it.each([
     [{ NITRO_HOST: 'localhost', NITRO_PORT: '4000' }, 'http://localhost:4000'],
+    [{ NITRO_HOST: '::1', NITRO_PORT: '4000' }, 'http://localhost:4000'],
+    [{ NITRO_HOST: '[::1]:4003', NITRO_PORT: '4000' }, 'http://localhost:4003'],
     [{ HOST: 'localhost' }, 'http://localhost:3000'],
     [{ HOST: 'localhost', NITRO_SSL_CERT: 'cert', NITRO_SSL_KEY: 'key' }, 'https://localhost:3000'],
     [{ __NUXT_DEV__: JSON.stringify({ proxy: { url: 'http://localhost:4001' } }) }, 'http://localhost:4001'],
+    [{ __NUXT_DEV__: JSON.stringify({ proxy: { url: 'https://localhost' } }) }, 'https://localhost'],
+    [{ __NUXT_DEV__: JSON.stringify({ proxy: { url: 'http://https.local:4001' } }) }, 'http://https.local:4001'],
     [{ NUXT_VITE_NODE_OPTIONS: JSON.stringify({ baseURL: 'http://localhost:4002/__nuxt_vite_node__' }) }, 'http://localhost:4002'],
+    [{ NUXT_VITE_NODE_OPTIONS: JSON.stringify({ baseURL: 'https://localhost/__nuxt_vite_node__' }) }, 'https://localhost'],
     [{ __NUXT_DEV__: 'invalid-json', HOST: 'localhost' }, 'http://localhost:3000'],
     [{}, 'http://localhost:3000'],
   ])('resolves development environment %j', async (env, expected) => {
@@ -197,6 +202,11 @@ describe.runIf(Boolean(import.meta.dev))('serverAuth development origins', () =>
   it('adds the detected localhost and loopback origins', async () => {
     vi.stubEnv('__NUXT_DEV__', JSON.stringify({ proxy: { url: 'http://127.0.0.1:4123' } }))
     expect(await trustedOrigins()).toEqual(['http://localhost:4123', 'http://127.0.0.1:4123'])
+  })
+
+  it('keeps the default HTTPS port in development trusted origins', async () => {
+    vi.stubEnv('__NUXT_DEV__', JSON.stringify({ proxy: { url: 'https://127.0.0.1' } }))
+    expect(await trustedOrigins()).toEqual(['https://localhost', 'https://127.0.0.1'])
   })
 
   it('preserves and deduplicates configured trusted origins', async () => {
