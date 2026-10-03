@@ -2,6 +2,7 @@ import type { Nuxt } from '@nuxt/schema'
 import type { DbDialect } from './module/hub'
 import type { BetterAuthModuleOptions } from './runtime/config'
 import type { BetterAuthDatabaseProviderSetupContext, BetterAuthPluginSources } from './types/hooks'
+import type { AuthSchemaModelNames } from './module/templates'
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
@@ -132,6 +133,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 
       let serverConfigPath = setup.aliases['#auth/server']
       let clientConfigPath = setup.aliases['#auth/client']
+      let schemaModelNames: AuthSchemaModelNames | undefined
 
       if (serverConfigPath && setup.pluginSources.server.length) {
         const serverConfigCode = buildExtendedServerAuthCode(setup.configs.server.path, setup.pluginSources.server)
@@ -165,13 +167,13 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
 
         const schemaTemplate = addTemplate({
           filename: 'better-auth/schema.mjs',
-          getContents: () => buildSchemaExportCode(setup.database.hasHubDb, setup.database.buildContext?.hubDialect ?? 'sqlite'),
+          getContents: () => buildSchemaExportCode(setup.database.hasHubDb, setup.database.buildContext?.hubDialect ?? 'sqlite', schemaModelNames),
           write: true,
         })
         nuxt.options.alias['#auth/schema'] = schemaTemplate.dst
         addTemplate({
           filename: 'better-auth/schema.d.ts',
-          getContents: () => buildSchemaExportTypes(setup.database.hasHubDb, setup.database.buildContext?.hubDialect ?? 'sqlite'),
+          getContents: () => buildSchemaExportTypes(setup.database.hasHubDb, setup.database.buildContext?.hubDialect ?? 'sqlite', schemaModelNames),
           write: true,
         })
 
@@ -222,7 +224,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
         if (setup.schemaGeneration.externalizeNuxtHubDatabase)
           registerNuxtHubDatabaseExternalHook(nuxt)
 
-        await setupBetterAuthSchema(
+        schemaModelNames = await setupBetterAuthSchema(
           nuxt,
           serverConfigPath!,
           options,
