@@ -1,16 +1,17 @@
-import { account, schema, session, user } from '#auth/schema'
+import { account, challenges, identitys, loginSessions, persons, schema, session, user, verification } from '#auth/schema'
 
 export default defineEventHandler(() => {
   return {
     hasUser: Boolean(schema?.user),
     hasNamedUser: Boolean(user),
-    hasUsers: Boolean(schema?.users),
+    hasGeneratedUser: user === persons && schema.persons === persons,
     hasSession: Boolean(schema?.session),
     hasNamedSession: Boolean(session),
-    hasSessions: Boolean(schema?.sessions),
+    hasGeneratedSession: session === loginSessions && schema.loginSessions === loginSessions,
     hasAccount: Boolean(schema?.account),
     hasNamedAccount: Boolean(account),
-    hasAccounts: Boolean(schema?.accounts),
+    hasGeneratedAccount: account === identitys && schema.identitys === identitys,
     hasVerification: Boolean(schema?.verification),
+    hasGeneratedVerification: verification === challenges && schema.challenges === challenges,
   }
 })

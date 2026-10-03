@@ -3,6 +3,7 @@ import type { BetterAuthPlugin } from 'better-auth'
 import type { ConsolaInstance } from 'consola'
 import type { BetterAuthModuleOptions } from '../runtime/config'
 import type { NuxtHubOptions } from './hub'
+import type { AuthSchemaModelNames } from './templates'
 import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate } from '@nuxt/kit'
@@ -109,7 +110,7 @@ export async function setupBetterAuthSchema(
   options: BetterAuthModuleOptions,
   consola: ConsolaInstance,
   hubSecondaryStorage: HubSecondaryStorageMode,
-): Promise<void> {
+): Promise<AuthSchemaModelNames | undefined> {
   const hub = (nuxt.options as { hub?: NuxtHubOptions }).hub
   const dialect = getHubDialect(hub)
   if (!dialect || !['sqlite', 'postgresql', 'mysql'].includes(dialect)) {
@@ -152,6 +153,13 @@ export async function setupBetterAuthSchema(
     const hubCasing = getHubCasing(hub)
     const schemaOptions = { ...options.schema, useUuid: userConfig.advanced?.database?.generateId === 'uuid', casing: options.schema?.casing ?? hubCasing }
     const schemaCode = await generateDrizzleSchema(authOptions, dialect as 'sqlite' | 'postgresql' | 'mysql', schemaOptions)
+    const { getAuthTables } = await import('better-auth/db')
+    const authTables = getAuthTables(authOptions)
+    const modelNames: AuthSchemaModelNames = {}
+    for (const name of ['user', 'session', 'account', 'verification'] as const) {
+      if (authTables[name])
+        modelNames[name] = authTables[name].modelName
+    }
 
     const schemaDir = join(nuxt.options.buildDir, 'better-auth')
     const schemaPathTs = join(schemaDir, `schema.${dialect}.ts`)
@@ -172,6 +180,7 @@ export async function setupBetterAuthSchema(
     addTemplate({ filename: `better-auth/schema.${dialect}.mjs`, getContents: () => schemaCode, write: true })
 
     consola.info(`Generated ${dialect} schema (.ts + .mjs)`)
+    return modelNames
   }
   catch (error) {
     // Nuxt reports this failure in both dev and production. Preserve an existing
