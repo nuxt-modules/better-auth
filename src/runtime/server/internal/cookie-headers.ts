@@ -32,7 +32,7 @@ export function appendCookieHeader(event: ServerEvent, header: string): void {
   responseHeaders?.append('set-cookie', header)
 }
 
-function getSetCookieHeaders(headers: Headers): string[] {
+export function getSetCookieHeaders(headers: Headers): string[] {
   const cookieHeaders = headers as Headers & {
     getSetCookie?: () => string[]
     getAll?: (name: string) => string[]

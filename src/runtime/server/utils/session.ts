@@ -2,7 +2,7 @@ import type { AppSession, AuthSession, RequireSessionOptions } from '#nuxt-bette
 import { matchesUser } from '../../utils/match-user'
 import type { ServerEvent } from '../internal/nitro-compat'
 import { createAuthError } from '../internal/nitro-compat'
-import { appendCookieHeader, appendSetCookieHeaders } from '../internal/cookie-headers'
+import { appendCookieHeader, appendSetCookieHeaders, getSetCookieHeaders } from '../internal/cookie-headers'
 import { serverAuth } from './auth'
 
 const requestSessionLoadKey = Symbol.for('nuxt-better-auth.requestSessionLoad')
@@ -257,6 +257,38 @@ function expireCookies(event: ServerEvent, cookie: { name: string, attributes: C
     expireCookie(event, cookieName, cookie.attributes)
 }
 
+function isCookieOrChunk(name: string, cookieName: string): boolean {
+  if (name === cookieName)
+    return true
+
+  if (!name.startsWith(`${cookieName}.`))
+    return false
+
+  const suffix = name.slice(cookieName.length + 1)
+  const index = Number(suffix)
+  return Number.isSafeInteger(index) && index >= 0 && String(index) === suffix
+}
+
+function expireUnrefreshedSessionCookieCache(event: ServerEvent, headers: Headers, cookie: AuthCookie): void {
+  const cookieName = getCookieName(cookie.name, cookie.attributes.prefix)
+  if (!cookieName)
+    return
+
+  const responseHandlesCache = getSetCookieHeaders(headers).some((header) => {
+    const name = header.slice(0, header.indexOf('='))
+    return isCookieOrChunk(name, cookieName)
+  })
+  if (responseHandlesCache)
+    return
+
+  // Better Auth skips writing cache cookies for sessions with rememberMe: false.
+  // Removing the old cache makes the next request load the updated session.
+  for (const name of parseRequestCookies(getRequestHeaders(event).get('cookie')).keys()) {
+    if (isCookieOrChunk(name, cookieName))
+      expireCookie(event, name, cookie.attributes)
+  }
+}
+
 function updateRequestHeaders(event: ServerEvent, sessionCookie: string, clearedCookieNames: string[]): void {
   const requestContext = getRequestSessionContext(event)
   const incomingHeaders = getIncomingRequestHeaders(event)
@@ -337,12 +369,16 @@ export async function refreshSessionCookieCache(event: ServerEvent): Promise<App
       return context.requestSession ?? null
 
     delete context.requestSession
-    const { headers, response } = await loadFreshSession(event)
+    const [{ headers, response }, authContext] = await Promise.all([
+      loadFreshSession(event),
+      getServerAuthContext(event),
+    ])
 
     if (context[requestSessionLoadKey] !== load)
       return context.requestSession ?? null
 
     appendSetCookieHeaders(event, headers)
+    expireUnrefreshedSessionCookieCache(event, headers, authContext.authCookies.sessionData)
     context.requestSession = response
     return response
   })

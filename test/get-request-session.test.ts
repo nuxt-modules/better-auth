@@ -652,6 +652,7 @@ describe('refreshSessionCookieCache', () => {
 
     const { getRequestSession, refreshSessionCookieCache } = await import('../src/runtime/server/utils/session')
     const event = createEvent()
+    event.headers.set('cookie', `${authContextMock.authCookies.sessionData.name}=stale`)
 
     await expect(getRequestSession(event)).resolves.toEqual(staleSession)
     await expect(refreshSessionCookieCache(event)).resolves.toEqual(freshSession)
@@ -668,6 +669,50 @@ describe('refreshSessionCookieCache', () => {
       sessionDataCookie,
       sessionTokenCookie,
     ])
+  })
+
+  it.each(['Node', 'Nitro 3'] as const)('expires only incoming cache cookies when no replacement is written on %s', async (shape) => {
+    const freshSession = {
+      user: { id: 'u1', name: 'After' },
+      session: { id: 's1' },
+    }
+    const cacheName = authContextMock.authCookies.sessionData.name
+    const unrelatedCookie = `plugin=1; Extension=left, ${cacheName}=right; Path=/`
+    getSessionMock.mockResolvedValue({
+      headers: new Headers({ 'set-cookie': unrelatedCookie }),
+      response: freshSession,
+    })
+    const { getRequestSession, refreshSessionCookieCache } = await import('../src/runtime/server/utils/session')
+    const event = shape === 'Node' ? createEvent() : createNitroV3Event()
+    const requestHeaders = shape === 'Node' ? event.headers : event.req.headers
+    requestHeaders.set('cookie', [
+      `${cacheName}.0=chunk-0`,
+      `${cacheName}.1=chunk-1`,
+      `${cacheName}.metadata=unrelated`,
+      `${authContextMock.authCookies.sessionToken.name}=token`,
+      `${authContextMock.authCookies.dontRememberToken.name}=remember-me`,
+    ].join('; '))
+
+    await expect(refreshSessionCookieCache(event)).resolves.toEqual(freshSession)
+    await expect(getRequestSession(event)).resolves.toEqual(freshSession)
+
+    const cookies = shape === 'Node' ? event.node.res.getHeader('set-cookie') : event.res.headers.getSetCookie()
+    expect(cookies).toHaveLength(3)
+    expect(cookies[0]).toBe(unrelatedCookie)
+    expect(cookies.slice(1)).toEqual([
+      `${cacheName}.0=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Lax`,
+      `${cacheName}.1=; Max-Age=0; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; Secure; SameSite=Lax`,
+    ])
+    expect(getSessionMock).toHaveBeenCalledOnce()
+  })
+
+  it('does not add cache cookies when the request has no cached session', async () => {
+    getSessionMock.mockResolvedValue({ headers: new Headers(), response: null })
+    const { refreshSessionCookieCache } = await import('../src/runtime/server/utils/session')
+    const event = createEvent()
+
+    await expect(refreshSessionCookieCache(event)).resolves.toBeNull()
+    expect(event.node.res.getHeader('set-cookie')).toBeUndefined()
   })
 
   it('cannot overwrite a request session supplied after the refresh starts', async () => {
