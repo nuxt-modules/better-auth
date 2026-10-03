@@ -43,16 +43,38 @@ export function useAuthRequestFetch(): AuthRequestFetch & ReturnType<typeof useR
   const baseURL = configuredBaseURL && new URL(configuredBaseURL).pathname.replace(/\/+$/, '')
     ? configuredBaseURL
     : joinURL(configuredBaseURL || '/', clientOptions.basePath ?? '/api/auth')
-  const externalRequestFetch = requestFetch as unknown as (request: Parameters<typeof requestFetch>[0], opts?: RequestFetchOptions) => Promise<unknown>
-  // Keep Nuxt's request-scoped fetch so incoming cookies are forwarded during SSR.
-  return ((request: Parameters<typeof requestFetch>[0], opts?: RequestFetchOptions) => {
-    if (typeof request !== 'string' || !/^\/api\/auth(?=\/|$)/.test(request))
-      return externalRequestFetch(request, opts)
+  type RequestFetch = ReturnType<typeof useRequestFetch>
+  type FetchFunction = (request: Parameters<RequestFetch>[0], opts?: RequestFetchOptions) => Promise<unknown>
 
-    return externalRequestFetch(request.slice('/api/auth'.length), {
-      ...opts,
-      baseURL,
-      credentials: 'include',
+  // Preserve whichever fetch interface Nuxt supplies, including ofetch methods.
+  function wrapRequestFetch(fetch: FetchFunction): FetchFunction {
+    const methods = new Map<PropertyKey, unknown>()
+    return new Proxy(fetch, {
+      apply(target, thisArg, args) {
+        const [request, opts] = args as [Parameters<RequestFetch>[0], RequestFetchOptions?]
+        if (typeof request !== 'string' || !/^\/api\/auth(?=\/|$)/.test(request))
+          return Reflect.apply(target, thisArg, args)
+
+        return Reflect.apply(target, thisArg, [request.slice('/api/auth'.length), {
+          ...opts,
+          baseURL,
+          credentials: 'include',
+        }])
+      },
+      get(target, prop, receiver) {
+        if (methods.has(prop))
+          return methods.get(prop)
+        const value = Reflect.get(target, prop, receiver)
+        if (typeof value !== 'function' || (prop !== 'raw' && prop !== 'create'))
+          return value
+        const method = prop === 'raw'
+          ? wrapRequestFetch(value as FetchFunction)
+          : (...args: unknown[]) => wrapRequestFetch(Reflect.apply(value, target, args) as FetchFunction)
+        methods.set(prop, method)
+        return method
+      },
     })
-  }) as AuthRequestFetch & ReturnType<typeof useRequestFetch>
+  }
+
+  return wrapRequestFetch(requestFetch as unknown as FetchFunction) as AuthRequestFetch & RequestFetch
 }
