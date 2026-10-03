@@ -2,6 +2,7 @@ import { createAuthClient } from 'better-auth/vue'
 import { createPinia, defineStore, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isReactive, isRef, ref, watch } from 'vue'
+import { deferred } from './helpers/deferred'
 
 interface SessionState {
   data: { session: Record<string, unknown>, user: Record<string, unknown> } | null
@@ -1163,6 +1164,47 @@ describe('useUserSession hydration bootstrap', () => {
 
     await expect(auth.updateUser({ name: 'New' })).rejects.toThrow('invalid user update')
     expect(auth.user.value!.name).toBe('Old')
+  })
+
+  it('does not restore an optimistic user after signOut wins the race', async () => {
+    const update = deferred<{ data: { status: true } }>()
+    mockClient.updateUser = vi.fn(() => update.promise)
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    auth.session.value = { id: 'session-1' } as any
+    auth.user.value = { id: 'user-1', name: 'Old', email: 'a@b.com' }
+
+    const pendingUpdate = auth.updateUser({ name: 'New' })
+    await auth.signOut({ onSuccess: vi.fn() })
+    update.reject(new Error('update failed'))
+
+    await expect(pendingUpdate).rejects.toThrow('update failed')
+    expect(auth.session.value).toBeNull()
+    expect(auth.user.value).toBeNull()
+  })
+
+  it('does not roll back over a newer session snapshot', async () => {
+    const update = deferred<{ data: { status: true } }>()
+    mockClient.updateUser = vi.fn(() => update.promise)
+    mockClient.getSession.mockResolvedValueOnce({
+      data: {
+        session: { id: 'session-2' },
+        user: { id: 'user-1', name: 'Server', email: 'a@b.com' },
+      },
+    })
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    auth.session.value = { id: 'session-1' } as any
+    auth.user.value = { id: 'user-1', name: 'Old', email: 'a@b.com' }
+
+    const pendingUpdate = auth.updateUser({ name: 'New' })
+    await auth.fetchSession({ force: true })
+    const refreshedUser = auth.user.value
+    update.reject(new Error('update failed'))
+
+    await expect(pendingUpdate).rejects.toThrow('update failed')
+    expect(auth.user.value).toBe(refreshedUser)
+    expect(auth.user.value?.name).toBe('Server')
   })
 
   it('updateUser only updates local state on server (no client)', async () => {
