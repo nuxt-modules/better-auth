@@ -20,8 +20,8 @@
     "resend": "6.18.0"
   },
   "devDependencies": {
-    "@libsql/client": "^0.17.4",
-    "auth": "1.7.3",
+    "@libsql/client": "^0.18.0",
+    "auth": "1.7.7",
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "nitro-cloudflare-dev": "^0.2.2",
