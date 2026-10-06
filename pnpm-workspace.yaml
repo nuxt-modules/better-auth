@@ -6,6 +6,7 @@ minimumReleaseAgeExclude:
   - '@nuxt/vite-builder@4.6.0'
   - '@nuxt/vite-server@4.6.0'
   - nuxt@4.6.0
+  - cssnano-utils@8.2.0
 shellEmulator: true
 
 trustPolicy: no-downgrade
@@ -39,6 +40,7 @@ trustPolicyExclude:
   - postcss-normalize-timing-functions@9.0.5
   - postcss-normalize-display-values@9.0.5
   - cssnano-utils@8.1.0
+  - cssnano-utils@8.2.0
   - postcss-svgo@9.0.4
   - stylehacks@9.0.7
   - semver@6.3.1
@@ -53,5 +55,8 @@ allowBuilds:
 packages:
   - docs
   - playground
+# postcss-merge-rules 9.1.0 declares cssnano-utils ^8.1.0 but calls sameContainer(), added in 8.2.0.
+overrides:
+  cssnano-utils@8: ^8.2.0
 patchedDependencies:
   '@peculiar/x509@1.14.3': patches/@peculiar__x509@1.14.3.patch
