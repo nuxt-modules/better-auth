@@ -16,7 +16,7 @@
     "@nuxt/ui": "^4.10.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "@vueuse/core": "^14.4.0",
+    "@vueuse/core": "^15.0.0",
     "motion-v": "^2.4.0",
     "nuxt": "^4.6.0",
     "nuxt-shiki": "^0.3.2",
@@ -26,8 +26,8 @@
   "devDependencies": {
     "@iconify-json/solar": "^1.2.8",
     "@rollup/plugin-yaml": "^5.0.0",
-    "@vueuse/nuxt": "^14.4.0",
+    "@vueuse/nuxt": "^15.0.0",
     "docus": "^5.12.3",
-    "wrangler": "4.124.0"
+    "wrangler": "4.147.0"
   }
 }
