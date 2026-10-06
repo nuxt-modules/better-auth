@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  cssnano-utils@8: ^8.2.0
-
 patchedDependencies:
   '@peculiar/x509@1.14.3': 9c8ada908b6cc52383753474a236a662dcc5a57605d5726c9e9859e70adb16ca
 
