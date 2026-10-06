@@ -58,6 +58,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
 
   const config = useRuntimeConfig().public.auth as AuthRuntimeConfig | undefined
+  if (import.meta.server && config?.clientOnly)
+    return
+
   const { fetchSession, user, loggedIn } = useUserSession()
 
   const mode: AuthMode = typeof auth === 'string' ? auth : auth?.only ?? 'user'

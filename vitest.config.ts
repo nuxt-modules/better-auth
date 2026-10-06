@@ -16,6 +16,7 @@ const typeTests = [
 
 const integrationTests = [
   'test/app-base-url.test.ts',
+  'test/client-only-ssr-auth.test.ts',
   'test/auth-schema-export.test.ts',
   'test/composables-subpath-exports.test.ts',
   'test/config-paths.test.ts',
