@@ -110,7 +110,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.3.0",
-    "@libsql/client": "^0.17.4",
+    "@libsql/client": "^0.18.0",
     "@libsql/linux-x64-gnu": "0.5.29",
     "@nuxt/devtools": "^3.4.1",
     "@nuxt/fonts": "0.14.0",
@@ -132,14 +132,14 @@
     "nuxt": "^4.5.2",
     "pinia": "^4.0.3",
     "pkg-pr-new": "0.0.88",
-    "playwright-core": "1.58.2",
+    "playwright-core": "1.63.0",
     "postgres": "^3.4.9",
     "typescript": "~5.9.3",
     "unstorage": "^1.17.5",
     "vitest": "^5.0.0",
-    "vue": "3.5.41",
+    "vue": "3.5.43",
     "vue-tsc": "^3.3.10",
-    "wrangler": "4.124.0",
+    "wrangler": "4.147.0",
     "yaml": "^2.9.0"
   }
 }
