@@ -57,7 +57,7 @@ beforeEach(() => {
   vi.resetModules()
   vi.clearAllMocks()
   appSecret.available = true
-  for (const name of ['BETTER_AUTH_SECRET', 'BETTER_AUTH_SECRETS', 'AUTH_SECRET'])
+  for (const name of ['BETTER_AUTH_SECRET', 'BETTER_AUTH_SECRETS', 'AUTH_SECRET', 'NUXT_APP_SECRET_GENERATED'])
     vi.stubEnv(name, '')
   setRuntimeSecret('')
   createServerAuthMock.mockReturnValue({})
@@ -151,6 +151,16 @@ describe.skipIf(import.meta.dev)('serverAuth secret from Nuxt appSecret', () => 
     expect(passedSecret()).toBe(derivedSecret)
   })
 
+  it('ignores the development-only generated appSecret flag in production', async () => {
+    vi.stubEnv('NUXT_APP_SECRET_GENERATED', '1')
+    const { serverAuth, prepareAuthSecret } = await loadServerAuth()
+
+    await prepareAuthSecret()
+    serverAuth()
+
+    expect(passedSecret()).toBe(derivedSecret)
+  })
+
   it('keeps the existing error before Nuxt 4.6', async () => {
     appSecret.available = false
     const { serverAuth, prepareAuthSecret } = await loadServerAuth()
@@ -176,6 +186,30 @@ describe.runIf(import.meta.dev)('serverAuth secret from Nuxt appSecret in develo
     expect(ready).not.toBe(early)
     expect(passedSecret()).toBe(derivedSecret)
     expect(serverAuth()).toBe(ready)
+  })
+
+  it('keeps the development default when Nuxt generated the appSecret, so existing sessions stay valid', async () => {
+    vi.stubEnv('NUXT_APP_SECRET_GENERATED', '1')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { serverAuth, prepareAuthSecret } = await loadServerAuth()
+
+    await prepareAuthSecret()
+    const auth = serverAuth()
+
+    expect(deriveAuthSecretMock).not.toHaveBeenCalled()
+    expect(passedSecret()).toBe('')
+    expect(warn).not.toHaveBeenCalled()
+    expect(serverAuth()).toBe(auth)
+  })
+
+  it('derives the secret from an appSecret the user set in development', async () => {
+    const { serverAuth, prepareAuthSecret } = await loadServerAuth()
+
+    await prepareAuthSecret()
+    serverAuth()
+
+    expect(deriveAuthSecretMock).toHaveBeenCalledOnce()
+    expect(passedSecret()).toBe(derivedSecret)
   })
 
   it('keeps the development default before Nuxt 4.6', async () => {
