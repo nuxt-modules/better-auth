@@ -58,7 +58,7 @@ jobs:
             database: true
           # Keep merge proof on a reviewed snapshot; float nightlies only in non-gating surveillance.
           # NuxtHub 0.10.8 still imports Nitro 2 APIs; retain the no-DB Nuxt 5 smoke check.
-          - version: npm:nuxt-nightly@5.0.0-29765760.f83eac74
+          - version: npm:nuxt-nightly@5.0.0-2610052343-36eafab
             database: false
         better_auth:
           - 1.7.3
@@ -92,7 +92,7 @@ jobs:
       - run: node test/compatibility/check.mjs /tmp/nuxt-better-auth-compatibility
 
   # Keep the published lower bounds executable without multiplying the current/latest matrix.
-  # This tests Nuxt 4.0.0 with the packed module's declared Kit dependency (^4.5.2),
+  # This tests Nuxt 4.0.0 with the packed module's declared Kit dependency (^4.6.0),
   # as consumers install it. It does not claim support for running the module on Kit 4.0.0.
   minimum-compatibility:
     env:
@@ -128,9 +128,9 @@ jobs:
           const nuxtVersion = consumerRequire('nuxt/package.json').version
           const kitVersion = moduleRequire('@nuxt/kit/package.json').version
           assert.equal(nuxtVersion, '4.0.0')
-          const [major, minor, patch] = kitVersion.split('.').map(Number)
-          assert.ok(major === 4 && (minor > 5 || (minor === 5 && patch >= 2)),
-            `Expected the module's declared Kit ^4.5.2, got ${kitVersion}`)
+          const [major, minor] = kitVersion.split('.').map(Number)
+          assert.ok(major === 4 && minor >= 6,
+            `Expected the module's declared Kit ^4.6.0, got ${kitVersion}`)
           console.log(`Published consumer graph: Nuxt ${nuxtVersion}, module Kit ${kitVersion}`)
           NODE
       - run: corepack pnpm@11.21.0 typecheck

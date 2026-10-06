@@ -16,6 +16,7 @@
   "files": [
     "./.nuxt/types/nuxt-better-auth.d.ts",
     "./.nuxt/types/nuxt-better-auth-client.d.ts",
+    "./.nuxt/types/nitro-internal-api.d.ts",
     "./typecheck-target.ts"
   ],
   "include": []
