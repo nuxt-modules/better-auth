@@ -65,6 +65,8 @@ export default defineConfig({
         test: {
           name: 'unit',
           include: ['test/**/*.test.ts'],
+          // Let tests mock the runtime config that Nuxt's portable `nuxt/server` reads.
+          server: { deps: { inline: [/[\\/]nuxt[\\/]dist[\\/]server[\\/]/] } },
           exclude: [...configDefaults.exclude, ...typeTests, ...integrationTests],
         },
       },

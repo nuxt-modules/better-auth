@@ -11,7 +11,7 @@ import { Diagnostic, formatDiagnostic } from 'nostics'
 import { dirname, isAbsolute, join, relative } from 'pathe'
 import { version } from '../package.json'
 import { resolveAuthConfigDescriptors, resolveAuthConfigFile } from './module/config-paths'
-import { resolveAppSecretShim, resolveH3TypesPath, resolveNitro3RouteRulesTarget, resolveServerRuntimeShim } from './module/compatibility'
+import { resolveAppSecretShim, resolveAuthSecretPlugin, resolveH3TypesPath, resolveNitro3RouteRulesTarget, resolveServerRuntimeShim } from './module/compatibility'
 import { diagnostics } from './module/diagnostics'
 import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
@@ -248,7 +248,11 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       })
 
       registerTemplateHmrHook(nuxt)
-      registerServerRuntime({ clientOnly: setup.clientOnly, resolve: resolver.resolve })
+      registerServerRuntime({
+        clientOnly: setup.clientOnly,
+        resolve: resolver.resolve,
+        authSecretPlugin: setup.clientOnly ? undefined : await resolveAuthSecretPlugin(resolver.resolve),
+      })
       registerAuthMiddleware(resolver.resolve)
 
       await registerDevtools({ nuxt, clientOnly: setup.clientOnly, hasHubDb: setup.database.hasHubDb, resolve: resolver.resolve })

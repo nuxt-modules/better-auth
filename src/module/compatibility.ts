@@ -94,3 +94,16 @@ export async function resolveAppSecretShim(resolve: (path: string) => string): P
   const canDeriveAppSecret = await hasNuxtCompatibility({ nuxt: '>=4.6.0-0' })
   return resolve(`./runtime/server/internal/${canDeriveAppSecret ? 'app-secret' : 'app-secret-unavailable'}`)
 }
+
+/**
+ * The Nitro plugin that starts deriving the auth secret when the server starts, on Nuxt 4.6+.
+ * `nuxt/server` has no plugin surface, so a non-Nitro `server.builder` gets none: the secret is
+ * then derived on the first request, or by `ensureServerAuth()`.
+ */
+export async function resolveAuthSecretPlugin(resolve: (path: string) => string): Promise<string | undefined> {
+  if (!await hasNuxtCompatibility({ nuxt: '>=4.6.0-0' }))
+    return
+  if (!resolveServerVariant({ nitro2: true, nitro3: true, nuxt: false }))
+    return
+  return resolve('./runtime/server/plugins/auth-secret')
+}

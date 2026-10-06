@@ -293,7 +293,7 @@ function missingAuthSecretMessage(derived: DerivedAuthSecretState): string {
     return `${message}.`
   if (derived.error !== undefined)
     return `${message}, or set NUXT_APP_SECRET (at least 32 characters) to derive one from Nuxt's appSecret.`
-  return `${message}. The secret derived from NUXT_APP_SECRET is resolved asynchronously before the module's handlers, middleware and session utilities run; serverAuth() was called before that, outside a request.`
+  return `${message}. The secret derived from NUXT_APP_SECRET is resolved asynchronously, and serverAuth() was called before it was ready, outside a request. Use \`await ensureServerAuth()\` in code that runs at server startup.`
 }
 
 function warnDerivedSecretFallback(derived: DerivedAuthSecretState): void {
@@ -302,9 +302,19 @@ function warnDerivedSecretFallback(derived: DerivedAuthSecretState): void {
 
   _derivedSecretFallbackWarned = true
   const reason = derived.error !== undefined
-    ? 'could not be derived from NUXT_APP_SECRET'
-    : 'derived from NUXT_APP_SECRET was not ready yet'
-  console.warn(`[nuxt-better-auth] The auth secret ${reason}, so Better Auth's development default secret is used for this call. Set NUXT_APP_SECRET or NUXT_BETTER_AUTH_SECRET.`)
+    ? 'could not be derived from NUXT_APP_SECRET. Set NUXT_APP_SECRET (at least 32 characters) or NUXT_BETTER_AUTH_SECRET.'
+    : 'derived from NUXT_APP_SECRET was not ready yet. Use `await ensureServerAuth()` in code that runs at server startup.'
+  console.warn(`[nuxt-better-auth] Better Auth's development default secret is used for this call: the auth secret ${reason}`)
+}
+
+/**
+ * Returns the Better Auth instance like `serverAuth()`, after waiting for the auth secret that
+ * Nuxt 4.6+ derives from `appSecret` (`NUXT_APP_SECRET`). Use it in code that can run before the
+ * first request, such as a Nitro plugin or task at server startup.
+ */
+export async function ensureServerAuth(event?: ServerEvent): Promise<AuthInstance> {
+  await prepareAuthSecret()
+  return serverAuth(event)
 }
 
 /** Returns Better Auth instance. Caches per resolved host (or single instance when siteUrl is explicit). */
