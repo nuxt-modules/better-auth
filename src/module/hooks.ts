@@ -1,7 +1,7 @@
 import type { Nuxt, NuxtPage } from '@nuxt/schema'
 import type { AuthRouteRules } from '../runtime/types'
 import { existsSync, statSync } from 'node:fs'
-import { addComponentsDir, addImports, addPlugin, addRouteMiddleware, addServerHandler, addServerImports, extendPages, updateTemplates } from '@nuxt/kit'
+import { addComponentsDir, addImports, addNitroPlugin, addPlugin, addRouteMiddleware, addServerHandler, addServerImports, extendPages, updateTemplates } from '@nuxt/kit'
 import { defu } from 'defu'
 import { isAbsolute, join } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
@@ -13,6 +13,8 @@ interface ResolveInput {
 
 interface RegisterServerRuntimeInput extends ResolveInput {
   clientOnly: boolean
+  /** Nitro plugin that derives the auth secret from `appSecret` at startup (Nuxt 4.6+ on Nitro). */
+  authSecretPlugin?: string
 }
 
 interface RegisterDevtoolsInput extends ResolveInput {
@@ -38,17 +40,20 @@ export function registerTemplateHmrHook(nuxt: Nuxt): void {
 }
 
 export function registerServerRuntime(input: RegisterServerRuntimeInput): void {
-  const { clientOnly, resolve } = input
+  const { authSecretPlugin, clientOnly, resolve } = input
 
   if (!clientOnly) {
     addServerImports([
       { name: 'defineServerAuth', from: resolve('./runtime/config') },
       { name: 'serverAuth', from: resolve('./runtime/server/utils/auth') },
+      { name: 'ensureServerAuth', from: resolve('./runtime/server/utils/auth') },
       ...['getRequestSession', 'getUserSession', 'setRequestSession', 'refreshSessionCookieCache', 'setSessionCookie', 'createSession', 'requireUserSession']
         .map(name => ({ name, from: resolve('./runtime/server/utils/session') })),
     ])
     addServerHandler({ middleware: true, handler: resolve('./runtime/server/middleware/route-access') })
     addServerHandler({ route: '/api/auth/**', handler: resolve('./runtime/server/api/auth/[...all]') })
+    if (authSecretPlugin)
+      addNitroPlugin({ nitro2: authSecretPlugin, nitro3: authSecretPlugin })
   }
 
   addImports([

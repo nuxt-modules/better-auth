@@ -20,7 +20,7 @@ describe('public auto-imports', () => {
     const sharedAuthTypes = readFileSync(`${fixtureDir}/.nuxt/types/nuxt-better-auth.d.ts`, 'utf8')
     for (const name of ['runWithSessionRefresh', 'useAction', 'useAuthAsyncData', 'useAuthClient', 'useAuthClientAction', 'useAuthRequestFetch', 'useSignIn', 'useSignOut', 'useSignUp', 'useUserSession', 'useUserSessionState', 'SignOutOptions', 'UseUserSessionReturn', 'UseUserSessionStateReturn', 'UseAuthAsyncDataOptions'])
       expect(appImports).toMatch(new RegExp(`export (?:type )?\\{[^}]*\\b${name}\\b[^}]*\\}`))
-    for (const name of ['serverAuth', 'defineServerAuth', 'getRequestSession', 'getUserSession', 'setRequestSession', 'refreshSessionCookieCache', 'setSessionCookie', 'createSession', 'requireUserSession'])
+    for (const name of ['serverAuth', 'ensureServerAuth', 'defineServerAuth', 'getRequestSession', 'getUserSession', 'setRequestSession', 'refreshSessionCookieCache', 'setSessionCookie', 'createSession', 'requireUserSession'])
       expect(new RegExp(`export (?:type )?\\{[^}]*\\b${name}\\b[^}]*\\}`).test(serverImports)).toBe(!clientOnly)
     for (const name of ['getAuthRuntimeFlags', 'useRawAuthClient', 'useAuthActionNamespaces', 'matchesUser', 'resolveCustomSecondaryStorageRequirement', 'HubSecondaryStorageMode']) {
       expect(appImports).not.toMatch(new RegExp(`\\b${name}\\b`))

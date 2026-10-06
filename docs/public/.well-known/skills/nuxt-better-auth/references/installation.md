@@ -10,11 +10,14 @@ Required files:
 
 - `server/auth.config.ts`
 - `app/auth.config.ts` or the equivalent file inside your `srcDir`
-- `.env` with `NUXT_BETTER_AUTH_SECRET`
+- `.env` with `NUXT_APP_SECRET` (Nuxt 4.6+) or `NUXT_BETTER_AUTH_SECRET`
 
 ## Environment variables
 
 ```ini
+# Nuxt 4.6+: the auth secret is derived from Nuxt's appSecret
+NUXT_APP_SECRET=replace-with-a-random-32-character-secret
+# Older Nuxt, or a dedicated auth secret (takes precedence over NUXT_APP_SECRET)
 NUXT_BETTER_AUTH_SECRET=replace-with-a-random-32-character-secret
 ```
 

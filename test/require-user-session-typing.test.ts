@@ -34,6 +34,11 @@ export function splitCookiesString(header: string): string[] {
 }
 `)
 
+      writeFileSync(join(serverInternalDir, 'auth-secret.ts'), `export function prepareAuthSecret(): Promise<void> | undefined {
+  return undefined
+}
+`)
+
       writeFileSync(join(serverUtilsDir, 'auth.ts'), `export function serverAuth(_event?: unknown) {
   return {
     api: {
@@ -126,6 +131,7 @@ export async function check(event: H3Event) {
   "files": [
     "./runtime/server/utils/session.ts",
     "./runtime/server/internal/nitro-compat.ts",
+    "./runtime/server/internal/auth-secret.ts",
     "./runtime/server/utils/auth.ts",
     "./runtime/utils/match-user.ts",
     "./runtime/types.ts",
