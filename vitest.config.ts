@@ -46,6 +46,7 @@ const integrationTests = [
 ]
 
 const nitroCompatibilityAlias = {
+  '#better-auth/app-secret': fileURLToPath(new URL('./src/runtime/server/internal/app-secret-unavailable.ts', import.meta.url)),
   '#better-auth/nitro-compat': fileURLToPath(new URL('./src/runtime/server/internal/nitro2.ts', import.meta.url)),
 }
 
@@ -64,6 +65,8 @@ export default defineConfig({
         test: {
           name: 'unit',
           include: ['test/**/*.test.ts'],
+          // Let tests mock the runtime config that Nuxt's portable `nuxt/server` reads.
+          server: { deps: { inline: [/[\\/]nuxt[\\/]dist[\\/]server[\\/]/] } },
           exclude: [...configDefaults.exclude, ...typeTests, ...integrationTests],
         },
       },
@@ -78,7 +81,7 @@ export default defineConfig({
         },
         test: {
           name: 'unit-dev',
-          include: ['test/get-base-url.test.ts'],
+          include: ['test/get-base-url.test.ts', 'test/server-auth-app-secret.test.ts'],
         },
       },
       {

@@ -3,6 +3,8 @@ import type { ServerEvent } from '../internal/nitro-compat'
 import { betterAuth, env } from 'better-auth'
 import { createDatabase, db } from '#auth/database'
 import createServerAuth from '#auth/server'
+import type { DerivedAuthSecretState } from '../internal/auth-secret'
+import { getConfiguredAuthSecret, getDerivedAuthSecret, hasExplicitAuthSecret, prepareAuthSecret } from '../internal/auth-secret'
 import { getRequestHost, getRequestProtocol, useRuntimeConfig } from '../internal/nitro-compat'
 import { resolveAuthBaseURL } from '../../internal/auth-base-url'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
@@ -28,6 +30,7 @@ let _baseURLInferenceLogged = false
 let _customSecondaryStorageMisconfigWarned = false
 let _unsupportedHubSecondaryStorageWarned = false
 let _secondaryStorageRateLimitFallbackWarned = false
+let _derivedSecretFallbackWarned = false
 
 interface RequestAuthContext {
   [requestAuthKey]?: AuthInstance
@@ -284,19 +287,53 @@ function withDevTrustedOrigins(
   }
 }
 
+function missingAuthSecretMessage(derived: DerivedAuthSecretState): string {
+  const message = '[nuxt-better-auth] An auth secret is required in production. Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_SECRETS, or defineServerAuth({ secrets })'
+  if (!derived.available)
+    return `${message}.`
+  if (derived.error !== undefined)
+    return `${message}, or set NUXT_APP_SECRET (at least 32 characters) to derive one from Nuxt's appSecret.`
+  return `${message}. The secret derived from NUXT_APP_SECRET is resolved asynchronously, and serverAuth() was called before it was ready, outside a request. Use \`await ensureServerAuth()\` in code that runs at server startup.`
+}
+
+function warnDerivedSecretFallback(derived: DerivedAuthSecretState): void {
+  if (_derivedSecretFallbackWarned)
+    return
+
+  _derivedSecretFallbackWarned = true
+  const reason = derived.error !== undefined
+    ? 'could not be derived from NUXT_APP_SECRET. Set NUXT_APP_SECRET (at least 32 characters) or NUXT_BETTER_AUTH_SECRET.'
+    : 'derived from NUXT_APP_SECRET was not ready yet. Use `await ensureServerAuth()` in code that runs at server startup.'
+  console.warn(`[nuxt-better-auth] Better Auth's development default secret is used for this call: the auth secret ${reason}`)
+}
+
+/**
+ * Returns the Better Auth instance like `serverAuth()`, after waiting for the auth secret that
+ * Nuxt 4.6+ derives from `appSecret` (`NUXT_APP_SECRET`). Use it in code that can run before the
+ * first request, such as a Nitro plugin or task at server startup.
+ */
+export async function ensureServerAuth(event?: ServerEvent): Promise<AuthInstance> {
+  await prepareAuthSecret()
+  return serverAuth(event)
+}
+
 /** Returns Better Auth instance. Caches per resolved host (or single instance when siteUrl is explicit). */
 export function serverAuth(event?: ServerEvent): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
-  const betterAuthSecret = runtimeConfig.betterAuthSecret || env.BETTER_AUTH_SECRET || ''
-  if (betterAuthSecret && betterAuthSecret.length < 32)
+  const configuredSecret = getConfiguredAuthSecret(runtimeConfig)
+  if (configuredSecret && configuredSecret.length < 32)
     throw new Error('[nuxt-better-auth] Singular auth secret must be at least 32 characters for security')
 
+  const derived = getDerivedAuthSecret()
   const requestOrigin = resolveEventOrigin(event)
   let userConfig: UserAuthConfig | undefined
-  if (!import.meta.dev && !betterAuthSecret && !env.BETTER_AUTH_SECRETS) {
+  if (!import.meta.dev && !configuredSecret && !env.BETTER_AUTH_SECRETS && !derived.secret) {
     userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
-    if (userConfig.secrets === undefined)
-      throw new Error('[nuxt-better-auth] An auth secret is required in production. Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_SECRETS, or defineServerAuth({ secrets }).')
+    if (userConfig.secrets === undefined) {
+      // Let a later call use the derived secret when this one ran before any request primed it.
+      void prepareAuthSecret()
+      throw new Error(missingAuthSecretMessage(derived))
+    }
   }
 
   const siteUrl = getBaseURL(event)
@@ -308,6 +345,15 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
     return requestContext[requestAuthKey]
 
   userConfig ??= createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+
+  // Explicit secrets keep their existing precedence; Nuxt's appSecret only fills the gap (4.6+).
+  const usesDerivedSecret = derived.available && userConfig.secrets === undefined && !hasExplicitAuthSecret(runtimeConfig)
+  const derivedSecretMissing = usesDerivedSecret && !derived.secret
+  if (derivedSecretMissing) {
+    void prepareAuthSecret()
+    warnDerivedSecretFallback(derived)
+  }
+  const betterAuthSecret = configuredSecret || (usesDerivedSecret ? derived.secret ?? '' : '')
 
   const database = (createDatabase as (event?: ServerEvent) => BetterAuthOptions['database'])(event)
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins)
@@ -336,7 +382,9 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
     ? { ...userConfig.rateLimit, storage: 'memory' as const }
     : userConfig.rateLimit
 
-  if (!database) {
+  // An instance without the derived secret must not outlive the request that needed it.
+  const cacheable = !database && !derivedSecretMissing
+  if (cacheable) {
     const cached = _authCache.get(cacheKey)
     if (cached) {
       if (requestContext)
@@ -358,7 +406,7 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
   if (requestContext)
     requestContext[requestAuthKey] = auth
 
-  if (!database)
+  if (cacheable)
     _authCache.set(cacheKey, auth)
 
   return auth

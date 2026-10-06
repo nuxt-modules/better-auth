@@ -1,10 +1,14 @@
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
 import { normalizeAuthRoutePath, shouldSkipAuthRouteRules } from '../../internal/auth-route-rules'
 import { matchesUser } from '../../utils/match-user'
+import { prepareAuthSecret } from '../internal/auth-secret'
 import { createAuthError, defineEventHandler, getAuthRouteRules, getRequestURL, useRuntimeConfig } from '../internal/nitro-compat'
 import { getUserSession, requireUserSession } from '../utils/session'
 
 export default defineEventHandler(async (event) => {
+  // Runs before app handlers, so their synchronous serverAuth() calls see the derived secret.
+  await prepareAuthSecret()
+
   const path = normalizeAuthRoutePath(
     getRequestURL(event).pathname,
     useRuntimeConfig().app?.baseURL,
