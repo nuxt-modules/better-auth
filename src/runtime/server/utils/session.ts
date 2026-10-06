@@ -2,6 +2,7 @@ import type { AppSession, AuthSession, RequireSessionOptions } from '#nuxt-bette
 import { matchesUser } from '../../utils/match-user'
 import type { ServerEvent } from '../internal/nitro-compat'
 import { createAuthError } from '../internal/nitro-compat'
+import { prepareAuthSecret } from '../internal/auth-secret'
 import { appendCookieHeader, appendSetCookieHeaders, getSetCookieHeaders } from '../internal/cookie-headers'
 import { serverAuth } from './auth'
 
@@ -79,6 +80,10 @@ function getRequestHeaders(event: ServerEvent): Headers {
 }
 
 async function loadSession(event: ServerEvent): Promise<SessionWithHeaders> {
+  // Await only while the derived secret is pending, so lookups keep their timing otherwise.
+  const pendingSecret = prepareAuthSecret()
+  if (pendingSecret)
+    await pendingSecret
   const auth = serverAuth(event)
   const result = await auth.api.getSession({
     headers: getRequestHeaders(event),
@@ -94,6 +99,10 @@ async function loadSession(event: ServerEvent): Promise<SessionWithHeaders> {
 }
 
 function loadFreshSession(event: ServerEvent): Promise<SessionWithHeaders> {
+  const pendingSecret = prepareAuthSecret()
+  if (pendingSecret)
+    return pendingSecret.then(() => loadFreshSession(event))
+
   const auth = serverAuth(event)
   return auth.api.getSession({
     headers: getRequestHeaders(event),
@@ -103,6 +112,10 @@ function loadFreshSession(event: ServerEvent): Promise<SessionWithHeaders> {
 }
 
 function getServerAuthContext(event: ServerEvent): Promise<ServerAuthContextLike> {
+  const pendingSecret = prepareAuthSecret()
+  if (pendingSecret)
+    return pendingSecret.then(() => getServerAuthContext(event))
+
   const auth = serverAuth(event) as ReturnType<typeof serverAuth> & { $context: Promise<ServerAuthContextLike> }
   return auth.$context
 }

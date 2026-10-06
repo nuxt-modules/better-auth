@@ -5,13 +5,13 @@ import type { BetterAuthDatabaseProviderSetupContext, BetterAuthPluginSources } 
 import type { AuthSchemaModelNames } from './module/templates'
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
-import { addTemplate, createResolver, defineNuxtModule, getNitroVersion } from '@nuxt/kit'
+import { addTemplate, createResolver, defineNuxtModule, getNitroVersion, hasNuxtCompatibility } from '@nuxt/kit'
 import { consola as _consola } from 'consola'
 import { Diagnostic, formatDiagnostic } from 'nostics'
 import { dirname, isAbsolute, join, relative } from 'pathe'
 import { version } from '../package.json'
 import { resolveAuthConfigDescriptors, resolveAuthConfigFile } from './module/config-paths'
-import { resolveH3TypesPath, resolveNitro3RouteRulesTarget, resolveServerRuntimeShim } from './module/compatibility'
+import { resolveAppSecretShim, resolveH3TypesPath, resolveNitro3RouteRulesTarget, resolveServerRuntimeShim } from './module/compatibility'
 import { diagnostics } from './module/diagnostics'
 import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
@@ -104,7 +104,12 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
   },
   async onInstall(nuxt) {
     const configuredSecret = nuxt.options.runtimeConfig?.betterAuthSecret as string | undefined
-    const generatedSecret = await promptForSecret(nuxt.options.rootDir, consola, { configuredSecret, prepare: Boolean(nuxt.options._prepare) })
+    const generatedSecret = await promptForSecret(nuxt.options.rootDir, consola, {
+      configuredSecret,
+      prepare: Boolean(nuxt.options._prepare),
+      appSecret: await hasNuxtCompatibility({ nuxt: '>=4.6.0-0' }, nuxt),
+      configuredAppSecret: (nuxt.options.runtimeConfig as { appSecret?: string } | undefined)?.appSecret,
+    })
     if (generatedSecret)
       process.env.NUXT_BETTER_AUTH_SECRET = generatedSecret
 
@@ -115,6 +120,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       const resolver = createResolver(import.meta.url)
       const h3TypesPath = resolveH3TypesPath(getNitroVersion(nuxt))
       nuxt.options.alias['#better-auth/nitro-compat'] = resolveServerRuntimeShim(resolver.resolve)
+      nuxt.options.alias['#better-auth/app-secret'] = await resolveAppSecretShim(resolver.resolve)
 
       const registeredPluginSources: BetterAuthPluginSources = {}
       await nuxt.callHook('better-auth:plugins:extend', registeredPluginSources)

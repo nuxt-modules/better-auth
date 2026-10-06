@@ -4,6 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "paths": {
+      "#better-auth/app-secret": ["./internal/app-secret"],
       "#better-auth/nitro-compat": ["./internal/nitro2"],
       "#nuxt-better-auth": ["../types/augment"]
     },

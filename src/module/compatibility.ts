@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import { resolveServerVariant } from '@nuxt/kit'
+import { hasNuxtCompatibility, resolveServerVariant } from '@nuxt/kit'
 
 export interface Nitro3RouteRulesTarget {
   moduleName: string
@@ -83,4 +83,14 @@ export function resolveServerRuntimeShim(resolve: (path: string) => string): str
 /** h3 v2 types ship with Nitro v3 as `nitro/h3`; every other host types events with h3 v1. */
 export function resolveH3TypesPath(nitroMajor: number | undefined): 'h3' | 'nitro/h3' {
   return nitroMajor === 3 ? 'nitro/h3' : 'h3'
+}
+
+/**
+ * The module behind `#better-auth/app-secret`. `nuxt/server` ships `deriveSecret()` from Nuxt 4.6
+ * on every server builder, including Nitro 2, so this follows the Nuxt version rather than the
+ * server variant.
+ */
+export async function resolveAppSecretShim(resolve: (path: string) => string): Promise<string> {
+  const canDeriveAppSecret = await hasNuxtCompatibility({ nuxt: '>=4.6.0-0' })
+  return resolve(`./runtime/server/internal/${canDeriveAppSecret ? 'app-secret' : 'app-secret-unavailable'}`)
 }

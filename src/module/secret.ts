@@ -7,6 +7,7 @@ import { isCI, isTest } from 'std-env'
 const DEFAULT_SECRET_ENV = 'NUXT_BETTER_AUTH_SECRET'
 const FALLBACK_SECRET_ENV = 'BETTER_AUTH_SECRET'
 const VERSIONED_SECRET_ENV = 'BETTER_AUTH_SECRETS'
+const APP_SECRET_ENV = 'NUXT_APP_SECRET'
 
 const generateSecret = () => randomBytes(32).toString('hex')
 
@@ -15,9 +16,9 @@ function readEnvFile(rootDir: string): string {
   return existsSync(envPath) ? readFileSync(envPath, 'utf-8') : ''
 }
 
-function hasEnvSecret(rootDir: string): boolean {
+function hasEnvSecret(rootDir: string, names: string[]): boolean {
   const envFile = readEnvFile(rootDir)
-  return [DEFAULT_SECRET_ENV, FALLBACK_SECRET_ENV, VERSIONED_SECRET_ENV].some((name) => {
+  return names.some((name) => {
     const match = envFile.match(new RegExp(`^${name}=(.+)$`, 'm'))
     return !!match && !!match[1] && match[1].trim().length > 0
   })
@@ -35,6 +36,9 @@ function appendSecretToEnv(rootDir: string, secret: string): void {
 export interface PromptForSecretOptions {
   configuredSecret?: string
   prepare?: boolean
+  /** Nuxt 4.6+ derives the auth secret from `appSecret`, so `NUXT_APP_SECRET` also counts as configured. */
+  appSecret?: boolean
+  configuredAppSecret?: string
 }
 
 export async function promptForSecret(rootDir: string, consola: ConsolaInstance, options: PromptForSecretOptions = {}): Promise<string | undefined> {
@@ -42,12 +46,23 @@ export async function promptForSecret(rootDir: string, consola: ConsolaInstance,
   if (configuredSecret)
     return undefined
 
-  if (process.env.NUXT_BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRETS || hasEnvSecret(rootDir))
+  if (process.env.NUXT_BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRETS)
+    return undefined
+  const secretEnvNames = [DEFAULT_SECRET_ENV, FALLBACK_SECRET_ENV, VERSIONED_SECRET_ENV]
+  if (options.appSecret)
+    secretEnvNames.push(APP_SECRET_ENV)
+  if (hasEnvSecret(rootDir, secretEnvNames))
+    return undefined
+  // Nuxt generates a development appSecret when none is set; that one does not reach production.
+  const generatedAppSecret = process.env.NUXT_APP_SECRET_GENERATED === '1'
+  if (options.appSecret && !generatedAppSecret && (process.env.NUXT_APP_SECRET || options.configuredAppSecret?.trim()))
     return undefined
 
   const hasTty = Boolean(process.stdin.isTTY && process.stdout.isTTY)
   if (options.prepare || !hasTty) {
-    consola.warn('[nuxt-better-auth] Skipping auth secret prompt (non-interactive). Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, or BETTER_AUTH_SECRETS.')
+    consola.warn(options.appSecret
+      ? '[nuxt-better-auth] Skipping auth secret prompt (non-interactive). Set NUXT_APP_SECRET, or NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, or BETTER_AUTH_SECRETS.'
+      : '[nuxt-better-auth] Skipping auth secret prompt (non-interactive). Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, or BETTER_AUTH_SECRETS.')
     return undefined
   }
 
