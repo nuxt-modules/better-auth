@@ -15,7 +15,7 @@ import { resolveAppSecretShim, resolveAuthSecretPlugin, resolveH3TypesPath, reso
 import { diagnostics } from './module/diagnostics'
 import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
-import { promptForSecret } from './module/secret'
+import { applyPromptedAppSecret, promptForSecret } from './module/secret'
 import { collectAuthRouteRules, registerAuthRouteRulesValidation, resolveAuthModuleSetup } from './module/setup'
 import { buildAuthRouteRulesCode, buildExtendedClientAuthCode, buildExtendedServerAuthCode, buildSchemaExportCode, buildSchemaExportTypes } from './module/templates'
 import { registerServerTypeTemplates, registerSharedTypeTemplates } from './module/type-templates'
@@ -104,13 +104,16 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
   },
   async onInstall(nuxt) {
     const configuredSecret = nuxt.options.runtimeConfig?.betterAuthSecret as string | undefined
+    const appSecret = await hasNuxtCompatibility({ nuxt: '>=4.6.0-0' }, nuxt)
     const generatedSecret = await promptForSecret(nuxt.options.rootDir, consola, {
       configuredSecret,
       prepare: Boolean(nuxt.options._prepare),
-      appSecret: await hasNuxtCompatibility({ nuxt: '>=4.6.0-0' }, nuxt),
+      appSecret,
       configuredAppSecret: (nuxt.options.runtimeConfig as { appSecret?: string } | undefined)?.appSecret,
     })
-    if (generatedSecret)
+    if (generatedSecret && appSecret)
+      applyPromptedAppSecret(generatedSecret)
+    else if (generatedSecret)
       process.env.NUXT_BETTER_AUTH_SECRET = generatedSecret
 
     await createDefaultAuthConfigFiles(nuxt)

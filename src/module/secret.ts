@@ -24,13 +24,28 @@ function hasEnvSecret(rootDir: string, names: string[]): boolean {
   })
 }
 
-function appendSecretToEnv(rootDir: string, secret: string): void {
+function appendSecretToEnv(rootDir: string, name: string, secret: string): void {
   const envPath = join(rootDir, '.env')
   let content = readEnvFile(rootDir)
   if (content.length > 0 && !content.endsWith('\n'))
     content += '\n'
-  content += `${DEFAULT_SECRET_ENV}=${secret}\n`
+  content += `${name}=${secret}\n`
   writeFileSync(envPath, content, 'utf-8')
+}
+
+/** The variable the install prompt writes: `NUXT_APP_SECRET` on Nuxt 4.6+, `NUXT_BETTER_AUTH_SECRET` before. */
+function getSecretEnvName(appSecret: boolean | undefined): string {
+  return appSecret ? APP_SECRET_ENV : DEFAULT_SECRET_ENV
+}
+
+/**
+ * Applies the `NUXT_APP_SECRET` the install prompt wrote to `.env` to the running process, as if it
+ * had been set before Nuxt started. Nitro reads it over the resolved runtime config, and it is no
+ * longer the development `appSecret` Nuxt generated.
+ */
+export function applyPromptedAppSecret(secret: string): void {
+  process.env[APP_SECRET_ENV] = secret
+  delete process.env.NUXT_APP_SECRET_GENERATED
 }
 
 export interface PromptForSecretOptions {
@@ -66,14 +81,17 @@ export async function promptForSecret(rootDir: string, consola: ConsolaInstance,
     return undefined
   }
 
+  const envName = getSecretEnvName(options.appSecret)
   if (isCI || isTest) {
     const secret = generateSecret()
-    appendSecretToEnv(rootDir, secret)
-    consola.info('Generated NUXT_BETTER_AUTH_SECRET and added to .env (CI/test mode)')
+    appendSecretToEnv(rootDir, envName, secret)
+    consola.info(`Generated ${envName} and added to .env (CI/test mode)`)
     return secret
   }
 
-  consola.box('An auth secret is required for authentication.\nThis will add NUXT_BETTER_AUTH_SECRET to your .env file.\nBETTER_AUTH_SECRET and BETTER_AUTH_SECRETS are also supported.')
+  consola.box(options.appSecret
+    ? 'An auth secret is required for authentication.\nThis will add NUXT_APP_SECRET to your .env file. The auth secret is derived from it.\nNUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET and BETTER_AUTH_SECRETS are also supported.'
+    : 'An auth secret is required for authentication.\nThis will add NUXT_BETTER_AUTH_SECRET to your .env file.\nBETTER_AUTH_SECRET and BETTER_AUTH_SECRETS are also supported.')
   const choice = await consola.prompt('How do you want to set it?', {
     type: 'select',
     options: [
@@ -103,13 +121,13 @@ export async function promptForSecret(rootDir: string, consola: ConsolaInstance,
   }
 
   const preview = `${secret.slice(0, 8)}...${secret.slice(-4)}`
-  const confirm = await consola.prompt(`Add to .env:\n${DEFAULT_SECRET_ENV}=${preview}\nProceed?`, { type: 'confirm', initial: true, cancel: 'null' }) as boolean | symbol
+  const confirm = await consola.prompt(`Add to .env:\n${envName}=${preview}\nProceed?`, { type: 'confirm', initial: true, cancel: 'null' }) as boolean | symbol
   if (typeof confirm === 'symbol' || !confirm) {
     consola.info('Cancelled. Secret not written.')
     return undefined
   }
 
-  appendSecretToEnv(rootDir, secret)
-  consola.success('Added NUXT_BETTER_AUTH_SECRET to .env')
+  appendSecretToEnv(rootDir, envName, secret)
+  consola.success(`Added ${envName} to .env`)
   return secret
 }
