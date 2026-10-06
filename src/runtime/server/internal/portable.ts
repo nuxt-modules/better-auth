@@ -1,17 +1,17 @@
-import type { H3Event } from 'nitro/h3'
+import type { RequestEvent } from 'nuxt/server'
 import type { AuthRouteRules } from '../../types'
 import { splitSetCookieString } from 'cookie-es'
-import { getRouteRules } from 'nitro/app'
 import {
+  createError,
   defineEventHandler,
   getQuery,
   getRequestHost,
   getRequestProtocol,
   getRequestURL,
-  HTTPError,
+  getRouteRules,
   readBody,
-} from 'nitro/h3'
-import { useRuntimeConfig } from 'nitro/runtime-config'
+  useRuntimeConfig,
+} from 'nuxt/server'
 import { normalizeAuthRouteRule } from '../../internal/auth-route-rules'
 
 export {
@@ -24,16 +24,16 @@ export {
   useRuntimeConfig,
 }
 
-export type ServerEvent = H3Event
+export type ServerEvent = RequestEvent
 export { splitSetCookieString as splitCookiesString }
 
 export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
-  const auth = getRouteRules(event.req.method, getRequestURL(event).pathname).routeRules?.auth
-  return { auth: normalizeAuthRouteRule(auth) }
+  const rules = getRouteRules(event) as { auth?: unknown }
+  return { auth: normalizeAuthRouteRule(rules.auth) }
 }
 
 export function createAuthError(status: number, statusText: string): Error {
-  return HTTPError.status(status, statusText)
+  return createError({ status, statusText })
 }
 
 export function toWebRequest(event: ServerEvent): Request {

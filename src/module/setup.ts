@@ -124,7 +124,6 @@ function getRuntimeRouteRules(nuxt: Nuxt): Record<string, unknown> {
 
 export function registerAuthRouteRulesValidation(nuxt: Nuxt): void {
   // Nitro initialization follows all modules:done and nitro:config callbacks.
-  // @ts-expect-error Nitro augments NuxtHooks at runtime.
   nuxt.hook('nitro:init', (nitro: { options: { routeRules: Record<string, unknown> } }) => {
     assertSafeAuthRouteRules(nitro.options.routeRules)
   })

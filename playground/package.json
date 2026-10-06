@@ -15,7 +15,7 @@
     "@nuxthub/core": "^0.10.8",
     "@nuxtjs/i18n": "^10.6.0",
     "better-auth": "1.7.7",
-    "nuxt": "^4.5.2",
+    "nuxt": "^4.6.0",
     "nuxt-qrcode": "^0.4.10",
     "resend": "6.18.0"
   },

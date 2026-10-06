@@ -4,5 +4,6 @@
     "server/schema-types.ts",
     ".nuxt/types/auth-schema.d.ts",
     "../../../src/runtime/server/virtual-modules.d.ts"
-  ]
+  ],
+  "exclude": []
 }

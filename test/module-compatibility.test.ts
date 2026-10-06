@@ -1,19 +1,48 @@
+import type { Nuxt } from '@nuxt/schema'
+import { runWithNuxtContext } from '@nuxt/kit'
 import { describe, expect, it } from 'vitest'
-import { resolveNitroCompatibilityImports, selectNitro3RouteRulesTarget } from '../src/module/compatibility'
+import { resolveH3TypesPath, resolveServerRuntimeShim, selectNitro3RouteRulesTarget } from '../src/module/compatibility'
 
-describe('nuxt Nitro compatibility imports', () => {
-  it('uses Nitro 2 imports for Nuxt 4', () => {
-    expect(resolveNitroCompatibilityImports('4.5.0')).toEqual({
-      h3: 'h3',
-      runtime: 'nitro2',
-    })
+function resolveShimFor(options: { nitroMajor?: number, builder?: string }): string {
+  const nuxt = {
+    _version: options.nitroMajor === 3 ? '5.0.0' : '4.6.0',
+    options: {
+      rootDir: '/nonexistent',
+      modulesDir: [],
+      ...(options.nitroMajor ? { _nitroMajor: options.nitroMajor } : {}),
+      ...(options.builder ? { server: { builder: options.builder } } : {}),
+    },
+  } as unknown as Nuxt
+  return runWithNuxtContext(nuxt, () => resolveServerRuntimeShim(path => path))
+}
+
+describe('nuxt server runtime shim', () => {
+  it('keeps the h3 v1 shim on a nitropack v2 host', () => {
+    expect(resolveShimFor({ nitroMajor: 2 })).toBe('./runtime/server/internal/nitro2')
   })
 
-  it('uses Nitro 3 imports for Nuxt 5', () => {
-    expect(resolveNitroCompatibilityImports('5.0.0-29745766.482f3357')).toEqual({
-      h3: 'nitro/h3',
-      runtime: 'nitro3',
-    })
+  it('uses the nuxt/server shim on Nitro v3', () => {
+    expect(resolveShimFor({ nitroMajor: 3 })).toBe('./runtime/server/internal/portable')
+  })
+
+  it('uses the nuxt/server shim when server.builder is not Nitro', () => {
+    expect(resolveShimFor({ nitroMajor: 2, builder: '@nuxt/vite-server' })).toBe('./runtime/server/internal/portable')
+  })
+
+  it('treats a Nitro server.builder like the default builder', () => {
+    expect(resolveShimFor({ nitroMajor: 2, builder: '@nuxt/nitro-server' })).toBe('./runtime/server/internal/nitro2')
+  })
+
+  it('falls back to the h3 v1 shim on hosts that do not stamp a Nitro major', () => {
+    expect(resolveShimFor({})).toBe('./runtime/server/internal/nitro2')
+  })
+})
+
+describe('nuxt Nitro type imports', () => {
+  it('types events with h3 v1 unless the host runs Nitro v3', () => {
+    expect(resolveH3TypesPath(2)).toBe('h3')
+    expect(resolveH3TypesPath(undefined)).toBe('h3')
+    expect(resolveH3TypesPath(3)).toBe('nitro/h3')
   })
 
   it('augments early Nitro 3 route-rule interfaces directly', () => {

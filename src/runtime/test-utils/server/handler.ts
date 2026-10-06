@@ -12,7 +12,7 @@ const requestSchema = z.discriminatedUnion('action', [
 const ownedUsers = new Set<string>()
 
 export default defineEventHandler(async (event) => {
-  const token = useRuntimeConfig(event).betterAuthTestToken
+  const token = useRuntimeConfig().betterAuthTestToken
   if (!token || toWebRequest(event).headers.get('x-nuxt-auth-test') !== token)
     throw createAuthError(404, 'Not found')
 

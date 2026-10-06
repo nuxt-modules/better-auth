@@ -9,6 +9,7 @@
     "moduleResolution": "bundler",
     "paths": {
       "#app/*": ["../../../node_modules/nuxt/dist/app/*"],
+      "#build/server-routes": ["./server-routes-shim"],
       "#auth/client": ["../_base-module/app/auth.config"],
       "#auth/server": ["./server/auth.config"],
       "#imports": ["./imports-shim"]
@@ -23,6 +24,7 @@
     "./.nuxt/types/nuxt-better-auth.d.ts",
     "./.nuxt/types/nuxt-better-auth-infer.d.ts",
     "./.nuxt/types/nuxt-better-auth-endpoints.d.ts",
+    "./.nuxt/types/nitro-internal-api.d.ts",
     "./typecheck-target.ts"
   ]
 }

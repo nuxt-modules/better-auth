@@ -1,11 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
-
-export interface NitroCompatibilityImports {
-  h3: 'h3' | 'nitro/h3'
-  runtime: 'nitro2' | 'nitro3'
-}
+import { resolveServerVariant } from '@nuxt/kit'
 
 export interface Nitro3RouteRulesTarget {
   moduleName: string
@@ -71,12 +67,20 @@ export function resolveNitro3RouteRulesTarget(nuxtRootDir: string): Nitro3RouteR
   }
 }
 
-export function resolveNitroCompatibilityImports(nuxtVersion: string): NitroCompatibilityImports {
-  const major = Number.parseInt(nuxtVersion, 10)
-  const nitroV3 = Number.isFinite(major) && major >= 5
+/**
+ * The server runtime shim behind `#better-auth/nitro-compat`. Kit picks the variant the
+ * host runs: `nitro2` on a `nitropack` v2 host (including Nuxt < 4.6), and the portable
+ * `nuxt/server` shim on Nitro v3 or a non-Nitro `server.builder`.
+ */
+export function resolveServerRuntimeShim(resolve: (path: string) => string): string {
+  const nitro2 = resolve('./runtime/server/internal/nitro2')
+  return resolveServerVariant({
+    nuxt: resolve('./runtime/server/internal/portable'),
+    nitro2,
+  }) ?? nitro2
+}
 
-  return {
-    h3: nitroV3 ? 'nitro/h3' : 'h3',
-    runtime: nitroV3 ? 'nitro3' : 'nitro2',
-  }
+/** h3 v2 types ship with Nitro v3 as `nitro/h3`; every other host types events with h3 v1. */
+export function resolveH3TypesPath(nitroMajor: number | undefined): 'h3' | 'nitro/h3' {
+  return nitroMajor === 3 ? 'nitro/h3' : 'h3'
 }
