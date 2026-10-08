@@ -1,5 +1,7 @@
 name: verify DevTools styles 567
 on:
+  push:
+    branches: [verify/devtools-styles-567]
   workflow_dispatch:
 permissions: {}
 jobs:
