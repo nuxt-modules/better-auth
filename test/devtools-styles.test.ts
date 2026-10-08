@@ -56,8 +56,12 @@ describe('devtools style isolation', async () => {
         }
       })
       expect(await devtoolsStyles()).toEqual({
-        background: 'rgb(255, 255, 255)', color: 'rgb(31, 31, 31)',
-        headingSize: '13px', bodyMargin: '0px', left: 0, documentDark: false,
+        background: 'rgb(255, 255, 255)',
+        color: 'rgb(31, 31, 31)',
+        headingSize: '13px',
+        bodyMargin: '0px',
+        left: 0,
+        documentDark: false,
       })
       // Keep the loaded page CSS in memory when returning to the host app.
       await page.evaluate('window.useNuxtApp().$router.push("/")')
@@ -81,8 +85,12 @@ describe('devtools style isolation', async () => {
       })
       await page.waitForFunction(() => getComputedStyle(document.querySelector('.devtools-shell')!).backgroundColor === 'rgb(17, 17, 17)')
       expect(await devtoolsStyles()).toEqual({
-        background: 'rgb(17, 17, 17)', color: 'rgb(244, 244, 245)',
-        headingSize: '13px', bodyMargin: '0px', left: 0, documentDark: false,
+        background: 'rgb(17, 17, 17)',
+        color: 'rgb(244, 244, 245)',
+        headingSize: '13px',
+        bodyMargin: '0px',
+        left: 0,
+        documentDark: false,
       })
       await page.evaluate('window.useNuxtApp().$router.push("/")')
       await page.waitForURL(url('/'))
