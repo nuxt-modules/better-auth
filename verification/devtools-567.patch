@@ -1,0 +1,64 @@
+--- a/src/runtime/app/pages/__better-auth-devtools.vue
++++ b/src/runtime/app/pages/__better-auth-devtools.vue
+@@ -1,7 +1,7 @@
+ <script setup lang="ts">
+-import { useFetch, useRuntimeConfig } from '#imports'
++import { useFetch, useHead, useRuntimeConfig } from '#imports'
+ import { useDevtoolsClient } from '@nuxt/devtools-kit/iframe-client'
+-import { computed, ref, watch, watchEffect } from 'vue'
++import { computed, ref, watch } from 'vue'
+ 
+ const pageSize = 20
+ 
+@@ -25,10 +25,7 @@
+ const hasDb = computed(() => (runtimeConfig.public.auth as { useDatabase?: boolean } | undefined)?.useDatabase ?? false)
+ const isDark = computed(() => devtoolsClient.value?.host?.app?.colorMode?.value === 'dark')
+ 
+-watchEffect(() => {
+-  if (import.meta.client)
+-    document.documentElement.classList.toggle('dark', isDark.value)
+-})
++useHead({ bodyAttrs: { style: 'margin: 0' } })
+ 
+ const activeTab = ref<Tab>(hasDb.value ? 'sessions' : 'config')
+ const tabs = computed<Tab[]>(() => hasDb.value ? ['sessions', 'users', 'accounts', 'config'] : ['config'])
+@@ -161,7 +158,7 @@
+ </script>
+ 
+ <template>
+-  <div class="devtools-shell">
++  <div class="devtools-shell" :class="{ dark: isDark }">
+     <header class="devtools-header">
+       <div class="brand">
+         <svg width="60" height="45" viewBox="0 0 60 45" fill="none" class="brand-mark" xmlns="http://www.w3.org/2000/svg">
+@@ -411,8 +408,8 @@
+   </div>
+ </template>
+ 
+-<style>
+-:root {
++<style scoped>
++.devtools-shell {
+   --ba-bg: #ffffff;
+   --ba-fg: #1f1f1f;
+   --ba-muted: #707070;
+@@ -423,7 +420,7 @@
+   --ba-bad: #b91c1c;
+ }
+ 
+-.dark {
++.devtools-shell.dark {
+   --ba-bg: #111111;
+   --ba-fg: #f4f4f5;
+   --ba-muted: #a1a1aa;
+@@ -436,10 +433,6 @@
+ 
+ * {
+   box-sizing: border-box;
+-}
+-
+-body {
+-  margin: 0;
+ }
+ 
+ button,

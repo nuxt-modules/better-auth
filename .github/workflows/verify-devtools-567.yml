@@ -1,0 +1,46 @@
+name: verify DevTools styles 567
+on:
+  workflow_dispatch:
+permissions: {}
+jobs:
+  source-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24.21.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - name: Confirm reported heading leak before the fix
+        run: |
+          if pnpm vitest run test/devtools-styles.test.ts --project integration > /tmp/ba567-red.log 2>&1; then
+            cat /tmp/ba567-red.log
+            exit 1
+          fi
+          cat /tmp/ba567-red.log
+          node --input-type=module -e 'import assert from "node:assert/strict"; import { readFileSync } from "node:fs"; assert.match(readFileSync("/tmp/ba567-red.log", "utf8"), /headingSize.*13px/);'
+      - name: Apply only the DevTools page fix and rerun
+        run: |
+          git apply verification/devtools-567.patch
+          pnpm vitest run test/devtools-styles.test.ts --project integration
+  published-repro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: corepack enable
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24.21.0
+      - run: git clone --branch repro/better-auth-567 https://github.com/onmax/repros.git
+      - name: Reproduce leak from clean install
+        working-directory: repros/better-auth-567
+        run: pnpm install --frozen-lockfile && pnpm verify --expect-leak
+      - name: Verify patched control from clean install
+        working-directory: repros/better-auth-567-fix
+        run: pnpm install --frozen-lockfile && pnpm verify
