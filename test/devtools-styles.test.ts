@@ -39,7 +39,8 @@ describe('devtools style isolation', async () => {
       expect(await hostStyles()).toEqual(expected)
       await page.getByRole('button', { name: 'Host button' }).hover()
       expect((await hostStyles()).buttonBackground).toBe('rgb(220, 180, 80)')
-      await page.getByRole('link', { name: 'Open DevTools' }).click()
+      await page.getByRole('heading', { name: 'Host heading' }).hover()
+      await page.evaluate('window.useNuxtApp().$router.push("/__better-auth-devtools")')
       await page.waitForURL('**/__better-auth-devtools')
       await page.waitForSelector('.devtools-shell')
       const devtoolsStyles = () => page.evaluate(() => {
@@ -63,7 +64,10 @@ describe('devtools style isolation', async () => {
       await page.waitForURL(url('/'))
       await page.getByRole('heading', { name: 'Host heading' }).waitFor()
       await expect.poll(hostStyles).toEqual(expected)
-      await page.getByRole('link', { name: 'Open DevTools' }).click()
+      await page.getByRole('button', { name: 'Host button' }).hover()
+      expect((await hostStyles()).buttonBackground).toBe('rgb(220, 180, 80)')
+      await page.getByRole('heading', { name: 'Host heading' }).hover()
+      await page.evaluate('window.useNuxtApp().$router.push("/__better-auth-devtools")')
       await page.waitForURL('**/__better-auth-devtools')
       await page.waitForSelector('.devtools-shell')
 

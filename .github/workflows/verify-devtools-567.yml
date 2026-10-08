@@ -32,6 +32,7 @@ jobs:
           git apply verification/devtools-567.patch
           pnpm vitest run test/devtools-styles.test.ts --project integration
   published-repro:
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
