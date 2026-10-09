@@ -10,11 +10,20 @@ function createHooks() {
   }
 }
 
+function createNuxt(hooks: ReturnType<typeof createHooks>, version: string) {
+  return {
+    hook: hooks.hook,
+    options: {
+      _installedModules: [{ meta: { name: '@nuxt/devtools', version } }],
+      modules: [],
+    },
+  } as unknown as Nuxt
+}
+
 describe('devtools registration', () => {
   it('registers the legacy Auth tab on DevTools 3', async () => {
     const hooks = createHooks()
-    setupDevTools({ hook: hooks.hook } as unknown as Nuxt)
-    await hooks.callHook('devtools:initialized', { version: '3.4.2', packagePath: '/devtools' })
+    await setupDevTools(createNuxt(hooks, '3.4.2'))
     const tabs: unknown[] = []
     await hooks.callHook('devtools:customTabs', tabs)
     expect(tabs).toEqual([{
@@ -28,8 +37,9 @@ describe('devtools registration', () => {
 
   it.each(['4.0.0-beta.4', '4.0.0'])('registers a native Auth dock without a legacy tab on DevTools %s', async (version) => {
     const hooks = createHooks()
-    setupDevTools({ hook: hooks.hook } as unknown as Nuxt)
+    // Auth's modules:done setup may run after DevTools initialization.
     await hooks.callHook('devtools:initialized', { version, packagePath: '/devtools' })
+    await setupDevTools(createNuxt(hooks, version))
     // Nuxt collects legacy tabs before the Vite DevTools context is ready.
     const tabs: unknown[] = []
     await hooks.callHook('devtools:customTabs', tabs)
