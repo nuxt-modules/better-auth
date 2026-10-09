@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useFetch, useHead, useRuntimeConfig } from '#imports'
+import type { NuxtDevtoolsHostClient } from '@nuxt/devtools-kit/types'
 import { useDevtoolsClient } from '@nuxt/devtools-kit/iframe-client'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, triggerRef, watch } from 'vue'
 
 const pageSize = 20
 
@@ -21,11 +22,29 @@ interface PagedResponse<T> { total?: number, error?: string, [key: string]: T[] 
 interface ConfigResponse { error?: string, config?: { module?: Record<string, unknown>, server?: Record<string, unknown> } }
 
 const devtoolsClient = useDevtoolsClient()
+const nativeHost = shallowRef<NuxtDevtoolsHostClient>()
+let stopHostUpdates: (() => void) | undefined
+
+onMounted(() => {
+  if (window.parent === window)
+    return
+  // Native DevTools 4 docks expose the host on their same-origin parent.
+  try {
+    nativeHost.value = (window.parent as Window & { __NUXT_DEVTOOLS_HOST__?: NuxtDevtoolsHostClient }).__NUXT_DEVTOOLS_HOST__
+  }
+  catch {
+    return
+  }
+  stopHostUpdates = nativeHost.value?.hooks.hook('host:update:reactivity', () => triggerRef(nativeHost))
+})
+onBeforeUnmount(() => stopHostUpdates?.())
+
 const runtimeConfig = useRuntimeConfig()
 const hasDb = computed(() => (runtimeConfig.public.auth as { useDatabase?: boolean } | undefined)?.useDatabase ?? false)
-const isDark = computed(() => devtoolsClient.value?.host?.app?.colorMode?.value === 'dark')
+const isDark = computed(() => (nativeHost.value ?? devtoolsClient.value?.host)?.app?.colorMode?.value === 'dark')
 
-useHead({ bodyAttrs: { style: 'margin: 0' } })
+// Let the cascade override normal inline margins without changing host styles.
+useHead({ style: [{ key: 'better-auth-devtools-body', textContent: 'body { margin: 0 !important; }' }] })
 
 const activeTab = ref<Tab>(hasDb.value ? 'sessions' : 'config')
 const tabs = computed<Tab[]>(() => hasDb.value ? ['sessions', 'users', 'accounts', 'config'] : ['config'])
