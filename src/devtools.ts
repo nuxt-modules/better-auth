@@ -21,7 +21,8 @@ export async function setupDevTools(nuxt: Nuxt) {
 
   const hookable = nuxt as HookableNuxt
   // Auth setup can run after DevTools has already emitted its initialized hook.
-  if (await hasNuxtModuleCompatibility('@nuxt/devtools', '>=4.0.0-0', nuxt)) {
+  // `devtools:ready` first ships in 4.0.0-alpha.8; earlier v4 prereleases still collect legacy tabs.
+  if (await hasNuxtModuleCompatibility('@nuxt/devtools', '>=4.0.0-alpha.8', nuxt)) {
     hookable.hook('devtools:ready', (ctx) => {
       ctx.docks.register({
         id: 'better-auth',

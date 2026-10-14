@@ -21,9 +21,9 @@ function createNuxt(hooks: ReturnType<typeof createHooks>, version: string) {
 }
 
 describe('devtools registration', () => {
-  it('registers the legacy Auth tab on DevTools 3', async () => {
+  it.each(['3.4.2', '4.0.0-alpha.7'])('registers the legacy Auth tab on DevTools %s', async (version) => {
     const hooks = createHooks()
-    await setupDevTools(createNuxt(hooks, '3.4.2'))
+    await setupDevTools(createNuxt(hooks, version))
     const tabs: unknown[] = []
     await hooks.callHook('devtools:customTabs', tabs)
     expect(tabs).toEqual([{
@@ -35,7 +35,7 @@ describe('devtools registration', () => {
     }])
   })
 
-  it.each(['4.0.0-beta.4', '4.0.0'])('registers a native Auth dock without a legacy tab on DevTools %s', async (version) => {
+  it.each(['4.0.0-alpha.8', '4.0.0-beta.4', '4.0.0'])('registers a native Auth dock without a legacy tab on DevTools %s', async (version) => {
     const hooks = createHooks()
     // Auth's modules:done setup may run after DevTools initialization.
     await hooks.callHook('devtools:initialized', { version, packagePath: '/devtools' })
