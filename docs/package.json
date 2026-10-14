@@ -20,7 +20,7 @@
     "motion-v": "^2.4.0",
     "nuxt": "^4.6.0",
     "nuxt-shiki": "^0.3.2",
-    "nuxt-site-config": "^4.2.3",
+    "nuxt-site-config": "^5.0.0",
     "satori": "^0.35.0"
   },
   "devDependencies": {
