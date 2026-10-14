@@ -9,6 +9,18 @@ export interface Nitro3RouteRulesTarget {
   rulesInterface: 'NitroRouteRules' | 'RouteRules'
 }
 
+function exportedNames(declaration: string): Set<string> {
+  const names = new Set<string>()
+  for (const [, specifiers] of declaration.matchAll(/\bexport\s+(?:type\s+)?\{([^}]*)\}/g)) {
+    for (const specifier of specifiers!.split(',')) {
+      const name = specifier.trim().replace(/^type\s+/, '').split(/\s+as\s+/).pop()?.trim()
+      if (name)
+        names.add(name)
+    }
+  }
+  return names
+}
+
 export function selectNitro3RouteRulesTarget(
   nitroTypesDeclaration: string,
   resolveH3Rules: () => string,
@@ -18,6 +30,18 @@ export function selectNitro3RouteRulesTarget(
       moduleName: 'nitro/types',
       configInterface: 'NitroRouteConfig',
       rulesInterface: 'NitroRouteRules',
+    }
+  }
+
+  // Nitro re-exports h3's interfaces and documents `nitro/types` as the place to augment them.
+  // Mixing that with an augmentation of h3's file path lets TypeScript drop one of the two,
+  // depending on load order, so other modules' rules and ours must share the specifier.
+  const exported = exportedNames(nitroTypesDeclaration)
+  if (exported.has('RouteRuleConfig') && exported.has('RouteRules')) {
+    return {
+      moduleName: 'nitro/types',
+      configInterface: 'RouteRuleConfig',
+      rulesInterface: 'RouteRules',
     }
   }
 
