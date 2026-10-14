@@ -156,7 +156,7 @@ export async function registerDevtools(input: RegisterDevtoolsInput): Promise<vo
   if (isProduction || clientOnly)
     return
 
-  setupDevTools(nuxt)
+  await setupDevTools(nuxt)
   addServerHandler({ route: '/api/_better-auth/config', method: 'get', handler: resolve('./runtime/server/api/_better-auth/config.get') })
 
   if (hasHubDb) {
