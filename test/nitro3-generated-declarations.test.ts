@@ -110,8 +110,10 @@ void invalidRule
     else {
       linkDependency(nuxtDir, 'nitro', nitroDir)
     }
-    // Nuxt maps `nitro/types` in its generated tsconfig paths.
-    linkDependency(fixtureDir, 'nitro', nitroDir)
+    // Nuxt maps `nitro/types` in its generated tsconfig paths. Only the `nitro/types` target
+    // needs it, so the file-path cases keep proving they work without a root Nitro.
+    if (reexportsRouteRules)
+      linkDependency(fixtureDir, 'nitro', nitroDir)
     const target = resolveNitro3RouteRulesTarget(fixtureDir)
     expect(target.moduleName).toBe(reexportsRouteRules ? 'nitro/types' : join(h3Dir, 'rules.mjs'))
     registerServerTypeTemplates({
