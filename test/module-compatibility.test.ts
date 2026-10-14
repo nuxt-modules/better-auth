@@ -95,6 +95,17 @@ describe('nuxt Nitro type imports', () => {
     })
   })
 
+  it('augments h3 route-rule interfaces through nitro/types when Nitro re-exports them', () => {
+    const declaration = `import { NormalizedRouteRules, RouteRuleConfig, RouteRuleConfig as RouteRuleConfig$1, RouteRules } from "h3/rules";
+export type NitroRouteConfig = RouteRuleConfig$1;
+export { type NormalizedRouteRules, type RouteRuleConfig, type RouteRules };`
+    expect(selectNitro3RouteRulesTarget(declaration, () => 'unused')).toEqual({
+      moduleName: 'nitro/types',
+      configInterface: 'RouteRuleConfig',
+      rulesInterface: 'RouteRules',
+    })
+  })
+
   it('resolves the h3 module owned by newer Nitro 3 releases', () => {
     expect(selectNitro3RouteRulesTarget('type NitroRouteConfig = RouteRuleConfig', () => '/nested/h3/rules.mjs')).toEqual({
       moduleName: '/nested/h3/rules.mjs',
