@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -39,8 +39,13 @@ function generatedTemplate(filename: string): string {
 }
 
 describe('nitro 3 generated declarations', () => {
-  it.each([false, true])('typechecks isolated Nitro dependencies with integration package: %s', (usesIntegration) => {
-    const fixtureDir = mkdtempSync(join(tmpdir(), 'nuxt-better-auth-nitro3-types-'))
+  it.each([
+    { usesIntegration: false, reexportsRouteRules: false },
+    { usesIntegration: true, reexportsRouteRules: false },
+    { usesIntegration: true, reexportsRouteRules: true },
+  ])('typechecks isolated Nitro dependencies (integration package: $usesIntegration, re-exported route rules: $reexportsRouteRules)', ({ usesIntegration, reexportsRouteRules }) => {
+    // Resolve symlinked temp dirs (macOS /var) so resolved module paths match.
+    const fixtureDir = realpathSync(mkdtempSync(join(tmpdir(), 'nuxt-better-auth-nitro3-types-')))
     tempDirs.push(fixtureDir)
 
     function createPackage(name: string, exports: Record<string, string>, declarations: Record<string, string>) {
@@ -66,7 +71,12 @@ export interface RouteRules {}
 export type NormalizedRouteRules = { [K in keyof RouteRules]?: RouteRules[K] | false }`,
     })
     const nitroDir = createPackage('nitro', { './types': './types.mjs' }, {
-      'types.d.mts': `export type NitroRouteConfig = import('h3/rules').RouteRuleConfig
+      'types.d.mts': reexportsRouteRules
+        ? `import { NormalizedRouteRules, RouteRuleConfig, RouteRuleConfig as RouteRuleConfig$1, RouteRules } from 'h3/rules'
+export type NitroRouteConfig = RouteRuleConfig$1
+export type NitroRouteRules = NormalizedRouteRules
+export { type NormalizedRouteRules, type RouteRuleConfig, type RouteRules }`
+        : `export type NitroRouteConfig = import('h3/rules').RouteRuleConfig
 export type NitroRouteRules = import('h3/rules').NormalizedRouteRules`,
     })
     const nuxtDir = createPackage('nuxt', { '.': './index.mjs' }, {
@@ -100,14 +110,19 @@ void invalidRule
     else {
       linkDependency(nuxtDir, 'nitro', nitroDir)
     }
+    // Nuxt maps `nitro/types` in its generated tsconfig paths. Only the `nitro/types` target
+    // needs it, so the file-path cases keep proving they work without a root Nitro.
+    if (reexportsRouteRules)
+      linkDependency(fixtureDir, 'nitro', nitroDir)
     const target = resolveNitro3RouteRulesTarget(fixtureDir)
-    expect(target.moduleName).toBe(join(h3Dir, 'rules.mjs'))
+    expect(target.moduleName).toBe(reexportsRouteRules ? 'nitro/types' : join(h3Dir, 'rules.mjs'))
     registerServerTypeTemplates({
       serverConfigPath: './auth.config',
       hasHubDb: false,
       runtimeTypesPath: './auth-types',
       sharedServerConfigSafe: false,
       h3TypesPath: 'nitro/h3',
+      serverImportsTypesFile: 'server-imports.d.ts',
       nitro3RouteRulesTarget: target,
     })
 
@@ -124,46 +139,65 @@ void invalidRule
 
     writeFileSync(join(fixtureDir, 'auth-types.d.ts'), `export type AuthMeta = false | 'guest' | 'user' | { only?: 'guest' | 'user' }\n`)
     writeFileSync(join(fixtureDir, 'nuxt-better-auth-nitro.d.ts'), routeRulesDeclaration)
+    // Another module typing its own rule the way Nitro documents it.
+    writeFileSync(join(fixtureDir, 'other-module-nitro.d.ts'), reexportsRouteRules
+      ? `declare module 'nitro/types' {
+  interface RouteRuleConfig {
+    robots?: boolean
+  }
+}
+export {}
+`
+      : 'export {}\n')
     writeFileSync(join(fixtureDir, 'typecheck-target.ts'), `
 import type { NitroRouteConfig, NitroRouteRules } from 'nuxt'
 import type { AuthMeta } from './auth-types'
 
-const authoredRule = { auth: 'user' } satisfies NitroRouteConfig
+const authoredRule = { auth: 'user'${reexportsRouteRules ? ', robots: false' : ''} } satisfies NitroRouteConfig
 declare const resolvedRule: NitroRouteRules
 const resolvedAuth: AuthMeta | undefined = resolvedRule.auth
+// @ts-expect-error the augmented auth contract rejects unknown modes
+const invalidRule = { auth: 'invalid-role' } satisfies NitroRouteConfig
 
 void authoredRule
 void resolvedAuth
+void invalidRule
 `)
 
     const projectRoot = dirname(import.meta.dirname)
-    writeFileSync(join(fixtureDir, 'tsconfig.json'), JSON.stringify({
-      compilerOptions: {
-        strict: true,
-        skipLibCheck: false,
-        noEmit: true,
-        target: 'ESNext',
-        module: 'ESNext',
-        moduleResolution: 'Bundler',
-        types: ['node'],
-        typeRoots: [join(projectRoot, 'node_modules/@types')],
-      },
-      files: [
-        './auth-types.d.ts',
-        './nuxt-better-auth-nitro.d.ts',
-        './typecheck-target.ts',
-        './consumer/typecheck-target.ts',
-      ],
-    }, null, 2))
+    // TypeScript merges augmentations in program order, so check both module orders.
+    for (const declarationFiles of [
+      ['./other-module-nitro.d.ts', './nuxt-better-auth-nitro.d.ts'],
+      ['./nuxt-better-auth-nitro.d.ts', './other-module-nitro.d.ts'],
+    ]) {
+      writeFileSync(join(fixtureDir, 'tsconfig.json'), JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          skipLibCheck: false,
+          noEmit: true,
+          target: 'ESNext',
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          types: ['node'],
+          typeRoots: [join(projectRoot, 'node_modules/@types')],
+        },
+        files: [
+          './auth-types.d.ts',
+          ...declarationFiles,
+          './typecheck-target.ts',
+          './consumer/typecheck-target.ts',
+        ],
+      }, null, 2))
 
-    const typecheck = spawnSync('pnpm', ['exec', 'tsc', '--project', join(fixtureDir, 'tsconfig.json'), '--pretty', 'false'], {
-      cwd: projectRoot,
-      encoding: 'utf8',
-      timeout: 120_000,
-    })
+      const typecheck = spawnSync('pnpm', ['exec', 'tsc', '--project', join(fixtureDir, 'tsconfig.json'), '--pretty', 'false'], {
+        cwd: projectRoot,
+        encoding: 'utf8',
+        timeout: 120_000,
+      })
 
-    expect(typecheck.status, `strict declaration typecheck failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
-    expect(readFileSync(join(fixtureDir, 'tsconfig.json'), 'utf8')).toContain('"skipLibCheck": false')
+      expect(typecheck.status, `strict declaration typecheck failed (${declarationFiles.join(', ')}):\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
+      expect(readFileSync(join(fixtureDir, 'tsconfig.json'), 'utf8')).toContain('"skipLibCheck": false')
+    }
   }, 180_000)
 
   it('keeps Nitro 2 route-rule augmentation and fetch helpers', () => {
@@ -173,6 +207,7 @@ void resolvedAuth
       runtimeTypesPath: './auth-types',
       sharedServerConfigSafe: false,
       h3TypesPath: 'h3',
+      serverImportsTypesFile: 'nitro-imports.d.ts',
     })
 
     const routeRulesDeclaration = generatedTemplate('types/nuxt-better-auth-nitro.d.ts')
@@ -183,5 +218,33 @@ void resolvedAuth
     expect(routeRulesDeclaration).toContain('interface NitroRouteConfig')
     expect(routeRulesDeclaration).toContain('interface NitroRouteRules')
     expect(endpointDeclaration).toContain(`from 'nitropack/types'`)
+  })
+
+  // #580: Nuxt 5 type-checks server routes in the shared program, so they need the inferred user fields.
+  const serverConfigTemplates = [
+    'types/nuxt-better-auth-infer.d.ts',
+    'types/nuxt-better-auth-social-providers.d.ts',
+    'types/nuxt-better-auth-endpoints.d.ts',
+  ]
+
+  it.each([
+    { h3TypesPath: 'nitro/h3' as const, sharedServerConfigSafe: false, shared: true },
+    { h3TypesPath: 'nitro/h3' as const, sharedServerConfigSafe: true, shared: true },
+    { h3TypesPath: 'h3' as const, sharedServerConfigSafe: false, shared: false },
+    { h3TypesPath: 'h3' as const, sharedServerConfigSafe: true, shared: true },
+  ])('shares server config types with $h3TypesPath and shared-safe config $sharedServerConfigSafe: $shared', ({ h3TypesPath, sharedServerConfigSafe, shared }) => {
+    registerServerTypeTemplates({
+      serverConfigPath: './auth.config',
+      hasHubDb: false,
+      runtimeTypesPath: './auth-types',
+      sharedServerConfigSafe,
+      h3TypesPath,
+    })
+
+    for (const filename of serverConfigTemplates) {
+      const options = mocks.templateOptions.get(filename)
+      expect(options, filename).toMatchObject({ nuxt: true, nitro: true, node: true })
+      expect(Boolean(options?.shared), filename).toBe(shared)
+    }
   })
 })

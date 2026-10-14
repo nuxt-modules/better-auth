@@ -1,7 +1,7 @@
 import type { Nuxt } from '@nuxt/schema'
 import { runWithNuxtContext } from '@nuxt/kit'
 import { describe, expect, it } from 'vitest'
-import { resolveAppSecretShim, resolveAuthSecretPlugin, resolveH3TypesPath, resolveServerRuntimeShim, selectNitro3RouteRulesTarget } from '../src/module/compatibility'
+import { resolveAppSecretShim, resolveAuthSecretPlugin, resolveH3TypesPath, resolveServerImportsTypesFile, resolveServerRuntimeShim, selectNitro3RouteRulesTarget } from '../src/module/compatibility'
 
 function resolveShimFor(options: { nitroMajor?: number, builder?: string }): string {
   const nuxt = {
@@ -87,11 +87,28 @@ describe('nuxt Nitro type imports', () => {
     expect(resolveH3TypesPath(3)).toBe('nitro/h3')
   })
 
+  it('references the server auto-import declarations the host Nitro writes', () => {
+    expect(resolveServerImportsTypesFile(2)).toBe('nitro-imports.d.ts')
+    expect(resolveServerImportsTypesFile(undefined)).toBe('nitro-imports.d.ts')
+    expect(resolveServerImportsTypesFile(3)).toBe('server-imports.d.ts')
+  })
+
   it('augments early Nitro 3 route-rule interfaces directly', () => {
     expect(selectNitro3RouteRulesTarget('interface NitroRouteConfig {}', () => 'unused')).toEqual({
       moduleName: 'nitro/types',
       configInterface: 'NitroRouteConfig',
       rulesInterface: 'NitroRouteRules',
+    })
+  })
+
+  it('augments h3 route-rule interfaces through nitro/types when Nitro re-exports them', () => {
+    const declaration = `import { NormalizedRouteRules, RouteRuleConfig, RouteRuleConfig as RouteRuleConfig$1, RouteRules } from "h3/rules";
+export type NitroRouteConfig = RouteRuleConfig$1;
+export { type NormalizedRouteRules, type RouteRuleConfig, type RouteRules };`
+    expect(selectNitro3RouteRulesTarget(declaration, () => 'unused')).toEqual({
+      moduleName: 'nitro/types',
+      configInterface: 'RouteRuleConfig',
+      rulesInterface: 'RouteRules',
     })
   })
 

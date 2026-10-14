@@ -9,6 +9,18 @@ export interface Nitro3RouteRulesTarget {
   rulesInterface: 'NitroRouteRules' | 'RouteRules'
 }
 
+function exportedNames(declaration: string): Set<string> {
+  const names = new Set<string>()
+  for (const [, specifiers] of declaration.matchAll(/\bexport\s+(?:type\s+)?\{([^}]*)\}/g)) {
+    for (const specifier of specifiers!.split(',')) {
+      const name = specifier.trim().replace(/^type\s+/, '').split(/\s+as\s+/).pop()?.trim()
+      if (name)
+        names.add(name)
+    }
+  }
+  return names
+}
+
 export function selectNitro3RouteRulesTarget(
   nitroTypesDeclaration: string,
   resolveH3Rules: () => string,
@@ -18,6 +30,18 @@ export function selectNitro3RouteRulesTarget(
       moduleName: 'nitro/types',
       configInterface: 'NitroRouteConfig',
       rulesInterface: 'NitroRouteRules',
+    }
+  }
+
+  // Nitro re-exports h3's interfaces and documents `nitro/types` as the place to augment them.
+  // Mixing that with an augmentation of h3's file path lets TypeScript drop one of the two,
+  // depending on load order, so other modules' rules and ours must share the specifier.
+  const exported = exportedNames(nitroTypesDeclaration)
+  if (exported.has('RouteRuleConfig') && exported.has('RouteRules')) {
+    return {
+      moduleName: 'nitro/types',
+      configInterface: 'RouteRuleConfig',
+      rulesInterface: 'RouteRules',
     }
   }
 
@@ -83,6 +107,13 @@ export function resolveServerRuntimeShim(resolve: (path: string) => string): str
 /** h3 v2 types ship with Nitro v3 as `nitro/h3`; every other host types events with h3 v1. */
 export function resolveH3TypesPath(nitroMajor: number | undefined): 'h3' | 'nitro/h3' {
   return nitroMajor === 3 ? 'nitro/h3' : 'h3'
+}
+
+export type ServerImportsTypesFile = 'server-imports.d.ts' | 'nitro-imports.d.ts'
+
+/** Nitro v3 hosts declare server auto-imports in `types/server-imports.d.ts`; Nitro v2 uses `types/nitro-imports.d.ts`. */
+export function resolveServerImportsTypesFile(nitroMajor: number | undefined): ServerImportsTypesFile {
+  return nitroMajor === 3 ? 'server-imports.d.ts' : 'nitro-imports.d.ts'
 }
 
 /**
