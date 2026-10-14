@@ -25,7 +25,10 @@ export {
 }
 
 export type ServerEvent = H3Event
-export { splitSetCookieString as splitCookiesString }
+
+export function splitCookiesString(cookiesString: string | string[]): string[] {
+  return splitSetCookieString(cookiesString)
+}
 
 export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
   return getRouteRules(event) as AuthRouteRules
