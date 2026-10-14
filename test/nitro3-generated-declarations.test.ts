@@ -108,6 +108,7 @@ void invalidRule
       runtimeTypesPath: './auth-types',
       sharedServerConfigSafe: false,
       h3TypesPath: 'nitro/h3',
+      serverImportsTypesFile: 'server-imports.d.ts',
       nitro3RouteRulesTarget: target,
     })
 
@@ -173,6 +174,7 @@ void resolvedAuth
       runtimeTypesPath: './auth-types',
       sharedServerConfigSafe: false,
       h3TypesPath: 'h3',
+      serverImportsTypesFile: 'nitro-imports.d.ts',
     })
 
     const routeRulesDeclaration = generatedTemplate('types/nuxt-better-auth-nitro.d.ts')
