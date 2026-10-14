@@ -57,7 +57,9 @@ type AvailableRouterMethod<_ReqT extends NitroFetchRequest> = 'get' | 'head' | '
     auth?: import('${runtimeTypesPath}').AuthMeta
   }
 }`).join('\n'))
-  const serverConfigTypeTemplateOptions = sharedServerConfigSafe
+  // Nuxt 5's server-routes.d.ts pulls every server route into the shared program, with Nitro's aliases
+  // and auto-imports, so routes there need the inferred types whatever the server config imports.
+  const serverConfigTypeTemplateOptions = sharedServerConfigSafe || h3TypesPath === 'nitro/h3'
     ? { nuxt: true, nitro: true, node: true, shared: true }
     : { nuxt: true, nitro: true, node: true }
 
