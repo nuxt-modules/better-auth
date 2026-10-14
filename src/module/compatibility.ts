@@ -85,6 +85,13 @@ export function resolveH3TypesPath(nitroMajor: number | undefined): 'h3' | 'nitr
   return nitroMajor === 3 ? 'nitro/h3' : 'h3'
 }
 
+export type ServerImportsTypesFile = 'server-imports.d.ts' | 'nitro-imports.d.ts'
+
+/** Nitro v3 hosts declare server auto-imports in `types/server-imports.d.ts`; Nitro v2 uses `types/nitro-imports.d.ts`. */
+export function resolveServerImportsTypesFile(nitroMajor: number | undefined): ServerImportsTypesFile {
+  return nitroMajor === 3 ? 'server-imports.d.ts' : 'nitro-imports.d.ts'
+}
+
 /**
  * The module behind `#better-auth/app-secret`. `nuxt/server` ships `deriveSecret()` from Nuxt 4.6
  * on every server builder, including Nitro 2, so this follows the Nuxt version rather than the

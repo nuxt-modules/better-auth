@@ -1,5 +1,6 @@
 import type { Nuxt, NuxtPage } from '@nuxt/schema'
 import type { AuthRouteRules } from '../runtime/types'
+import type { ServerImportsTypesFile } from './compatibility'
 import { existsSync, statSync } from 'node:fs'
 import { addComponentsDir, addImports, addNitroPlugin, addPlugin, addRouteMiddleware, addServerHandler, addServerImports, extendPages, updateTemplates } from '@nuxt/kit'
 import { defu } from 'defu'
@@ -27,6 +28,7 @@ interface RegisterPrepareTypesHookInput {
   nuxt: Nuxt
   serverDir: string
   hasHubDb: boolean
+  serverImportsTypesFile: ServerImportsTypesFile
 }
 
 export function registerTemplateHmrHook(nuxt: Nuxt): void {
@@ -89,14 +91,14 @@ export function registerAuthMiddleware(resolve: (path: string) => string): void 
 }
 
 export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): void {
-  const { nuxt, serverDir, hasHubDb } = input
+  const { nuxt, serverDir, hasHubDb, serverImportsTypesFile } = input
 
   nuxt.hook('prepare:types', ({ nodeTsConfig, nodeReferences, sharedReferences }) => {
     nodeTsConfig.compilerOptions ||= {}
     nodeTsConfig.compilerOptions.paths ||= {}
 
     const projectReferenceTypePaths = [
-      join(nuxt.options.buildDir, 'types/nitro-imports.d.ts'),
+      join(nuxt.options.buildDir, 'types', serverImportsTypesFile),
       join(nuxt.options.buildDir, 'types/auth-database.d.ts'),
     ]
 

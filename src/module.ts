@@ -11,7 +11,7 @@ import { Diagnostic, formatDiagnostic } from 'nostics'
 import { dirname, isAbsolute, join, relative } from 'pathe'
 import { version } from '../package.json'
 import { resolveAuthConfigDescriptors, resolveAuthConfigFile } from './module/config-paths'
-import { resolveAppSecretShim, resolveAuthSecretPlugin, resolveH3TypesPath, resolveNitro3RouteRulesTarget, resolveServerRuntimeShim } from './module/compatibility'
+import { resolveAppSecretShim, resolveAuthSecretPlugin, resolveH3TypesPath, resolveNitro3RouteRulesTarget, resolveServerImportsTypesFile, resolveServerRuntimeShim } from './module/compatibility'
 import { diagnostics } from './module/diagnostics'
 import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
@@ -121,7 +121,9 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
   setup(options, nuxt) {
     const finishSetup = async () => {
       const resolver = createResolver(import.meta.url)
-      const h3TypesPath = resolveH3TypesPath(getNitroVersion(nuxt))
+      const nitroMajor = getNitroVersion(nuxt)
+      const h3TypesPath = resolveH3TypesPath(nitroMajor)
+      const serverImportsTypesFile = resolveServerImportsTypesFile(nitroMajor)
       nuxt.options.alias['#better-auth/nitro-compat'] = resolveServerRuntimeShim(resolver.resolve)
       nuxt.options.alias['#better-auth/app-secret'] = await resolveAppSecretShim(resolver.resolve)
 
@@ -195,6 +197,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
           nuxt,
           serverDir: setup.prepareTypes.serverDir,
           hasHubDb: setup.prepareTypes.hasHubDb,
+          serverImportsTypesFile,
         })
       }
 
@@ -223,6 +226,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
           runtimeTypesPath: resolver.resolve('./runtime/types'),
           sharedServerConfigSafe: [setup.configs.server.path, ...setup.pluginSources.server].every(isServerConfigSharedTypeSafe),
           h3TypesPath,
+          serverImportsTypesFile,
           nitro3RouteRulesTarget: h3TypesPath === 'nitro/h3'
             ? resolveNitro3RouteRulesTarget(nuxt.options.rootDir)
             : undefined,
