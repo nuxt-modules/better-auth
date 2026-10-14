@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { useFetch, useRuntimeConfig } from '#imports'
+import { useFetch, useHead, useRuntimeConfig } from '#imports'
+import type { NuxtDevtoolsHostClient } from '@nuxt/devtools-kit/types'
 import { useDevtoolsClient } from '@nuxt/devtools-kit/iframe-client'
-import { computed, ref, watch, watchEffect } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, triggerRef, watch } from 'vue'
 
 const pageSize = 20
 
@@ -21,14 +22,29 @@ interface PagedResponse<T> { total?: number, error?: string, [key: string]: T[] 
 interface ConfigResponse { error?: string, config?: { module?: Record<string, unknown>, server?: Record<string, unknown> } }
 
 const devtoolsClient = useDevtoolsClient()
+const nativeHost = shallowRef<NuxtDevtoolsHostClient>()
+let stopHostUpdates: (() => void) | undefined
+
+onMounted(() => {
+  if (window.parent === window)
+    return
+  // Native DevTools 4 docks expose the host on their same-origin parent.
+  try {
+    nativeHost.value = (window.parent as Window & { __NUXT_DEVTOOLS_HOST__?: NuxtDevtoolsHostClient }).__NUXT_DEVTOOLS_HOST__
+  }
+  catch {
+    return
+  }
+  stopHostUpdates = nativeHost.value?.hooks.hook('host:update:reactivity', () => triggerRef(nativeHost))
+})
+onBeforeUnmount(() => stopHostUpdates?.())
+
 const runtimeConfig = useRuntimeConfig()
 const hasDb = computed(() => (runtimeConfig.public.auth as { useDatabase?: boolean } | undefined)?.useDatabase ?? false)
-const isDark = computed(() => devtoolsClient.value?.host?.app?.colorMode?.value === 'dark')
+const isDark = computed(() => (nativeHost.value ?? devtoolsClient.value?.host)?.app?.colorMode?.value === 'dark')
 
-watchEffect(() => {
-  if (import.meta.client)
-    document.documentElement.classList.toggle('dark', isDark.value)
-})
+// Let the cascade override normal inline margins without changing host styles.
+useHead({ style: [{ key: 'better-auth-devtools-body', textContent: 'body { margin: 0 !important; }' }] })
 
 const activeTab = ref<Tab>(hasDb.value ? 'sessions' : 'config')
 const tabs = computed<Tab[]>(() => hasDb.value ? ['sessions', 'users', 'accounts', 'config'] : ['config'])
@@ -161,7 +177,7 @@ async function deleteConfirmedSession() {
 </script>
 
 <template>
-  <div class="devtools-shell">
+  <div class="devtools-shell" :class="{ dark: isDark }">
     <header class="devtools-header">
       <div class="brand">
         <svg width="60" height="45" viewBox="0 0 60 45" fill="none" class="brand-mark" xmlns="http://www.w3.org/2000/svg">
@@ -411,8 +427,8 @@ async function deleteConfirmedSession() {
   </div>
 </template>
 
-<style>
-:root {
+<style scoped>
+.devtools-shell {
   --ba-bg: #ffffff;
   --ba-fg: #1f1f1f;
   --ba-muted: #707070;
@@ -423,7 +439,7 @@ async function deleteConfirmedSession() {
   --ba-bad: #b91c1c;
 }
 
-.dark {
+.devtools-shell.dark {
   --ba-bg: #111111;
   --ba-fg: #f4f4f5;
   --ba-muted: #a1a1aa;
@@ -436,10 +452,6 @@ async function deleteConfirmedSession() {
 
 * {
   box-sizing: border-box;
-}
-
-body {
-  margin: 0;
 }
 
 button,

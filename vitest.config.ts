@@ -21,6 +21,7 @@ const integrationTests = [
   'test/composables-subpath-exports.test.ts',
   'test/config-paths.test.ts',
   'test/dev-trusted-origins.test.ts',
+  'test/devtools-styles.test.ts',
   'test/exports.test.ts',
   'test/fonts-route-rules.test.ts',
   'test/layer-default-configs.test.ts',

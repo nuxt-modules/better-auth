@@ -1,0 +1,6 @@
+body { margin: 24px; }
+h2 { font-size: 32px; border-bottom: 0; }
+input { width: 180px; padding: 2px; }
+button { background: rgb(250, 220, 100); }
+button:hover { background: rgb(220, 180, 80); }
+.panel { padding: 3px; }
