@@ -1,5 +1,5 @@
 import { addTypeTemplate } from '@nuxt/kit'
-import type { Nitro3RouteRulesTarget } from './compatibility'
+import type { Nitro3RouteRulesTarget, ServerImportsTypesFile } from './compatibility'
 
 // Preserve Nuxt's ordinary fetch contract without adding auth routes to global InternalApi.
 function buildNuxtFetchFallback(name: 'useFetch' | 'useLazyFetch'): string {
@@ -24,11 +24,12 @@ interface RegisterServerTypeTemplatesInput {
   runtimeTypesPath: string
   sharedServerConfigSafe: boolean
   h3TypesPath: 'h3' | 'nitro/h3'
+  serverImportsTypesFile: ServerImportsTypesFile
   nitro3RouteRulesTarget?: Nitro3RouteRulesTarget
 }
 
 export function registerServerTypeTemplates(input: RegisterServerTypeTemplatesInput): void {
-  const { serverConfigPath, hasHubDb, runtimeTypesPath, sharedServerConfigSafe, h3TypesPath, nitro3RouteRulesTarget } = input
+  const { serverConfigPath, hasHubDb, runtimeTypesPath, sharedServerConfigSafe, h3TypesPath, serverImportsTypesFile, nitro3RouteRulesTarget } = input
   // Nitro 3 removed these typed-fetch helpers, while Nitro 2 still uses them to constrain Nuxt's fetch overloads.
   const fetchRoutingTypeDeclarations = h3TypesPath === 'nitro/h3'
     ? `type NitroFetchRequest = string & {}
@@ -57,7 +58,9 @@ type AvailableRouterMethod<_ReqT extends NitroFetchRequest> = 'get' | 'head' | '
     auth?: import('${runtimeTypesPath}').AuthMeta
   }
 }`).join('\n'))
-  const serverConfigTypeTemplateOptions = sharedServerConfigSafe
+  // Nuxt 5's server-routes.d.ts pulls every server route into the shared program, with Nitro's aliases
+  // and auto-imports, so routes there need the inferred types whatever the server config imports.
+  const serverConfigTypeTemplateOptions = sharedServerConfigSafe || h3TypesPath === 'nitro/h3'
     ? { nuxt: true, nitro: true, node: true, shared: true }
     : { nuxt: true, nitro: true, node: true }
 
@@ -75,7 +78,7 @@ declare module '#auth/database' {
   addTypeTemplate({
     filename: 'types/nuxt-better-auth-server-context.d.ts',
     getContents: () => `
-/// <reference path="./nitro-imports.d.ts" />
+/// <reference path="./${serverImportsTypesFile}" />
 /// <reference path="./auth-database.d.ts" />
 ${hasHubDb ? '/// <reference path="../hub/db.d.ts" />' : ''}
 

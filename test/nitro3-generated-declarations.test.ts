@@ -122,6 +122,7 @@ void invalidRule
       runtimeTypesPath: './auth-types',
       sharedServerConfigSafe: false,
       h3TypesPath: 'nitro/h3',
+      serverImportsTypesFile: 'server-imports.d.ts',
       nitro3RouteRulesTarget: target,
     })
 
@@ -206,6 +207,7 @@ void invalidRule
       runtimeTypesPath: './auth-types',
       sharedServerConfigSafe: false,
       h3TypesPath: 'h3',
+      serverImportsTypesFile: 'nitro-imports.d.ts',
     })
 
     const routeRulesDeclaration = generatedTemplate('types/nuxt-better-auth-nitro.d.ts')
@@ -216,5 +218,33 @@ void invalidRule
     expect(routeRulesDeclaration).toContain('interface NitroRouteConfig')
     expect(routeRulesDeclaration).toContain('interface NitroRouteRules')
     expect(endpointDeclaration).toContain(`from 'nitropack/types'`)
+  })
+
+  // #580: Nuxt 5 type-checks server routes in the shared program, so they need the inferred user fields.
+  const serverConfigTemplates = [
+    'types/nuxt-better-auth-infer.d.ts',
+    'types/nuxt-better-auth-social-providers.d.ts',
+    'types/nuxt-better-auth-endpoints.d.ts',
+  ]
+
+  it.each([
+    { h3TypesPath: 'nitro/h3' as const, sharedServerConfigSafe: false, shared: true },
+    { h3TypesPath: 'nitro/h3' as const, sharedServerConfigSafe: true, shared: true },
+    { h3TypesPath: 'h3' as const, sharedServerConfigSafe: false, shared: false },
+    { h3TypesPath: 'h3' as const, sharedServerConfigSafe: true, shared: true },
+  ])('shares server config types with $h3TypesPath and shared-safe config $sharedServerConfigSafe: $shared', ({ h3TypesPath, sharedServerConfigSafe, shared }) => {
+    registerServerTypeTemplates({
+      serverConfigPath: './auth.config',
+      hasHubDb: false,
+      runtimeTypesPath: './auth-types',
+      sharedServerConfigSafe,
+      h3TypesPath,
+    })
+
+    for (const filename of serverConfigTemplates) {
+      const options = mocks.templateOptions.get(filename)
+      expect(options, filename).toMatchObject({ nuxt: true, nitro: true, node: true })
+      expect(Boolean(options?.shared), filename).toBe(shared)
+    }
   })
 })
