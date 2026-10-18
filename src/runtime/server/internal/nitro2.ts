@@ -105,6 +105,7 @@ export function createAuthError(status: number, statusText: string): Error {
   // when a h3 v1 dev handler has already handled the request.
   const error = new Error(statusText)
   Object.assign(error, {
+    name: 'HTTPError',
     status,
     statusText,
     statusCode: status,
