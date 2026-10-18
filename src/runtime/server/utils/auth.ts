@@ -116,8 +116,22 @@ function resolveEventOrigin(event?: ServerEvent): string | undefined {
   if (!event)
     return undefined
 
-  const host = getRequestHost(event, { xForwardedHost: true })
-  const protocol = getRequestProtocol(event, { xForwardedProto: true })
+  let host: string
+  let protocol: string
+  try {
+    host = getRequestHost(event, { xForwardedHost: true })
+    protocol = getRequestProtocol(event, { xForwardedProto: true })
+  }
+  catch {
+    const request = (event as ServerEvent & { node?: { req?: { headers?: Record<string, string | string[] | undefined>, socket?: { encrypted?: boolean } } } }).node?.req
+    const headers = request?.headers ?? {}
+    const forwardedHost = headers['x-forwarded-host']
+    const forwarded = Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost?.split(',')[0]?.trim()
+    const rawHost = forwarded || headers.host
+    host = (Array.isArray(rawHost) ? rawHost[0] : rawHost) || ''
+    const forwardedProto = headers['x-forwarded-proto']
+    protocol = (Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto) || (request?.socket?.encrypted ? 'https' : 'http')
+  }
   if (!host || !protocol)
     return undefined
 

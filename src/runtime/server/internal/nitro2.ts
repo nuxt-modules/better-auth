@@ -14,7 +14,7 @@ export {
 }
 
 export type ServerEvent = H3Event
-type Nitro2Event = ServerEvent & { node?: { req?: IncomingMessage }, web?: { request?: Request } }
+type Nitro2Event = ServerEvent & { path?: string, node?: { req?: IncomingMessage }, web?: { request?: Request } }
 
 // Nitro 2 events expose Node's IncomingMessage while h3 v2 helpers expect a
 // Web Request based event. Keep this shim independent of h3's event shape so
@@ -44,7 +44,7 @@ export function getRequestProtocol(event: ServerEvent, options: { xForwardedProt
 
 export function getRequestURL(event: ServerEvent): URL {
   const req = (event as Nitro2Event).node?.req ?? {}
-  const path = req.originalUrl || req.url || '/'
+  const path = req.originalUrl || req.url || (event as Nitro2Event).path || '/'
   return new URL(path, `${getRequestProtocol(event)}://${getRequestHost(event)}`)
 }
 
