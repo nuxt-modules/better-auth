@@ -10,7 +10,6 @@ minimumReleaseAgeExclude:
   - nuxt@4.6.0
 
 trustPolicy: no-downgrade
-
 trustPolicyExclude:
   - chokidar@4.0.3
   - cssnano@9.2.2
