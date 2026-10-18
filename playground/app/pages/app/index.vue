@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const { user, session, client, loggedIn } = useUserSession()
+const { user, session, loggedIn } = useUserSession()
+const client = useAuthClient()
 const { t, locale } = useI18n()
 const toast = useToast()
 const emailWarning = useEmailWarning()

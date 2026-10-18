@@ -75,7 +75,9 @@ export function useSidebarConfig() {
     },
   ]
 
-  const standaloneLinks: SidebarItem[] = []
+  const standaloneLinks: SidebarItem[] = [
+    { title: 'Error reference', href: '/errors', icon: 'i-lucide-circle-alert' },
+  ]
 
   return { sections, standaloneLinks }
 }

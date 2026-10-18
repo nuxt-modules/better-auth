@@ -1,9 +1,9 @@
-import type { Casing } from 'drizzle-orm/utils'
+import type { SchemaCasing } from '../runtime/config'
 
 export type DbDialect = 'sqlite' | 'postgresql' | 'mysql'
 
 export interface NuxtHubOptions {
-  db?: boolean | DbDialect | { dialect?: DbDialect, casing?: Casing }
+  db?: boolean | DbDialect | { dialect?: DbDialect, casing?: SchemaCasing }
   kv?: boolean
 }
 
@@ -17,7 +17,7 @@ export function getHubDialect(hub?: NuxtHubOptions): DbDialect | undefined {
   return undefined
 }
 
-export function getHubCasing(hub?: NuxtHubOptions): Casing | undefined {
+export function getHubCasing(hub?: NuxtHubOptions): SchemaCasing | undefined {
   if (!hub?.db || typeof hub.db !== 'object' || hub.db === null)
     return undefined
   return hub.db.casing

@@ -1,6 +1,8 @@
+import { createAuthClient } from 'better-auth/vue'
 import { createPinia, defineStore, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isReactive, isRef, ref, watch } from 'vue'
+import { deferred } from './helpers/deferred'
 
 interface SessionState {
   data: { session: Record<string, unknown>, user: Record<string, unknown> } | null
@@ -19,9 +21,6 @@ const runtimeConfig = {
   public: {
     siteUrl: 'http://localhost:3000',
     auth: {
-      session: {
-        skipHydratedSsrGetSession: false,
-      },
       redirects: {} as Record<string, unknown>,
     },
   },
@@ -46,7 +45,7 @@ const nuxtApp = {
   }),
 }
 
-const sessionAtom = ref<SessionState>({
+let sessionAtom = ref<SessionState>({
   data: null,
   isPending: false,
   isRefetching: false,
@@ -56,11 +55,8 @@ const sessionAtom = ref<SessionState>({
 const mockClient: Record<string, any> = {
   useSession: vi.fn(() => sessionAtom),
   getSession: vi.fn(async () => ({ data: null })),
-  $store: {
-    listen: vi.fn(),
-  },
   signOut: vi.fn(async () => {}),
-  signIn: { social: vi.fn(async () => ({})), email: vi.fn(async () => ({})) },
+  signIn: { social: vi.fn(async () => ({})), oauth2: vi.fn(async () => ({})), email: vi.fn(async () => ({})) },
   signUp: { email: vi.fn(async () => ({})) },
 }
 let activeClient: Record<string, any> = mockClient
@@ -73,6 +69,7 @@ vi.mock('#imports', async () => {
   const vue = await import('vue')
   return {
     computed: vue.computed,
+    ref: vue.ref,
     navigateTo,
     nextTick: vue.nextTick,
     watch: vue.watch,
@@ -100,9 +97,20 @@ async function loadUseUserSession() {
   return mod.useUserSession
 }
 
+async function loadUseSignOut() {
+  vi.resetModules()
+  const mod = await import('../src/runtime/app/composables/useSignOut')
+  return mod.useSignOut
+}
+
 async function loadAuthComposables() {
   vi.resetModules()
   return import('../src/runtime/app/composables/useUserSession')
+}
+
+async function loadRedirectHelpers() {
+  vi.resetModules()
+  return import('../src/runtime/app/internal/redirect-helpers')
 }
 
 async function flushPromises() {
@@ -153,28 +161,28 @@ describe('useUserSession hydration bootstrap', () => {
     requestURL.searchParams = new URLSearchParams()
     requestURL.origin = 'http://localhost:3000'
     runtimeConfig.public.siteUrl = 'http://localhost:3000'
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = false
     runtimeConfig.public.auth.redirects = {}
     navigateTo.mockClear()
     $fetch.mockReset()
     $fetch.mockResolvedValue(null)
     activeClient = mockClient
 
-    sessionAtom.value = {
+    sessionAtom = ref({
       data: null,
       isPending: false,
       isRefetching: false,
       error: null,
-    }
+    })
 
     mockClient.useSession.mockReset()
     mockClient.useSession.mockImplementation(() => sessionAtom)
     mockClient.getSession.mockReset()
-    mockClient.$store.listen.mockClear()
     mockClient.signOut.mockClear()
     mockClient.updateUser = undefined
     mockClient.signIn.social.mockReset()
     mockClient.signIn.social.mockResolvedValue({})
+    mockClient.signIn.oauth2.mockReset()
+    mockClient.signIn.oauth2.mockResolvedValue({})
     mockClient.signIn.email.mockReset()
     mockClient.signIn.email.mockResolvedValue({})
     mockClient.signUp.email.mockReset()
@@ -188,39 +196,60 @@ describe('useUserSession hydration bootstrap', () => {
     delete (globalThis as { __NUXT_BETTER_AUTH_TEST_FLAGS__?: { client: boolean, server: boolean } }).__NUXT_BETTER_AUTH_TEST_FLAGS__
   })
 
-  it('bootstraps client session by default even when SSR payload is hydrated', async () => {
+  it('subscribes without synchronously bridging the initial client snapshot', async () => {
     payload.serverRendered = true
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
-    expect(auth.ready.value).toBe(true)
+    expect(auth.ready.value).toBe(false)
+    expect(auth.session.value).toEqual({ id: 'session-1' })
+    expect(auth.user.value).toEqual({ id: 'user-1' })
+    expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
-  it('skips initial client session bootstrap when option is enabled and SSR payload is hydrated', async () => {
+  it.each([
+    { status: 500, message: 'Auth database unavailable' },
+    new TypeError('Network unavailable'),
+  ])('preserves the SSR session when the initial client atom settles with %s', async (error) => {
     payload.serverRendered = true
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
+    nuxtApp.isHydrating = true
     seedHydratedState()
-
-    let _signalCb: (() => void | Promise<void>) | undefined
-    mockClient.$store.listen.mockImplementation((_signal: string, cb: () => void | Promise<void>) => {
-      _signalCb = cb
-      return () => {
-        _signalCb = undefined
-      }
-    })
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
 
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error }
+    await flushPromises()
 
+    expect(auth.session.value).toEqual({ id: 'session-1' })
+    expect(auth.user.value).toEqual({ id: 'user-1' })
+    expect(auth.loggedIn.value).toBe(true)
     expect(auth.ready.value).toBe(true)
-    expect(_signalCb).toBeDefined()
   })
 
-  it('bootstraps client session when SSR payload is not hydrated (even with option enabled)', async () => {
+  it.each([null, { status: 401 }, { code: 'UNAUTHORIZED' }])('clears the SSR session when the initial client atom confirms sign-out: %s', async (error) => {
     payload.serverRendered = true
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
+    nuxtApp.isHydrating = true
+    seedHydratedState()
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error }
+    await flushPromises()
+
+    expect(auth.session.value).toBeNull()
+    expect(auth.user.value).toBeNull()
+    expect(auth.loggedIn.value).toBe(false)
+    expect(auth.ready.value).toBe(true)
+  })
+
+  it('bootstraps client session when SSR payload is not hydrated', async () => {
+    payload.serverRendered = true
 
     const useUserSession = await loadUseUserSession()
     useUserSession()
@@ -228,10 +257,18 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.useSession).toHaveBeenCalledOnce()
   })
 
+  it('installs the client session bridge once per Nuxt app', async () => {
+    const useUserSession = await loadUseUserSession()
+
+    for (let index = 0; index < 100; index++)
+      useUserSession()
+
+    expect(mockClient.useSession).toHaveBeenCalledOnce()
+  })
+
   it('bootstraps client session for prerendered/cached payloads', async () => {
     payload.serverRendered = true
     payload.prerenderedAt = Date.now()
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
@@ -298,7 +335,6 @@ describe('useUserSession hydration bootstrap', () => {
 
   it('bootstraps client session on CSR navigation', async () => {
     payload.serverRendered = false
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
     const useUserSession = await loadUseUserSession()
@@ -311,6 +347,7 @@ describe('useUserSession hydration bootstrap', () => {
     payload.serverRendered = true
     nuxtApp.isHydrating = true
     seedHydratedState()
+    sessionAtom.value.isPending = true
 
     mockClient.getSession.mockResolvedValueOnce({
       data: {
@@ -324,8 +361,14 @@ describe('useUserSession hydration bootstrap', () => {
     await flushPromises()
 
     expect(mockClient.getSession).not.toHaveBeenCalled()
+    expect(nuxtHooks.get('app:mounted')).toBeUndefined()
     expect(auth.session.value).toEqual({ id: 'session-1' })
     expect(auth.user.value).toEqual({ id: 'user-1' })
+
+    sessionAtom.value = { ...sessionAtom.value, isPending: false }
+    await flushPromises()
+
+    expect((nuxtHooks.get('app:mounted') || [])).toHaveLength(1)
 
     nuxtApp.isHydrating = false
     await triggerNuxtHook('app:mounted')
@@ -354,6 +397,181 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.getSession).toHaveBeenCalledTimes(1)
     expect(auth.session.value).toBeNull()
     expect(auth.user.value).toBeNull()
+  })
+
+  it('redirects when SSR auth state expires during hydration and a redirect is configured', async () => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    runtimeConfig.public.auth.redirects = { sessionExpired: '/login' }
+    seedHydratedState()
+    mockClient.getSession.mockResolvedValueOnce({ data: null })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await flushPromises()
+
+    expect(mockClient.getSession).not.toHaveBeenCalled()
+    nuxtApp.isHydrating = false
+    await triggerNuxtHook('app:mounted')
+    await flushPromises()
+
+    expect(auth.loggedIn.value).toBe(false)
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+  })
+
+  it('redirects when a pending initial session settles after hydration', async () => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    runtimeConfig.public.auth.redirects = { sessionExpired: '/login' }
+    seedHydratedState()
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error: null }
+    await flushPromises()
+
+    expect(auth.loggedIn.value).toBe(false)
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+  })
+
+  it('preserves SSR activity when the client session becomes pending after initialization', async () => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    runtimeConfig.public.auth.redirects = { sessionExpired: '/login' }
+    seedHydratedState()
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    nuxtApp.isHydrating = false
+    sessionAtom.value = { data: null, isPending: true, isRefetching: false, error: null }
+    await flushPromises()
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error: null }
+    await flushPromises()
+
+    expect(auth.loggedIn.value).toBe(false)
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+  })
+
+  it('redirects when an active session expires and a redirect is configured', async () => {
+    runtimeConfig.public.auth.redirects = { sessionExpired: '/login' }
+    state.set('auth:session', ref({ id: 'session-1' }))
+    state.set('auth:user', ref({ id: 'user-1' }))
+    state.set('auth:ready', ref(true))
+    sessionAtom.value = {
+      data: {
+        session: { id: 'session-1' },
+        user: { id: 'user-1' },
+      },
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    sessionAtom.value = {
+      data: null,
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+    await flushPromises()
+
+    expect(auth.loggedIn.value).toBe(false)
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+    navigateTo.mockClear()
+    sessionAtom.value = {
+      data: {
+        session: { id: 'session-2' },
+        user: { id: 'user-2' },
+      },
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+    await flushPromises()
+    expect(auth.loggedIn.value).toBe(true)
+
+    sessionAtom.value = { data: null, isPending: false, isRefetching: false, error: null }
+    await flushPromises()
+
+    await vi.waitFor(() => expect(navigateTo).toHaveBeenCalledWith('/login'))
+  })
+
+  it('does not use the session-expired redirect for explicit sign-out', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out', sessionExpired: '/expired' }
+    state.set('auth:session', ref({ id: 'session-1' }))
+    state.set('auth:user', ref({ id: 'user-1' }))
+    state.set('auth:ready', ref(true))
+    sessionAtom.value = {
+      data: {
+        session: { id: 'session-1' },
+        user: { id: 'user-1' },
+      },
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+    mockClient.signOut.mockImplementationOnce(async () => {
+      sessionAtom.value = {
+        data: null,
+        isPending: false,
+        isRefetching: false,
+        error: null,
+      }
+      await flushPromises()
+    })
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    await auth.signOut()
+
+    expect(navigateTo).toHaveBeenCalledWith('/logged-out')
+    expect(navigateTo).not.toHaveBeenCalledWith('/expired')
+  })
+
+  it('retries a rejected hydration refresh after app:mounted has already fired', async () => {
+    payload.serverRendered = true
+    nuxtApp.isHydrating = true
+    seedHydratedState()
+    const error = new Error('Session backend unavailable')
+    const logError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockClient.getSession.mockRejectedValueOnce(error)
+
+    try {
+      const useUserSession = await loadUseUserSession()
+      const auth = useUserSession()
+      await flushPromises()
+
+      await expect(triggerNuxtHook('app:mounted')).resolves.toBeUndefined()
+
+      expect(mockClient.getSession).toHaveBeenCalledOnce()
+      expect(auth.session.value).toEqual({ id: 'session-1' })
+      expect(auth.user.value).toEqual({ id: 'user-1' })
+      expect(logError).toHaveBeenCalledWith(
+        '[nuxt-better-auth] Failed to fetch session during hydration reconciliation:',
+        error,
+      )
+      expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(false)
+
+      mockClient.getSession.mockResolvedValueOnce({
+        data: { session: { id: 'session-2' }, user: { id: 'user-2' } },
+      })
+      sessionAtom.value = { ...sessionAtom.value }
+      await vi.waitFor(() => {
+        expect(mockClient.getSession).toHaveBeenCalledTimes(2)
+        expect(auth.session.value).toEqual({ id: 'session-2' })
+        expect(auth.user.value).toEqual({ id: 'user-2' })
+        expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(false)
+      })
+    }
+    finally {
+      logError.mockRestore()
+    }
   })
 
   it('does not run hydration reconciliation when SSR state is not hydrated', async () => {
@@ -437,10 +655,23 @@ describe('useUserSession hydration bootstrap', () => {
     const auth = useUserSession()
     await auth.fetchSession()
 
-    expect($fetch).toHaveBeenCalledWith('/api/auth/get-session', { headers: { cookie: 'session=test' } })
+    expect($fetch).toHaveBeenCalledWith('/api/auth/get-session', { headers: { cookie: 'session=test' }, parseResponse: expect.any(Function) })
     expect(auth.session.value).toEqual({ id: 'session-server', ipAddress: '127.0.0.1' })
     expect(auth.user.value).toEqual({ id: 'user-server', email: 'server@example.com' })
     expect(auth.ready.value).toBe(true)
+  })
+
+  it('bypasses the cookie cache when forcing an SSR session refresh', async () => {
+    setRuntimeFlags({ client: false, server: true })
+    $fetch.mockImplementationOnce(async (_path: string, options: { query?: { disableCookieCache?: boolean } }) => ({
+      session: { id: 'session-server' },
+      user: { id: options.query?.disableCookieCache ? 'fresh-user' : 'cached-user' },
+    }))
+
+    const auth = (await loadUseUserSession())()
+    await auth.fetchSession({ force: true })
+
+    expect(auth.user.value?.id).toBe('fresh-user')
   })
 
   it('fetchSession clears SSR state on server when no session is returned', async () => {
@@ -623,16 +854,33 @@ describe('useUserSession hydration bootstrap', () => {
     expect(navigateTo).not.toHaveBeenCalled()
   })
 
-  it('signIn.social injects callbackURL from auth.redirects.authenticated when missing', async () => {
+  it.each([
+    { method: 'social', data: { provider: 'github' }, providerURL: 'https://github.com/login/oauth/authorize' },
+    { method: 'oauth2', data: { providerId: 'seznam' }, providerURL: 'https://login.szn.cz/oauth/authorize' },
+  ])('signIn.$method injects callbackURL and skips session sync', async ({ method, data, providerURL }) => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
-    mockClient.signIn.social.mockResolvedValueOnce({ url: 'https://github.com/login/oauth/authorize', redirect: true })
+    mockClient.getSession.mockResolvedValueOnce({
+      data: {
+        session: { id: 'session-1', ipAddress: '127.0.0.1' },
+        user: { id: 'user-1', email: 'user@example.com' },
+      },
+    })
+    mockClient.signIn[method].mockImplementationOnce(async (_data, opts) => {
+      await opts?.onSuccess?.('ctx')
+      return { url: providerURL, redirect: true }
+    })
 
     const { useAuthActionNamespaces } = await loadAuthComposables()
     const auth = useAuthActionNamespaces()
 
-    await auth.signIn.social({ provider: 'github' } as never)
+    if (method === 'social') {
+      await auth.signIn.social(data)
+    }
+    else {
+      await auth.signIn.oauth2(data)
+    }
 
-    expect(mockClient.signIn.social).toHaveBeenCalledWith({ provider: 'github', callbackURL: '/app' }, undefined)
+    expect(mockClient.signIn[method]).toHaveBeenCalledWith({ ...data, callbackURL: '/app' }, undefined)
     expect(mockClient.getSession).not.toHaveBeenCalled()
     expect(navigateTo).not.toHaveBeenCalled()
   })
@@ -691,7 +939,10 @@ describe('useUserSession hydration bootstrap', () => {
     expect(mockClient.getSession).not.toHaveBeenCalled()
   })
 
-  it('signIn.social with disableRedirect wraps explicit onSuccess with session sync', async () => {
+  it.each([
+    { method: 'social', data: { provider: 'github', disableRedirect: true } },
+    { method: 'oauth2', data: { providerId: 'seznam', disableRedirect: true } },
+  ])('signIn.$method with disableRedirect syncs session before onSuccess', async ({ method, data }) => {
     let sessionAuth!: ReturnType<Awaited<ReturnType<typeof loadUseUserSession>>>
     let sessionAtCallback: unknown
     const onSuccess = vi.fn(() => {
@@ -703,7 +954,7 @@ describe('useUserSession hydration bootstrap', () => {
         user: { id: 'user-1', email: 'user@example.com' },
       },
     })
-    mockClient.signIn.social.mockImplementation(async (_data, opts) => {
+    mockClient.signIn[method].mockImplementation(async (_data, opts) => {
       await opts?.onSuccess?.('ctx')
     })
 
@@ -711,7 +962,12 @@ describe('useUserSession hydration bootstrap', () => {
     sessionAuth = useUserSession()
     const auth = useAuthActionNamespaces()
 
-    await auth.signIn.social({ provider: 'github', disableRedirect: true } as never, { onSuccess } as never)
+    if (method === 'social') {
+      await auth.signIn.social(data, { onSuccess })
+    }
+    else {
+      await auth.signIn.oauth2(data, { onSuccess })
+    }
 
     expect(onSuccess).toHaveBeenCalledOnce()
     expect(sessionAtCallback).toEqual({ id: 'session-1', ipAddress: '127.0.0.1' })
@@ -742,7 +998,7 @@ describe('useUserSession hydration bootstrap', () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
     mockClient.getSession.mockResolvedValueOnce({ data: null })
     mockClient.signUp.email.mockImplementation(async (_data, opts) => {
-      await opts?.onSuccess?.('ctx')
+      await opts?.onSuccess?.({ data: { token: null, user: { id: 'user-1' } } })
     })
 
     const { useAuthActionNamespaces } = await loadAuthComposables()
@@ -751,7 +1007,91 @@ describe('useUserSession hydration bootstrap', () => {
     await auth.signUp.email({ email: 'user@example.com', password: 'password', name: 'User' })
 
     expect(navigateTo).not.toHaveBeenCalled()
-  }, 10000)
+  })
+
+  it('does not wait five seconds when email-verification sign-up creates no session', async () => {
+    vi.useFakeTimers()
+    let settledBeforeTimeout = false
+    let timerCountBeforeCleanup = 0
+    const onSuccess = vi.fn()
+
+    try {
+      mockClient.getSession.mockResolvedValueOnce({ data: null })
+      mockClient.signUp.email.mockImplementation(async (_data, opts) => {
+        await opts?.onSuccess?.({ data: { token: null, user: { id: 'user-1' } } })
+      })
+
+      const { useAuthActionNamespaces } = await loadAuthComposables()
+      const auth = useAuthActionNamespaces()
+      let settled = false
+      const pending = auth.signUp.email(
+        { email: 'user@example.com', password: 'password', name: 'User' },
+        { onSuccess },
+      ).then(() => {
+        settled = true
+      })
+
+      await vi.advanceTimersByTimeAsync(0)
+      settledBeforeTimeout = settled
+      timerCountBeforeCleanup = vi.getTimerCount()
+      await vi.runAllTimersAsync()
+      await pending
+    }
+    finally {
+      vi.useRealTimers()
+    }
+
+    expect(settledBeforeTimeout).toBe(true)
+    expect(timerCountBeforeCleanup).toBe(0)
+    expect(onSuccess).toHaveBeenCalledOnce()
+  })
+
+  it('still waits for a session-creating sign-up before running onSuccess', async () => {
+    vi.useFakeTimers()
+    let callbackBeforeSession = false
+    let settledAfterSession = false
+
+    try {
+      mockClient.getSession.mockResolvedValueOnce({ data: null })
+      mockClient.signUp.email.mockImplementation(async (_data, opts) => {
+        await opts?.onSuccess?.({ data: { token: 'session-token', user: { id: 'user-1' } } })
+      })
+      const onSuccess = vi.fn()
+
+      const { useAuthActionNamespaces } = await loadAuthComposables()
+      const auth = useAuthActionNamespaces()
+      let settled = false
+      const pending = auth.signUp.email(
+        { email: 'user@example.com', password: 'password', name: 'User' },
+        { onSuccess },
+      ).then(() => {
+        settled = true
+      })
+
+      await vi.advanceTimersByTimeAsync(0)
+      callbackBeforeSession = onSuccess.mock.calls.length > 0
+      sessionAtom.value = {
+        data: {
+          session: { id: 'session-1' },
+          user: { id: 'user-1' },
+        },
+        isPending: false,
+        isRefetching: false,
+        error: null,
+      }
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(0)
+      settledAfterSession = settled
+      await vi.runAllTimersAsync()
+      await pending
+    }
+    finally {
+      vi.useRealTimers()
+    }
+
+    expect(callbackBeforeSession).toBe(false)
+    expect(settledAfterSession).toBe(true)
+  })
 
   it('signUp uses auth.redirects.authenticated when no callback is provided', async () => {
     runtimeConfig.public.auth.redirects = { authenticated: '/app' }
@@ -826,6 +1166,47 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.user.value!.name).toBe('Old')
   })
 
+  it('does not restore an optimistic user after signOut wins the race', async () => {
+    const update = deferred<{ data: { status: true } }>()
+    mockClient.updateUser = vi.fn(() => update.promise)
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    auth.session.value = { id: 'session-1' } as any
+    auth.user.value = { id: 'user-1', name: 'Old', email: 'a@b.com' }
+
+    const pendingUpdate = auth.updateUser({ name: 'New' })
+    await auth.signOut({ onSuccess: vi.fn() })
+    update.reject(new Error('update failed'))
+
+    await expect(pendingUpdate).rejects.toThrow('update failed')
+    expect(auth.session.value).toBeNull()
+    expect(auth.user.value).toBeNull()
+  })
+
+  it('does not roll back over a newer session snapshot', async () => {
+    const update = deferred<{ data: { status: true } }>()
+    mockClient.updateUser = vi.fn(() => update.promise)
+    mockClient.getSession.mockResolvedValueOnce({
+      data: {
+        session: { id: 'session-2' },
+        user: { id: 'user-1', name: 'Server', email: 'a@b.com' },
+      },
+    })
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    auth.session.value = { id: 'session-1' } as any
+    auth.user.value = { id: 'user-1', name: 'Old', email: 'a@b.com' }
+
+    const pendingUpdate = auth.updateUser({ name: 'New' })
+    await auth.fetchSession({ force: true })
+    const refreshedUser = auth.user.value
+    update.reject(new Error('update failed'))
+
+    await expect(pendingUpdate).rejects.toThrow('update failed')
+    expect(auth.user.value).toBe(refreshedUser)
+    expect(auth.user.value?.name).toBe('Server')
+  })
+
   it('updateUser only updates local state on server (no client)', async () => {
     setRuntimeFlags({ client: false, server: true })
     const useUserSession = await loadUseUserSession()
@@ -836,36 +1217,89 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.user.value!.name).toBe('New')
   })
 
-  it('syncs session on $sessionSignal when option is enabled and SSR payload is hydrated', async () => {
+  it('syncs session after Better Auth refreshes hydrated SSR state', async () => {
     payload.serverRendered = true
-    runtimeConfig.public.auth.session.skipHydratedSsrGetSession = true
     seedHydratedState()
 
-    let signalCb: (() => void | Promise<void>) | undefined
-    mockClient.$store.listen.mockImplementation((_signal: string, cb: () => void | Promise<void>) => {
-      signalCb = cb
-      return () => {
-        signalCb = undefined
-      }
-    })
-
-    mockClient.getSession.mockResolvedValueOnce({
+    const refreshedSession = {
       data: {
         session: { id: 'session-3', token: 'secret', ipAddress: '127.0.0.1' },
         user: { id: 'user-3', email: 'user3@example.com' },
       },
-    })
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
 
     const useUserSession = await loadUseUserSession()
     const auth = useUserSession()
 
+    expect(auth.ready.value).toBe(false)
+
+    sessionAtom.value = refreshedSession
+    await flushPromises()
+
     expect(auth.ready.value).toBe(true)
-
-    await signalCb?.()
-
-    expect(mockClient.getSession).toHaveBeenCalledOnce()
     expect(auth.session.value).toEqual({ id: 'session-3', ipAddress: '127.0.0.1' })
     expect(auth.user.value).toEqual({ id: 'user-3', email: 'user3@example.com' })
+  })
+
+  it('does not re-sync session for nested mutations within the current Better Auth snapshot', async () => {
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+
+    sessionAtom.value = {
+      data: {
+        session: { id: 'session-1', metadata: { role: 'member' } },
+        user: { id: 'user-1', email: 'user@example.com' },
+      },
+      isPending: false,
+      isRefetching: false,
+      error: null,
+    }
+    await flushPromises()
+    const bridgedSession = auth.session.value
+
+    const metadata = sessionAtom.value.data!.session.metadata as { role: string }
+    metadata.role = 'admin'
+    await flushPromises()
+
+    expect(auth.session.value).toBe(bridgedSession)
+  })
+
+  it.each([401, 500])('preserves session state when Better Auth returns HTTP %i during logout', async (status) => {
+    const client = createAuthClient({
+      baseURL: 'https://auth.example.test',
+      fetchOptions: {
+        customFetchImpl: async () => Response.json({ message: 'Logout unavailable' }, { status }),
+      },
+    })
+    mockClient.signOut.mockImplementationOnce(() => client.signOut())
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    seedHydratedState()
+    const auth = (await loadUseUserSession())()
+    const onSuccess = vi.fn()
+
+    await expect(auth.signOut({ onSuccess })).rejects.toThrow('Logout unavailable')
+
+    expect(auth.loggedIn.value).toBe(true)
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(navigateTo).not.toHaveBeenCalled()
+
+    await auth.signOut({ onSuccess })
+    expect(auth.loggedIn.value).toBe(false)
+    expect(onSuccess).toHaveBeenCalledOnce()
+  })
+
+  it('preserves session state when logout rejects', async () => {
+    mockClient.signOut.mockRejectedValueOnce(new Error('Network unavailable'))
+    seedHydratedState()
+    const auth = (await loadUseUserSession())()
+    const onSuccess = vi.fn()
+
+    await expect(auth.signOut({ onSuccess })).rejects.toThrow('Network unavailable')
+    expect(auth.loggedIn.value).toBe(true)
+    expect(onSuccess).not.toHaveBeenCalled()
   })
 
   it('signOut navigates to redirects.logout when configured (and no onSuccess)', async () => {
@@ -948,6 +1382,145 @@ describe('useUserSession hydration bootstrap', () => {
     expect(navigateTo).toHaveBeenCalledWith('/logged-out')
   })
 
+  it('useSignOut tracks pending state, clears the session, and redirects on success', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    seedHydratedState()
+    let resolveSignOut: () => void = () => {}
+    mockClient.signOut.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveSignOut = resolve
+    }))
+    const signOut = (await loadUseSignOut())()
+
+    expect(signOut.status.value).toBe('idle')
+    expect(signOut.error.value).toBeNull()
+    const pending = signOut.execute()
+    expect(signOut.status.value).toBe('pending')
+    expect(state.get('auth:user')?.value).toEqual({ id: 'user-1' })
+    expect(navigateTo).not.toHaveBeenCalled()
+
+    resolveSignOut()
+    await pending
+
+    expect(signOut.status.value).toBe('success')
+    expect(signOut.error.value).toBeNull()
+    expect(state.get('auth:session')?.value).toBeNull()
+    expect(state.get('auth:user')?.value).toBeNull()
+    expect(navigateTo).toHaveBeenCalledWith('/logged-out')
+  })
+
+  it.each([401, 500])('useSignOut exposes HTTP %i errors without clearing the session and supports retry', async (status) => {
+    const client = createAuthClient({
+      baseURL: 'https://auth.example.test',
+      fetchOptions: {
+        customFetchImpl: async () => Response.json({ message: 'Logout unavailable' }, { status }),
+      },
+    })
+    mockClient.signOut.mockImplementationOnce(() => client.signOut())
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    seedHydratedState()
+    const signOut = (await loadUseSignOut())()
+
+    await signOut.execute()
+
+    expect(signOut.status.value).toBe('error')
+    expect(signOut.error.value?.message).toBe('Logout unavailable')
+    expect(state.get('auth:session')?.value).toEqual({ id: 'session-1' })
+    expect(state.get('auth:user')?.value).toEqual({ id: 'user-1' })
+    expect(navigateTo).not.toHaveBeenCalled()
+
+    await signOut.execute()
+
+    expect(signOut.status.value).toBe('success')
+    expect(signOut.error.value).toBeNull()
+    expect(state.get('auth:user')?.value).toBeNull()
+    expect(navigateTo).toHaveBeenCalledOnce()
+  })
+
+  it('useSignOut exposes network failures without invoking onSuccess', async () => {
+    mockClient.signOut.mockRejectedValueOnce(new Error('Network unavailable'))
+    seedHydratedState()
+    const signOut = (await loadUseSignOut())()
+    const onSuccess = vi.fn()
+
+    await signOut.execute({ onSuccess })
+
+    expect(signOut.status.value).toBe('error')
+    expect(signOut.error.value?.message).toBe('Network unavailable')
+    expect(state.get('auth:user')?.value).toEqual({ id: 'user-1' })
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('useSignOut waits for onSuccess instead of using the configured redirect', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    seedHydratedState()
+    let resolveSuccess: () => void = () => {}
+    const onSuccess = vi.fn(() => new Promise<void>((resolve) => {
+      resolveSuccess = resolve
+    }))
+    const signOut = (await loadUseSignOut())()
+    const pending = signOut.execute({ onSuccess })
+    await flushPromises()
+
+    expect(onSuccess).toHaveBeenCalledOnce()
+    expect(signOut.status.value).toBe('pending')
+    expect(state.get('auth:user')?.value).toBeNull()
+    resolveSuccess()
+    await pending
+
+    expect(signOut.status.value).toBe('success')
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('useSignOut coalesces requests across independent action handles', async () => {
+    runtimeConfig.public.auth.redirects = { logout: '/logged-out' }
+    let resolveSignOut: () => void = () => {}
+    mockClient.signOut.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveSignOut = resolve
+    }))
+    const useSignOut = await loadUseSignOut()
+    const first = useSignOut()
+    const second = useSignOut()
+    const firstRequest = first.execute()
+    const secondRequest = second.execute()
+
+    expect(first.status.value).toBe('pending')
+    expect(second.status.value).toBe('pending')
+    expect(mockClient.signOut).toHaveBeenCalledOnce()
+    resolveSignOut()
+    await Promise.all([firstRequest, secondRequest])
+
+    expect(first.status.value).toBe('success')
+    expect(second.status.value).toBe('success')
+    expect(navigateTo).toHaveBeenCalledOnce()
+  })
+
+  it('useSignOut signs out anonymous users without deleting their accounts', async () => {
+    seedHydratedState()
+    state.set('auth:user', ref({ id: 'anonymous-1', isAnonymous: true }))
+    const deleteAnonymousUser = vi.fn()
+    activeClient = { ...mockClient, deleteAnonymousUser }
+    const signOut = (await loadUseSignOut())()
+
+    await signOut.execute()
+
+    expect(mockClient.signOut).toHaveBeenCalledOnce()
+    expect(deleteAnonymousUser).not.toHaveBeenCalled()
+    expect(signOut.status.value).toBe('success')
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('useSignOut is safe to create during SSR but reports client-only execution', async () => {
+    setRuntimeFlags({ client: false, server: true })
+    const signOut = (await loadUseSignOut())()
+    expect(signOut.status.value).toBe('idle')
+
+    await signOut.execute()
+
+    expect(signOut.status.value).toBe('error')
+    expect(signOut.error.value?.message).toBe('signOut can only be called on client-side')
+    expect(mockClient.signOut).not.toHaveBeenCalled()
+  })
+
   it('treats expected unauthenticated getSession errors as a normal signed-out state', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockClient.getSession.mockRejectedValueOnce({
@@ -978,4 +1551,37 @@ describe('useUserSession hydration bootstrap', () => {
 
     await expect(auth.signOut()).rejects.toThrow('signOut can only be called on client-side')
   })
+})
+
+describe('local redirect validation', () => {
+  it.each([
+    'https://evil.example/phish',
+    '//evil.example/phish',
+    '/\\evil.example/phish',
+    '/%2fevil.example/phish',
+    '/%5cevil.example/phish',
+    '/safe\nevil',
+    '/safe/..%2F%2Fevil.example/phish',
+    '/safe/%2e%2e/%5Cevil.example/phish',
+    '/%2e%2e//evil.example/phish',
+  ])('rejects unsafe redirect %j', async (redirect) => {
+    const { isSafeLocalRedirect } = await loadRedirectHelpers()
+    expect(isSafeLocalRedirect(redirect)).toBeUndefined()
+  })
+
+  it.each([
+    '/dashboard',
+    '/dashboard?tab=billing',
+    '/dashboard#security',
+    '/user/eduardo%2Fsan%20martin',
+    '/user/name%5Cpart',
+    '/dashboard?next=%2Fsettings',
+    '/dashboard#%2Fsettings%5Cdetails',
+  ])(
+    'accepts local redirect %j',
+    async (redirect) => {
+      const { isSafeLocalRedirect } = await loadRedirectHelpers()
+      expect(isSafeLocalRedirect(redirect)).toBe(redirect)
+    },
+  )
 })

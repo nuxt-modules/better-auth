@@ -1,4 +1,4 @@
-import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
+import { defineServerAuth } from '@nuxtjs/better-auth/config'
 import { sessionHookAfter } from '#server/utils/hooks'
 
 export default defineServerAuth(({ db: _db }) => {

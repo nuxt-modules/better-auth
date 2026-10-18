@@ -123,6 +123,11 @@ const accordionItems = computed(() =>
   display: flex;
   flex-direction: column;
   min-height: 100%;
+  width: 100%;
+}
+
+.docs-sidebar-nav :deep(> *) {
+  width: 100%;
 }
 
 /* Add top border to first accordion item */

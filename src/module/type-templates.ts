@@ -1,58 +1,76 @@
 import { addTypeTemplate } from '@nuxt/kit'
+import type { Nitro3RouteRulesTarget, ServerImportsTypesFile } from './compatibility'
+
+// Preserve Nuxt's ordinary fetch contract without adding auth routes to global InternalApi.
+function buildNuxtFetchFallback(name: 'useFetch' | 'useLazyFetch'): string {
+  const options = 'import(\'nuxt/app\').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, ReqT, Method>'
+  return ['undefined', 'DataT'].map(defaultType => `
+  export function ${name}<
+    ResT = void,
+    ErrorT = _NuxtFetchError,
+    ReqT extends NitroFetchRequest = NitroFetchRequest,
+    const Method extends _NuxtFetchMethod<ReqT> = ResT extends void ? 'get' extends _NuxtFetchMethod<ReqT> ? 'get' : _NuxtFetchMethod<ReqT> : _NuxtFetchMethod<ReqT>,
+    _ResT = ResT extends void ? import('nuxt/app').FetchResult<ReqT, Method> : ResT,
+    DataT = _ResT,
+    PickKeys extends _NuxtKeysOf<DataT> = _NuxtKeysOf<DataT>,
+    DefaultT = ${defaultType},
+  >(request: import('vue').Ref<ReqT> | ReqT | (() => ReqT), opts?: ${name === 'useLazyFetch' ? `Omit<${options}, 'lazy'>` : options}): import('nuxt/app').AsyncData<_NuxtPickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
+`).join('')
+}
 
 interface RegisterServerTypeTemplatesInput {
   serverConfigPath: string
   hasHubDb: boolean
   runtimeTypesPath: string
   sharedServerConfigSafe: boolean
+  h3TypesPath: 'h3' | 'nitro/h3'
+  serverImportsTypesFile: ServerImportsTypesFile
+  nitro3RouteRulesTarget?: Nitro3RouteRulesTarget
 }
 
 export function registerServerTypeTemplates(input: RegisterServerTypeTemplatesInput): void {
-  const { serverConfigPath, hasHubDb, runtimeTypesPath, sharedServerConfigSafe } = input
-  const serverConfigTypeTemplateOptions = sharedServerConfigSafe
+  const { serverConfigPath, hasHubDb, runtimeTypesPath, sharedServerConfigSafe, h3TypesPath, serverImportsTypesFile, nitro3RouteRulesTarget } = input
+  // Nitro 3 removed these typed-fetch helpers, while Nitro 2 still uses them to constrain Nuxt's fetch overloads.
+  const fetchRoutingTypeDeclarations = h3TypesPath === 'nitro/h3'
+    ? `type NitroFetchRequest = string & {}
+type AvailableRouterMethod<_ReqT extends NitroFetchRequest> = 'get' | 'head' | 'patch' | 'post' | 'put' | 'delete' | 'connect' | 'options' | 'trace'`
+    : `import type { AvailableRouterMethod, NitroFetchRequest } from 'nitropack/types'`
+  const resolvedNitro3RouteRulesTarget = nitro3RouteRulesTarget ?? {
+    moduleName: 'nitro/types',
+    configInterface: 'NitroRouteConfig',
+    rulesInterface: 'NitroRouteRules',
+  }
+  // Early Nitro 3 releases own these interfaces. Newer releases alias them to h3/rules.
+  const routeRuleAugmentations = h3TypesPath === 'nitro/h3'
+    ? `declare module ${JSON.stringify(resolvedNitro3RouteRulesTarget.moduleName)} {
+  interface ${resolvedNitro3RouteRulesTarget.configInterface} {
+    auth?: import('${runtimeTypesPath}').AuthMeta
+  }
+  interface ${resolvedNitro3RouteRulesTarget.rulesInterface} {
+    auth?: import('${runtimeTypesPath}').AuthMeta
+  }
+}`
+    : (['nitropack', 'nitropack/types'].map(moduleName => `declare module '${moduleName}' {
+  interface NitroRouteRules {
+    auth?: import('${runtimeTypesPath}').AuthMeta
+  }
+  interface NitroRouteConfig {
+    auth?: import('${runtimeTypesPath}').AuthMeta
+  }
+}`).join('\n'))
+  // Nuxt 5's server-routes.d.ts pulls every server route into the shared program, with Nitro's aliases
+  // and auto-imports, so routes there need the inferred types whatever the server config imports.
+  const serverConfigTypeTemplateOptions = sharedServerConfigSafe || h3TypesPath === 'nitro/h3'
     ? { nuxt: true, nitro: true, node: true, shared: true }
     : { nuxt: true, nitro: true, node: true }
-
-  addTypeTemplate({
-    filename: 'types/auth-secondary-storage.d.ts',
-    getContents: () => `
-declare module '#auth/secondary-storage' {
-  interface SecondaryStorage {
-    get: (key: string) => Promise<string | null>
-    set: (key: string, value: unknown, ttl?: number) => Promise<void>
-    delete: (key: string) => Promise<void>
-  }
-  export function createSecondaryStorage(): SecondaryStorage | undefined
-}
-`,
-  }, { nitro: true })
 
   addTypeTemplate({
     filename: 'types/auth-database.d.ts',
     getContents: () => `
 declare module '#auth/database' {
   import type { BetterAuthOptions } from 'better-auth'
-  export function createDatabase(event?: import('h3').H3Event): BetterAuthOptions['database']
+  export function createDatabase(event?: import('${h3TypesPath}').H3Event): BetterAuthOptions['database']
   export const db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
-}
-`,
-  }, { nitro: true })
-
-  addTypeTemplate({
-    filename: 'types/auth-schema.d.ts',
-    getContents: () => `
-declare module '#auth/schema' {
-  export const user: any
-  export const session: any
-  export const account: any
-  export const verification: any
-  export const schema: {
-    user: any
-    session: any
-    account: any
-    verification: any
-    [key: string]: any
-  } | undefined
 }
 `,
   }, { nitro: true })
@@ -60,10 +78,8 @@ declare module '#auth/schema' {
   addTypeTemplate({
     filename: 'types/nuxt-better-auth-server-context.d.ts',
     getContents: () => `
-/// <reference path="./nitro-imports.d.ts" />
+/// <reference path="./${serverImportsTypesFile}" />
 /// <reference path="./auth-database.d.ts" />
-/// <reference path="./auth-schema.d.ts" />
-/// <reference path="./auth-secondary-storage.d.ts" />
 ${hasHubDb ? '/// <reference path="../hub/db.d.ts" />' : ''}
 
 export {}
@@ -75,7 +91,7 @@ export {}
     getContents: () => `
 import type { RuntimeConfig } from 'nuxt/schema'
 
-declare module '@onmax/nuxt-better-auth/config' {
+declare module '@nuxtjs/better-auth/config' {
   interface ServerAuthContextExtension {
     runtimeConfig: RuntimeConfig
     db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
@@ -90,7 +106,7 @@ declare module '@onmax/nuxt-better-auth/config' {
     filename: 'types/nuxt-better-auth-infer.d.ts',
     getContents: () => `
 import type { BetterAuthOptions, BetterAuthPlugin, InferPluginTypes, UnionToIntersection } from 'better-auth'
-import type { InferFieldsOutput } from 'better-auth/db'
+import type { InferFieldsInputClient, InferFieldsOutput } from 'better-auth/db'
 import type createServerAuth from '${serverConfigPath}'
 
 type _RawConfig = ReturnType<typeof createServerAuth>
@@ -114,11 +130,24 @@ type _InferModelFieldsFromOptions<C, M extends 'user' | 'session'> = C extends {
   ? InferFieldsOutput<F>
   : {}
 
+type _UserFields = NonNullable<NonNullable<BetterAuthOptions['user']>['additionalFields']>
+
+type _InferUserInputFromPlugins<P> = P extends readonly (infer Plugin)[]
+  ? UnionToIntersection<Plugin extends { schema: { user: { fields: infer F extends _UserFields } } } ? InferFieldsInputClient<F> : {}>
+  : {}
+
+type _UserInputFallback = Partial<_InferUserInputFromPlugins<_RawPlugins> & (
+  _RawConfig extends { user: { additionalFields: infer F extends _UserFields } }
+    ? InferFieldsInputClient<F>
+    : {}
+)>
+
 type _UserFallback = _InferModelFieldsFromPlugins<_RawPlugins, 'user'> & _InferModelFieldsFromOptions<_RawConfig, 'user'>
 type _SessionFallback = _InferModelFieldsFromPlugins<_RawPlugins, 'session'> & _InferModelFieldsFromOptions<_RawConfig, 'session'>
 
 declare module '#nuxt-better-auth' {
   interface AuthUser extends _UserFallback {}
+  interface AuthUserUpdateInput extends _UserInputFallback {}
   interface AuthSession extends _SessionFallback {}
   type PluginTypes = InferPluginTypes<_Config>
 }
@@ -143,13 +172,42 @@ declare module '#nuxt-better-auth' {
   }, serverConfigTypeTemplateOptions)
 
   addTypeTemplate({
-    filename: 'types/nuxt-better-auth-nitro.d.ts',
+    filename: 'types/nuxt-better-auth-endpoints.d.ts',
     getContents: () => `
 import type createServerAuth from '${serverConfigPath}'
 import type { BetterAuthOptions } from 'better-auth'
 import type { getEndpoints } from 'better-auth/api'
-import type { Serialize, Simplify } from 'nitropack/types'
-import type { FetchError } from 'ofetch'
+import type { useFetch as _NuxtUseFetch } from '#app/composables/fetch'
+${fetchRoutingTypeDeclarations}
+
+type _NuxtFetchError = NonNullable<ReturnType<typeof _NuxtUseFetch<void>>['error']['value']>
+
+type _JsonPrimitive = string | number | boolean | null
+type _NonJsonPrimitive = undefined | Function | symbol
+type _IsAny<T> = 0 extends 1 & T ? true : false
+type _FilterKeys<TObj extends object, TFilter> = {
+  [TKey in keyof TObj]: TObj[TKey] extends TFilter ? TKey : never
+}[keyof TObj]
+type _Serialize<T> = _IsAny<T> extends true
+  ? any
+  : T extends _JsonPrimitive | undefined
+    ? T
+    : T extends Map<any, any> | Set<any>
+      ? Record<string, never>
+      : T extends _NonJsonPrimitive
+        ? never
+        : T extends { toJSON: () => infer U }
+          ? U
+          : T extends []
+            ? []
+            : T extends [unknown, ...unknown[]]
+              ? { [K in keyof T]: T[K] extends _NonJsonPrimitive ? null : _Serialize<T[K]> }
+              : T extends ReadonlyArray<infer U>
+                ? (U extends _NonJsonPrimitive ? null : _Serialize<U>)[]
+                : T extends object
+                  ? { [K in keyof Omit<T, _FilterKeys<T, _NonJsonPrimitive>>]: _Serialize<T[K]> }
+                  : never
+type _Simplify<T> = T extends any[] | Date ? T : { [K in keyof T]: _Simplify<T[K]> }
 
 type _RawConfig = ReturnType<typeof createServerAuth>
 type _RawPlugins = _RawConfig extends { plugins: infer P } ? P : _RawConfig extends { plugins?: infer P } ? P : []
@@ -170,7 +228,7 @@ type _RoutePathFromEndpoint<E> = E extends { path: infer P extends string }
       ? never
       : \`/api/auth\${P}\`
   : never
-type _RouteResponseFromEndpoint<E> = E extends (...args: any[]) => Promise<infer R> ? Simplify<Serialize<Awaited<R>>> : never
+type _RouteResponseFromEndpoint<E> = E extends (...args: any[]) => Promise<infer R> ? _Simplify<_Serialize<Awaited<R>>> : never
 type _RouteDefaultResponse<E> = never
 type _UnionToIntersection<U> = (U extends unknown ? (value: U) => void : never) extends (value: infer I) => void ? I : never
 
@@ -211,7 +269,11 @@ type _AuthPatternFromRequestPath<Path extends string> = {
 }[_AuthApiPatternPath]
 type _AuthEndpointMethod<Path extends _AuthApiRequestPath> = Extract<keyof _GeneratedAuthInternalApi[_AuthPatternFromRequestPath<Path>], string>
 
-type _AuthFetchMethod<Path extends _AuthApiRequestPath> = Extract<Exclude<import('nitropack/types').NitroFetchOptions<Path>['method'], undefined>, string>
+type _NuxtKeysOf<T> = Array<T extends T ? keyof T extends string ? keyof T : never : never>
+type _NuxtPickFrom<T, Keys extends string[]> = T extends unknown[] ? T : T extends Record<string, any> ? keyof T extends Keys[number] ? T : Keys[number] extends never ? T : Pick<T, Keys[number]> : T
+type _NuxtFetchMethod<ReqT extends NitroFetchRequest> = AvailableRouterMethod<ReqT> | Uppercase<AvailableRouterMethod<ReqT>>
+
+type _AuthFetchMethod = _NuxtFetchMethod<string>
 type _AuthFetchDefaultMethod<Path extends _AuthApiRequestPath> = 'get'
 type _AuthFetchResolvedMethod<Path extends _AuthApiRequestPath, Method extends string> = Lowercase<Method> extends _AuthEndpointMethod<Path>
   ? Lowercase<Method>
@@ -229,149 +291,178 @@ declare module '#nuxt-better-auth' {
   > = AuthApiInternalRoutes[_AuthPatternFromRequestPath<Path>][Method]
 }
 
-declare module 'nuxt/dist/app/composables/fetch' {
-  export function useFetch<
-    ErrorT = FetchError,
-    Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
-    Method extends _AuthFetchMethod<Path> = _AuthFetchDefaultMethod<Path>,
-    _ResT = _AuthFetchResult<Path, Method>,
-    DataT = _ResT,
-    PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
-    DefaultT = undefined,
-  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
-  export function useFetch<
-    ErrorT = FetchError,
-    Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
-    Method extends _AuthFetchMethod<Path> = _AuthFetchDefaultMethod<Path>,
-    _ResT = _AuthFetchResult<Path, Method>,
-    DataT = _ResT,
-    PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
-    DefaultT = DataT,
-  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
-  export function useFetch(request: string | import('vue').Ref<string> | (() => string), opts?: any): any
-
-  export function useLazyFetch<
-    ErrorT = FetchError,
-    Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
-    Method extends _AuthFetchMethod<Path> = _AuthFetchDefaultMethod<Path>,
-    _ResT = _AuthFetchResult<Path, Method>,
-    DataT = _ResT,
-    PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
-    DefaultT = undefined,
-  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: Omit<import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>, 'lazy'>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
-  export function useLazyFetch<
-    ErrorT = FetchError,
-    Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
-    Method extends _AuthFetchMethod<Path> = _AuthFetchDefaultMethod<Path>,
-    _ResT = _AuthFetchResult<Path, Method>,
-    DataT = _ResT,
-    PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
-    DefaultT = DataT,
-  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: Omit<import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>, 'lazy'>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
-  export function useLazyFetch(request: string | import('vue').Ref<string> | (() => string), opts?: any): any
-}
-
 declare module 'nuxt/app' {
   export function useFetch<
-    ErrorT = FetchError,
+    ResT = void,
+    ErrorT = _NuxtFetchError,
     Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
-    Method extends _AuthFetchMethod<Path> = _AuthFetchDefaultMethod<Path>,
-    _ResT = _AuthFetchResult<Path, Method>,
+    const Method extends _AuthFetchMethod = _AuthFetchDefaultMethod<Path>,
+    _ResT = ResT extends void ? _AuthFetchResult<Path, Method> : ResT,
     DataT = _ResT,
-    PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
+    PickKeys extends _NuxtKeysOf<DataT> = _NuxtKeysOf<DataT>,
     DefaultT = undefined,
-  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
+  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: import('nuxt/app').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>): import('nuxt/app').AsyncData<_NuxtPickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
   export function useFetch<
-    ErrorT = FetchError,
+    ResT = void,
+    ErrorT = _NuxtFetchError,
     Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
-    Method extends _AuthFetchMethod<Path> = _AuthFetchDefaultMethod<Path>,
-    _ResT = _AuthFetchResult<Path, Method>,
+    const Method extends _AuthFetchMethod = _AuthFetchDefaultMethod<Path>,
+    _ResT = ResT extends void ? _AuthFetchResult<Path, Method> : ResT,
     DataT = _ResT,
-    PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
+    PickKeys extends _NuxtKeysOf<DataT> = _NuxtKeysOf<DataT>,
     DefaultT = DataT,
-  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
-  export function useFetch(request: string | import('vue').Ref<string> | (() => string), opts?: any): any
+  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: import('nuxt/app').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>): import('nuxt/app').AsyncData<_NuxtPickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
+${buildNuxtFetchFallback('useFetch')}
 
   export function useLazyFetch<
-    ErrorT = FetchError,
+    ResT = void,
+    ErrorT = _NuxtFetchError,
     Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
-    Method extends _AuthFetchMethod<Path> = _AuthFetchDefaultMethod<Path>,
-    _ResT = _AuthFetchResult<Path, Method>,
+    const Method extends _AuthFetchMethod = _AuthFetchDefaultMethod<Path>,
+    _ResT = ResT extends void ? _AuthFetchResult<Path, Method> : ResT,
     DataT = _ResT,
-    PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
+    PickKeys extends _NuxtKeysOf<DataT> = _NuxtKeysOf<DataT>,
     DefaultT = undefined,
-  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: Omit<import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>, 'lazy'>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
+  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: Omit<import('nuxt/app').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>, 'lazy'>): import('nuxt/app').AsyncData<_NuxtPickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
   export function useLazyFetch<
-    ErrorT = FetchError,
+    ResT = void,
+    ErrorT = _NuxtFetchError,
     Path extends import('#nuxt-better-auth').AuthApiEndpointPath = import('#nuxt-better-auth').AuthApiEndpointPath,
-    Method extends _AuthFetchMethod<Path> = _AuthFetchDefaultMethod<Path>,
-    _ResT = _AuthFetchResult<Path, Method>,
+    const Method extends _AuthFetchMethod = _AuthFetchDefaultMethod<Path>,
+    _ResT = ResT extends void ? _AuthFetchResult<Path, Method> : ResT,
     DataT = _ResT,
-    PickKeys extends import('nuxt/dist/app/composables/asyncData').KeysOf<DataT> = import('nuxt/dist/app/composables/asyncData').KeysOf<DataT>,
+    PickKeys extends _NuxtKeysOf<DataT> = _NuxtKeysOf<DataT>,
     DefaultT = DataT,
-  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: Omit<import('nuxt/dist/app/composables/fetch').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>, 'lazy'>): import('nuxt/dist/app/composables/asyncData').AsyncData<import('nuxt/dist/app/composables/asyncData').PickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
-  export function useLazyFetch(request: string | import('vue').Ref<string> | (() => string), opts?: any): any
-}
-
-declare module 'nitropack' {
-  interface NitroRouteRules {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-  interface NitroRouteConfig {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-  interface InternalApi extends _GeneratedAuthInternalApi {}
-}
-declare module 'nitropack/types' {
-  interface NitroRouteRules {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-  interface NitroRouteConfig {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-  interface InternalApi extends _GeneratedAuthInternalApi {}
-}
-declare module 'nitro/types' {
-  interface NitroRouteRules {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-  interface NitroRouteConfig {
-    auth?: import('${runtimeTypesPath}').AuthMeta
-  }
-  interface InternalApi extends _GeneratedAuthInternalApi {}
+  >(request: import('vue').Ref<Path> | Path | (() => Path), opts?: Omit<import('nuxt/app').UseFetchOptions<_ResT, DataT, PickKeys, DefaultT, Path, Method>, 'lazy'>): import('nuxt/app').AsyncData<_NuxtPickFrom<DataT, PickKeys> | DefaultT, ErrorT | undefined>
+${buildNuxtFetchFallback('useLazyFetch')}
 }
 export {}
 `,
-  }, { nitro: true, node: true })
+  }, serverConfigTypeTemplateOptions)
+
+  addTypeTemplate({
+    filename: 'types/nuxt-better-auth-nitro.d.ts',
+    getContents: () => `
+${routeRuleAugmentations}
+export {}
+`,
+  }, { nuxt: h3TypesPath === 'nitro/h3', nitro: true, node: true })
 }
 
 interface RegisterSharedTypeTemplatesInput {
   runtimeTypesAugmentPath: string
   runtimeTypesPath: string
   clientConfigPath: string
+  h3TypesPath: 'h3' | 'nitro/h3'
+  clientOnly: boolean
 }
 
-export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesInput): void {
+export function registerSharedTypeTemplates(input: RegisterSharedTypeTemplatesInput) {
+  const nitroV3 = input.h3TypesPath === 'nitro/h3'
+  const clientOnlyAuthApiTypes = input.clientOnly
+    ? `
+  export type AuthApiInternalRoutes = Record<string, Record<string, unknown>>
+  export type AuthApiEndpointPatternPath = string
+  export type AuthApiEndpointPath = string
+  export type AuthApiEndpointMethod<Path extends AuthApiEndpointPath> = string
+  export type AuthApiEndpointResponse<
+    Path extends AuthApiEndpointPath,
+    Method extends AuthApiEndpointMethod<Path> = AuthApiEndpointMethod<Path>,
+  > = unknown
+`
+    : ''
   addTypeTemplate({
     filename: 'types/nuxt-better-auth.d.ts',
     getContents: () => `
-import type { AppSession } from '${input.runtimeTypesAugmentPath}'
-export * from '${input.runtimeTypesAugmentPath}'
-export type { AuthMeta, AuthMode, AuthRouteRules, AuthSocialProviderId, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
-declare module 'h3' {
-  interface H3EventContext {
-    requestSession?: AppSession | null
+declare module '#nuxt-better-auth' {
+  import type { ComputedRef, Ref } from 'vue'
+
+  export interface AuthUser {
+    id: string
+    createdAt: Date
+    updatedAt: Date
+    email: string
+    emailVerified: boolean
+    name: string
+    image?: string | null
   }
+
+  export interface AuthSession {
+    id: string
+    createdAt: Date
+    updatedAt: Date
+    userId: string
+    expiresAt: Date
+    token: string
+    ipAddress?: string | null
+    userAgent?: string | null
+  }
+
+  export type ClientAuthSession = Omit<AuthSession, 'token'>
+
+  export interface ServerAuthContext {
+    runtimeConfig: Record<string, unknown>
+    db: unknown
+    requestOrigin?: string
+  }
+
+  export interface AuthSocialProviderRegistry {}
+  export type AuthSocialProviderId = AuthSocialProviderRegistry extends { ids: infer T } ? Extract<T, string> : string
+${clientOnlyAuthApiTypes}
+
+  export interface AuthUserUpdateInput {
+    name?: string
+    image?: string | null
+  }
+
+  export interface UserSessionComposable {
+    user: Ref<AuthUser | null>
+    session: Ref<ClientAuthSession | null>
+    loggedIn: ComputedRef<boolean>
+    ready: ComputedRef<boolean>
+    fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>
+    waitForSession: () => Promise<void>
+    signOut: (options?: { onSuccess?: () => void | Promise<void> }) => Promise<void>
+    updateUser: (updates: AuthUserUpdateInput) => Promise<void>
+  }
+
+  export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }
+
+  export interface AppSession {
+    user: AuthUser
+    session: AuthSession
+  }
+
+  export interface RequireSessionOptions {
+    user?: UserMatch<AuthUser>
+    rule?: (ctx: { user: AuthUser, session: AuthSession }) => boolean | Promise<boolean>
+  }
+
+  export type { AuthMeta, AuthMode, AuthRouteRules, Auth, InferUser, InferSession } from '${input.runtimeTypesPath}'
 }
 `,
-  })
+  }, { nuxt: true, nitro: true, node: true, shared: true })
+
+  addTypeTemplate({
+    filename: 'types/nuxt-better-auth-h3.d.ts',
+    getContents: () => `
+declare module '${nitroV3 ? 'srvx' : 'h3'}' {
+  interface ${nitroV3 ? 'ServerRequestContext' : 'H3EventContext'} {
+    requestSession?: import('${input.runtimeTypesAugmentPath}').AppSession | null
+  }
+}
+export {}
+`,
+  }, { nuxt: true, nitro: true, node: true, shared: true })
 
   addTypeTemplate({
     filename: 'types/nuxt-better-auth-client.d.ts',
     getContents: () => `
 import type createAppAuthClient from '${input.clientConfigPath}'
+type _ClientUserUpdateInput = Omit<NonNullable<Parameters<ReturnType<typeof createAppAuthClient>['updateUser']>[0]>, 'fetchOptions'>
 declare module '#nuxt-better-auth' {
   export type AppAuthClient = ReturnType<typeof createAppAuthClient>
+  interface AuthUserUpdateInput extends _ClientUserUpdateInput {}
 }
 `,
   })

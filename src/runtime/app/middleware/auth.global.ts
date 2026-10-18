@@ -2,7 +2,9 @@ import type { AuthRuntimeConfig } from '../../config'
 import type { AuthMeta, AuthMode, AuthRouteRules } from '../../types'
 import { defu } from 'defu'
 import { createRouter, toRouteMatcher } from 'radix3'
+import { parsePath, parseQuery } from 'ufo'
 import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useNuxtApp, useRequestHeaders, useRuntimeConfig } from '#imports'
+import { shouldSkipAuthRouteRules } from '../../internal/auth-route-rules'
 import { matchesUser } from '../../utils/match-user'
 import { useUserSession } from '../composables/useUserSession'
 
@@ -22,6 +24,15 @@ let authRouteRulesPromise: Promise<Record<string, AuthRouteRules>> | null = null
 let routeRulesMatcherPromise: Promise<ReturnType<typeof toRouteMatcher> | null> | null = null
 
 export default defineNuxtRouteMiddleware(async (to) => {
+  if (shouldSkipAuthRouteRules(to.path))
+    return
+
+  // Let Nuxt render its own 404 for URLs that match no page. Without this, a broad
+  // rule such as `'/**': { auth: 'user' }` redirects unauthenticated visitors to the
+  // login page instead, so a missing route never surfaces as a 404.
+  if (to.matched?.length === 0)
+    return
+
   const nuxtApp = useNuxtApp()
 
   // Runtime fallback: resolve auth from module-known route rules if not set at build-time.
@@ -47,6 +58,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return
 
   const config = useRuntimeConfig().public.auth as AuthRuntimeConfig | undefined
+  if (import.meta.server && config?.clientOnly)
+    return
+
   const { fetchSession, user, loggedIn } = useUserSession()
 
   const mode: AuthMode = typeof auth === 'string' ? auth : auth?.only ?? 'user'
@@ -100,8 +114,8 @@ function resolveLoginRedirect(input: {
   if (!loginTarget.startsWith('/') || loginTarget.startsWith('//'))
     return { to: loginTarget, external: false }
 
-  const [beforeHash, hash = ''] = loginTarget.split('#', 2)
-  const [path, query = ''] = beforeHash.split('?', 2)
+  const { pathname: path, search, hash } = parsePath(loginTarget)
+  const query = search.slice(1)
 
   try {
     const params = new URLSearchParams(query)
@@ -116,18 +130,16 @@ function resolveLoginRedirect(input: {
   if (import.meta.server) {
     const separator = query ? '&' : ''
     const encodedRedirect = encodeURIComponent(route.fullPath)
-    const url = `${path}?${query}${separator}${redirectQueryKey}=${encodedRedirect}${hash ? `#${hash}` : ''}`
+    const encodedKey = encodeURIComponent(redirectQueryKey)
+    const url = `${path}?${query}${separator}${encodedKey}=${encodedRedirect}${hash}`
     return { to: url, external: true }
   }
 
   // Client: return a route location object to avoid a full reload.
-  const params = new URLSearchParams(query)
-  const queryObj: Record<string, string> = {}
-  for (const [k, v] of params.entries())
-    queryObj[k] = v
+  const queryObj = parseQuery(query)
   queryObj[redirectQueryKey] = route.fullPath
 
-  return { to: { path, query: queryObj, ...(hash ? { hash: `#${hash}` } : {}) }, external: false }
+  return { to: { path, query: queryObj, ...(hash ? { hash } : {}) }, external: false }
 }
 
 async function getAuthRouteRules(): Promise<Record<string, AuthRouteRules>> {

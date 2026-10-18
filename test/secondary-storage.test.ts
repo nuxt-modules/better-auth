@@ -45,13 +45,13 @@ describe('schema secondary storage injection', () => {
   it('errors in production when custom mode is enabled but secondaryStorage is missing', () => {
     const res = resolveSchemaSecondaryStorageInjection('custom', false, true)
     expect(res.inject).toBe(false)
-    expect(res.error).toContain('hubSecondaryStorage: "custom" requires secondaryStorage')
+    expect(res.error).toMatchObject({ code: 'NUXT_AUTH_SCHEMA_STORAGE_REQUIRED' })
   })
 
   it('warns in dev when custom mode is enabled but secondaryStorage is missing', () => {
     const res = resolveSchemaSecondaryStorageInjection('custom', false, false)
     expect(res.inject).toBe(false)
-    expect(res.warn).toContain('hubSecondaryStorage: "custom" requires secondaryStorage')
+    expect(res.warn).toMatchObject({ code: 'NUXT_AUTH_SCHEMA_STORAGE_REQUIRED' })
   })
 
   it('does not inject when hubSecondaryStorage is disabled', () => {

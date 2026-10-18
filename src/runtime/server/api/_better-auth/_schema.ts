@@ -1,3 +1,5 @@
+import type { Account, Session, User } from 'better-auth/types'
+import type { AnyColumn, Table } from 'drizzle-orm'
 import { z } from 'zod'
 
 const SQL_LIKE_ESCAPE_RE = /[%_\\]/g
@@ -15,3 +17,10 @@ export function sanitizeSearchPattern(search: string): string {
     return ''
   return `%${search.replace(SQL_LIKE_ESCAPE_RE, '\\$&')}%`
 }
+
+// Devtools handlers are also typechecked in apps without a generated auth schema.
+export type DevtoolsSchema = {
+  user?: Table & Record<keyof User, AnyColumn>
+  session?: Table & Record<keyof Session, AnyColumn>
+  account?: Table & Record<keyof Account, AnyColumn>
+} | undefined

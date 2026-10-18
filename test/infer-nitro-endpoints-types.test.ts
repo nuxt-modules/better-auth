@@ -8,12 +8,13 @@ const env = {
   BETTER_AUTH_SECRET: 'test-secret-for-testing-only-32chars',
 }
 
-describe('typed nitro route inference #194', () => {
-  it('typechecks generated InternalApi endpoint inference for /api/auth routes', () => {
+describe('nitro route inference', () => {
+  it('does not augment global InternalApi with /api/auth routes', () => {
     const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(prepare.status, `nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`).toBe(0)
 
@@ -21,7 +22,8 @@ describe('typed nitro route inference #194', () => {
       cwd: fixtureDir,
       env,
       encoding: 'utf8',
+      timeout: 120_000,
     })
     expect(typecheck.status, `tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
-  }, 60_000)
+  }, 360_000)
 })

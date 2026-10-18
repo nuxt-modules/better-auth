@@ -8,14 +8,6 @@ declare module '#imports' {
   export function useRuntimeConfig(): any
 }
 
-declare module '#auth/secondary-storage' {
-  export function createSecondaryStorage(...args: any[]): any
-}
-
-declare module '#auth/schema' {
-  export const schema: any
-}
-
 declare module '#auth/server' {
   const createServerAuth: any
   export default createServerAuth

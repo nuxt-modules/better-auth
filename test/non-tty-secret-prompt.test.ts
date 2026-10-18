@@ -25,7 +25,9 @@ const consola = {
 }
 
 const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nuxt-better-auth-secret-'))
-await promptForSecret(rootDir, consola, { prepare: true })
+if (process.env.TEST_ENV_FILE_CONTENT)
+  fs.writeFileSync(path.join(rootDir, '.env'), process.env.TEST_ENV_FILE_CONTENT)
+await promptForSecret(rootDir, consola, { prepare: true, appSecret: process.env.TEST_APP_SECRET_SUPPORTED === '1' })
 console.log('PROMPT_CALLS=' + promptCalls)
 `
 
@@ -45,7 +47,12 @@ function createNonTestEnv(): NodeJS.ProcessEnv {
 
   // Ensure no secret is configured via env.
   delete env.BETTER_AUTH_SECRET
+  delete env.BETTER_AUTH_SECRETS
   delete env.NUXT_BETTER_AUTH_SECRET
+  delete env.NUXT_APP_SECRET
+  delete env.TEST_ENV_FILE_CONTENT
+  delete env.TEST_APP_SECRET_SUPPORTED
+  delete env.NUXT_APP_SECRET_GENERATED
 
   env.FORCE_COLOR = '0'
 
@@ -68,7 +75,7 @@ describe('promptForSecret', () => {
 
     expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
     const output = `${run.stdout}\n${run.stderr}`
-    expect(output).toContain('Skipping NUXT_BETTER_AUTH_SECRET prompt')
+    expect(output).toContain('Skipping auth secret prompt')
     expect(output).toContain('PROMPT_CALLS=0')
   })
 
@@ -79,7 +86,7 @@ describe('promptForSecret', () => {
 
     expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
     const output = `${run.stdout}\n${run.stderr}`
-    expect(output).not.toContain('Skipping NUXT_BETTER_AUTH_SECRET prompt')
+    expect(output).not.toContain('Skipping auth secret prompt')
     expect(output).toContain('PROMPT_CALLS=0')
   })
 
@@ -90,7 +97,72 @@ describe('promptForSecret', () => {
 
     expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
     const output = `${run.stdout}\n${run.stderr}`
-    expect(output).not.toContain('Skipping NUXT_BETTER_AUTH_SECRET prompt')
+    expect(output).not.toContain('Skipping auth secret prompt')
     expect(output).toContain('PROMPT_CALLS=0')
+  })
+
+  it('skips prompting when BETTER_AUTH_SECRETS is already set', () => {
+    const env = createNonTestEnv()
+    env.BETTER_AUTH_SECRETS = '2:current-secret-for-testing-only-32chars,1:previous-secret-for-testing-only-32chars'
+    const run = runPromptScript(env)
+
+    expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
+    const output = `${run.stdout}\n${run.stderr}`
+    expect(output).not.toContain('Skipping auth secret prompt')
+    expect(output).toContain('PROMPT_CALLS=0')
+  })
+
+  it('skips prompting when BETTER_AUTH_SECRETS exists in .env', () => {
+    const env = createNonTestEnv()
+    env.TEST_ENV_FILE_CONTENT = 'BETTER_AUTH_SECRETS=2:current-secret-for-testing-only-32chars,1:previous-secret-for-testing-only-32chars\n'
+    const run = runPromptScript(env)
+
+    expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
+    const output = `${run.stdout}\n${run.stderr}`
+    expect(output).not.toContain('Skipping auth secret prompt')
+    expect(output).toContain('PROMPT_CALLS=0')
+  })
+
+  it('skips prompting when NUXT_APP_SECRET is set on Nuxt 4.6+', () => {
+    const env = createNonTestEnv()
+    env.TEST_APP_SECRET_SUPPORTED = '1'
+    env.NUXT_APP_SECRET = 'app-secret-for-testing-only-32-chars'
+    const run = runPromptScript(env)
+
+    expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
+    const output = `${run.stdout}\n${run.stderr}`
+    expect(output).not.toContain('Skipping auth secret prompt')
+    expect(output).toContain('PROMPT_CALLS=0')
+  })
+
+  it('does not treat NUXT_APP_SECRET as an auth secret before Nuxt 4.6', () => {
+    const env = createNonTestEnv()
+    env.TEST_ENV_FILE_CONTENT = 'NUXT_APP_SECRET=app-secret-for-testing-only-32-chars\n'
+    const run = runPromptScript(env)
+
+    expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
+    const output = `${run.stdout}\n${run.stderr}`
+    expect(output).toContain('Skipping auth secret prompt')
+    expect(output).not.toContain('NUXT_APP_SECRET')
+  })
+
+  it('mentions NUXT_APP_SECRET when skipping the prompt on Nuxt 4.6+', () => {
+    const env = createNonTestEnv()
+    env.TEST_APP_SECRET_SUPPORTED = '1'
+    const run = runPromptScript(env)
+
+    expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
+    expect(`${run.stdout}\n${run.stderr}`).toContain('Set NUXT_APP_SECRET')
+  })
+
+  it('still prompts when Nuxt generated the development appSecret', () => {
+    const env = createNonTestEnv()
+    env.TEST_APP_SECRET_SUPPORTED = '1'
+    env.NUXT_APP_SECRET = 'a'.repeat(64)
+    env.NUXT_APP_SECRET_GENERATED = '1'
+    const run = runPromptScript(env)
+
+    expect(run.status, `node script failed:\n${run.stdout}\n${run.stderr}`).toBe(0)
+    expect(`${run.stdout}\n${run.stderr}`).toContain('Skipping auth secret prompt')
   })
 })

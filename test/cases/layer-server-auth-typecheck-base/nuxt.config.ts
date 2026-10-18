@@ -1,5 +1,5 @@
 export default {
-  modules: ['@nuxthub/core', '@onmax/nuxt-better-auth'],
+  modules: ['@nuxthub/core', '@nuxtjs/better-auth'],
 
   hub: { db: 'sqlite' },
 

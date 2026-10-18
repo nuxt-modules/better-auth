@@ -1,14 +1,8 @@
+import { useSignIn } from '../../../src/runtime/app/composables/useSignIn'
 import type { AuthSocialProviderId } from '#nuxt-better-auth'
 import type { socialProviders } from './server/auth.config'
 
 type RawSocialProviderIds = Extract<keyof typeof socialProviders, string>
-
-interface ActionHandle<Payload> {
-  execute: (payload: Payload) => Promise<void>
-}
-
-declare function useSignIn(method: 'email'): ActionHandle<{ email: string, password: string }>
-declare function useSignIn(method: 'social'): ActionHandle<{ provider: RawSocialProviderIds, callbackURL?: string }>
 
 useSignIn('email')
 useSignIn('social')

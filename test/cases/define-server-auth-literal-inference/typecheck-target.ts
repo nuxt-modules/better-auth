@@ -34,3 +34,10 @@ defineServerAuth({
     },
   },
 })
+
+defineServerAuth({ basePath: '/api/auth' })
+defineServerAuth(() => ({ basePath: '/api/auth' }))
+// @ts-expect-error The module only registers /api/auth on the server.
+defineServerAuth({ basePath: '/custom/auth' })
+// @ts-expect-error Callback configs have the same routing restriction.
+defineServerAuth(() => ({ basePath: '/custom/auth' }))

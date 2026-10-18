@@ -1,8 +1,14 @@
+import { fileURLToPath } from 'node:url'
 import yaml from '@rollup/plugin-yaml'
+import { generateDiagnosticPages } from './diagnostics/generate'
+
+await generateDiagnosticPages(fileURLToPath(new URL('./content/6.errors', import.meta.url)))
+
+const siteUrl = 'https://better-auth.nuxt.dev'
 
 export default defineNuxtConfig({
   extends: ['docus'],
-  modules: ['@vueuse/nuxt', 'motion-v/nuxt', '@vercel/analytics/nuxt', 'nuxt-shiki'],
+  modules: ['@vueuse/nuxt', 'motion-v/nuxt', '@vercel/analytics/nuxt', '@vercel/speed-insights/nuxt', 'nuxt-shiki'],
 
   icon: {
     customCollections: [{ prefix: 'custom', dir: './public/icons' }],
@@ -12,7 +18,7 @@ export default defineNuxtConfig({
 
   // Used by useSiteConfig() and for absolute OG URLs.
   site: {
-    url: 'https://better-auth.nuxt.dev',
+    url: siteUrl,
     name: 'Nuxt Better Auth',
     description: 'Nuxt module for Better Auth with auto schema generation, route protection, and session management.',
     defaultLocale: 'en',
@@ -56,6 +62,9 @@ export default defineNuxtConfig({
 
   nitro: {
     preset: 'cloudflare-module',
+    // Docus reads this environment variable instead of site.url for its sitemap.
+    // Supply the canonical fallback in the server bundle, including prerendering.
+    replace: { 'process.env.NUXT_SITE_URL': JSON.stringify(siteUrl) },
     cloudflare: {
       nodeCompat: true,
       wrangler: {

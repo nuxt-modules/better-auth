@@ -1,15 +1,68 @@
+import { spawnSync } from 'node:child_process'
+import { readFileSync, rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { join } from 'pathe'
 import { $fetch, setup } from '@nuxt/test-utils/e2e'
 import { describe, expect, it } from 'vitest'
 
 describe('#auth/schema export', async () => {
+  const rootDir = fileURLToPath(new URL('./cases/auth-schema-export', import.meta.url))
+  rmSync(join(rootDir, '.nuxt'), { force: true, recursive: true })
+
+  const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
+    cwd: rootDir,
+    encoding: 'utf8',
+    timeout: 120_000,
+  })
+  if (prepare.status !== 0)
+    throw new Error(`clean nuxi prepare failed:\n${prepare.stdout}\n${prepare.stderr}`)
+
+  const hubSchemaEntry = readFileSync(join(rootDir, '.nuxt/hub/db/schema.entry.ts'), 'utf8')
+  const betterAuthSchema = join(rootDir, '.nuxt/better-auth/schema.sqlite.ts')
+
   await setup({
-    rootDir: fileURLToPath(new URL('./cases/auth-schema-export', import.meta.url)),
+    rootDir,
   })
 
-  it('exports stable auth tables (user + verification)', async () => {
-    const res = await $fetch('/api/test/schema') as { hasUser: boolean, hasVerification: boolean }
+  it('exports stable aliases for custom core model names with plural generation enabled', async () => {
+    const res = await $fetch('/api/test/schema') as {
+      hasUser: boolean
+      hasNamedUser: boolean
+      hasGeneratedUser: boolean
+      hasSession: boolean
+      hasNamedSession: boolean
+      hasGeneratedSession: boolean
+      hasAccount: boolean
+      hasNamedAccount: boolean
+      hasGeneratedAccount: boolean
+      hasVerification: boolean
+      hasGeneratedVerification: boolean
+    }
+
     expect(res.hasUser).toBe(true)
+    expect(res.hasNamedUser).toBe(true)
+    expect(res.hasGeneratedUser).toBe(true)
+    expect(res.hasSession).toBe(true)
+    expect(res.hasNamedSession).toBe(true)
+    expect(res.hasGeneratedSession).toBe(true)
+    expect(res.hasAccount).toBe(true)
+    expect(res.hasNamedAccount).toBe(true)
+    expect(res.hasGeneratedAccount).toBe(true)
     expect(res.hasVerification).toBe(true)
+    expect(res.hasGeneratedVerification).toBe(true)
+  })
+
+  it.each(['server', 'node'])('preserves generated Drizzle types in the %s context', (context) => {
+    const typecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', `tsconfig.schema-${context}.json`], {
+      cwd: rootDir,
+      encoding: 'utf8',
+      timeout: 120_000,
+    })
+
+    expect(typecheck.status, `vue-tsc failed:\n${typecheck.stdout}\n${typecheck.stderr}`).toBe(0)
+  })
+
+  it('contributes the generated schema to NuxtHub on a clean prepare', () => {
+    expect(hubSchemaEntry).toContain(`export * from '${betterAuthSchema}'`)
   })
 })

@@ -1,10 +1,13 @@
-import type { H3Event } from 'h3'
 import type { AppSession, AuthSession, RequireSessionOptions } from '#nuxt-better-auth'
-import { createError, splitCookiesString } from 'h3'
 import { matchesUser } from '../../utils/match-user'
+import type { ServerEvent } from '../internal/nitro-compat'
+import { createAuthError } from '../internal/nitro-compat'
+import { prepareAuthSecret } from '../internal/auth-secret'
+import { appendCookieHeader, appendSetCookieHeaders, getSetCookieHeaders } from '../internal/cookie-headers'
 import { serverAuth } from './auth'
 
 const requestSessionLoadKey = Symbol.for('nuxt-better-auth.requestSessionLoad')
+const requestSessionMutationKey = Symbol.for('nuxt-better-auth.requestSessionMutation')
 const signingAlgorithm: HmacImportParams = { name: 'HMAC', hash: 'SHA-256' }
 const cookiePairSeparatorRE = /;\s*/
 
@@ -44,6 +47,7 @@ interface RequestSessionContext {
   requestSession?: AppSession | null
   requestHeaders?: Headers
   [requestSessionLoadKey]?: Promise<AppSession | null>
+  [requestSessionMutationKey]?: number
 }
 
 interface SessionWithHeaders {
@@ -53,8 +57,8 @@ interface SessionWithHeaders {
 
 const fallbackRequestSessionContext = new WeakMap<object, RequestSessionContext>()
 
-function getRequestSessionContext(event: H3Event): RequestSessionContext {
-  const eventWithContext = event as H3Event & { context?: unknown }
+function getRequestSessionContext(event: ServerEvent): RequestSessionContext {
+  const eventWithContext = event as ServerEvent & { context?: unknown }
   if (eventWithContext.context && typeof eventWithContext.context === 'object')
     return eventWithContext.context as RequestSessionContext
 
@@ -66,16 +70,39 @@ function getRequestSessionContext(event: H3Event): RequestSessionContext {
   return context
 }
 
-function getRequestHeaders(event: H3Event): Headers {
-  return getRequestSessionContext(event).requestHeaders ?? event.headers
+function getIncomingRequestHeaders(event: ServerEvent): Headers {
+  const requestHeaders = (event as ServerEvent & { req?: { headers?: Headers } }).req?.headers
+  return requestHeaders instanceof Headers ? requestHeaders : (event as ServerEvent & { headers: Headers }).headers
 }
 
-function loadSession(event: H3Event): Promise<AppSession | null> {
+function getRequestHeaders(event: ServerEvent): Headers {
+  return getRequestSessionContext(event).requestHeaders ?? getIncomingRequestHeaders(event)
+}
+
+async function loadSession(event: ServerEvent): Promise<SessionWithHeaders> {
+  // Await only while the derived secret is pending, so lookups keep their timing otherwise.
+  const pendingSecret = prepareAuthSecret()
+  if (pendingSecret)
+    await pendingSecret
   const auth = serverAuth(event)
-  return auth.api.getSession({ headers: getRequestHeaders(event) }) as Promise<AppSession | null>
+  const result = await auth.api.getSession({
+    headers: getRequestHeaders(event),
+    returnHeaders: true,
+  }) as unknown
+
+  // Keep unit-level and forward-compatible resilience if an auth adapter ignores
+  // returnHeaders, while Better Auth 1.7.3+ returns SessionWithHeaders here.
+  if (result && typeof result === 'object' && 'headers' in result && result.headers instanceof Headers && 'response' in result)
+    return result as SessionWithHeaders
+
+  return { headers: new Headers(), response: result as AppSession | null }
 }
 
-function loadFreshSession(event: H3Event): Promise<SessionWithHeaders> {
+function loadFreshSession(event: ServerEvent): Promise<SessionWithHeaders> {
+  const pendingSecret = prepareAuthSecret()
+  if (pendingSecret)
+    return pendingSecret.then(() => loadFreshSession(event))
+
   const auth = serverAuth(event)
   return auth.api.getSession({
     headers: getRequestHeaders(event),
@@ -84,7 +111,11 @@ function loadFreshSession(event: H3Event): Promise<SessionWithHeaders> {
   }) as unknown as Promise<SessionWithHeaders>
 }
 
-function getServerAuthContext(event: H3Event): Promise<ServerAuthContextLike> {
+function getServerAuthContext(event: ServerEvent): Promise<ServerAuthContextLike> {
+  const pendingSecret = prepareAuthSecret()
+  if (pendingSecret)
+    return pendingSecret.then(() => getServerAuthContext(event))
+
   const auth = serverAuth(event) as ReturnType<typeof serverAuth> & { $context: Promise<ServerAuthContextLike> }
   return auth.$context
 }
@@ -177,47 +208,12 @@ async function serializeSignedCookie(name: string, value: string, secret: string
   return serializeCookieHeader(name, await signCookieValue(value, secret), attributes, true)
 }
 
-function appendCookieHeader(event: H3Event, header: string): void {
-  const nodeResponse = (event as H3Event & {
-    node?: {
-      res?: {
-        getHeader?: (name: string) => string | string[] | number | undefined
-        setHeader?: (name: string, value: string | string[]) => void
-      }
-    }
-    response?: {
-      headers?: Headers
-    }
-  }).node?.res
-
-  if (nodeResponse?.setHeader) {
-    const current = nodeResponse.getHeader?.('set-cookie')
-    if (Array.isArray(current))
-      nodeResponse.setHeader('set-cookie', [...current, header])
-    else if (typeof current === 'string')
-      nodeResponse.setHeader('set-cookie', [current, header])
-    else
-      nodeResponse.setHeader('set-cookie', [header])
-    return
-  }
-
-  const responseHeaders = (event as H3Event & { response?: { headers?: Headers } }).response?.headers
-  responseHeaders?.append('set-cookie', header)
+function getRequestSessionMutation(context: RequestSessionContext): number {
+  return context[requestSessionMutationKey] ?? 0
 }
 
-function getSetCookieHeaders(headers: Headers): string[] {
-  const getSetCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie
-  const cookies = getSetCookie?.call(headers)
-  if (cookies?.length)
-    return cookies.flatMap(cookie => splitCookiesString(cookie))
-
-  const header = headers.get('set-cookie')
-  return header ? splitCookiesString(header) : []
-}
-
-function appendSetCookieHeaders(event: H3Event, headers: Headers): void {
-  for (const header of getSetCookieHeaders(headers))
-    appendCookieHeader(event, header)
+function markRequestSessionMutation(context: RequestSessionContext): void {
+  context[requestSessionMutationKey] = getRequestSessionMutation(context) + 1
 }
 
 function parseRequestCookies(cookieHeader: string | null): Map<string, string> {
@@ -252,16 +248,16 @@ function extractResponseCookieValue(header: string): string {
   return cookiePair.slice(cookiePair.indexOf('=') + 1)
 }
 
-function getChunkedCookieNames(event: H3Event, cookieName: string): string[] {
+function getChunkedCookieNames(event: ServerEvent, cookieName: string): string[] {
   const cookieNames = new Set<string>([cookieName])
-  for (const name of parseRequestCookies(event.headers.get('cookie')).keys()) {
+  for (const name of parseRequestCookies(getIncomingRequestHeaders(event).get('cookie')).keys()) {
     if (name.startsWith(`${cookieName}.`))
       cookieNames.add(name)
   }
   return Array.from(cookieNames)
 }
 
-function expireCookie(event: H3Event, cookieName: string, attributes: CookieOptions): void {
+function expireCookie(event: ServerEvent, cookieName: string, attributes: CookieOptions): void {
   appendCookieHeader(event, serializeCookie(cookieName, '', {
     ...attributes,
     expires: new Date(0),
@@ -269,15 +265,48 @@ function expireCookie(event: H3Event, cookieName: string, attributes: CookieOpti
   }))
 }
 
-function expireCookies(event: H3Event, cookie: { name: string, attributes: CookieOptions }): void {
+function expireCookies(event: ServerEvent, cookie: { name: string, attributes: CookieOptions }): void {
   for (const cookieName of getChunkedCookieNames(event, cookie.name))
     expireCookie(event, cookieName, cookie.attributes)
 }
 
-function updateRequestHeaders(event: H3Event, sessionCookie: string, clearedCookieNames: string[]): void {
+function isCookieOrChunk(name: string, cookieName: string): boolean {
+  if (name === cookieName)
+    return true
+
+  if (!name.startsWith(`${cookieName}.`))
+    return false
+
+  const suffix = name.slice(cookieName.length + 1)
+  const index = Number(suffix)
+  return Number.isSafeInteger(index) && index >= 0 && String(index) === suffix
+}
+
+function expireUnrefreshedSessionCookieCache(event: ServerEvent, headers: Headers, cookie: AuthCookie): void {
+  const cookieName = getCookieName(cookie.name, cookie.attributes.prefix)
+  if (!cookieName)
+    return
+
+  const responseHandlesCache = getSetCookieHeaders(headers).some((header) => {
+    const name = header.slice(0, header.indexOf('='))
+    return isCookieOrChunk(name, cookieName)
+  })
+  if (responseHandlesCache)
+    return
+
+  // Better Auth skips writing cache cookies for sessions with rememberMe: false.
+  // Removing the old cache makes the next request load the updated session.
+  for (const name of parseRequestCookies(getRequestHeaders(event).get('cookie')).keys()) {
+    if (isCookieOrChunk(name, cookieName))
+      expireCookie(event, name, cookie.attributes)
+  }
+}
+
+function updateRequestHeaders(event: ServerEvent, sessionCookie: string, clearedCookieNames: string[]): void {
   const requestContext = getRequestSessionContext(event)
-  const requestHeaders = new Headers(event.headers)
-  const cookies = parseRequestCookies(event.headers.get('cookie'))
+  const incomingHeaders = getIncomingRequestHeaders(event)
+  const requestHeaders = new Headers(incomingHeaders)
+  const cookies = parseRequestCookies(incomingHeaders.get('cookie'))
 
   for (const name of clearedCookieNames)
     cookies.delete(name)
@@ -294,53 +323,80 @@ function updateRequestHeaders(event: H3Event, sessionCookie: string, clearedCook
   requestContext.requestHeaders = requestHeaders
 }
 
-export async function getRequestSession(event: H3Event): Promise<AppSession | null> {
+export async function getRequestSession(event: ServerEvent): Promise<AppSession | null> {
   const context = getRequestSessionContext(event)
-  if (context.requestSession !== undefined)
-    return context.requestSession
-
   const inFlight = context[requestSessionLoadKey]
   if (inFlight)
     return inFlight
 
-  const load = loadSession(event)
+  if (context.requestSession !== undefined)
+    return context.requestSession
+
+  const load: Promise<AppSession | null> = loadSession(event).then(({ headers, response }) => {
+    if (context[requestSessionLoadKey] === load)
+      appendSetCookieHeaders(event, headers)
+    return response
+  })
 
   context[requestSessionLoadKey] = load
   try {
     const session = await load
-    context.requestSession = session
+    if (context[requestSessionLoadKey] === load)
+      context.requestSession = session
     return session
   }
   finally {
-    delete context[requestSessionLoadKey]
+    if (context[requestSessionLoadKey] === load)
+      delete context[requestSessionLoadKey]
   }
 }
 
-export async function getUserSession(event: H3Event): Promise<AppSession | null> {
+export async function getUserSession(event: ServerEvent): Promise<AppSession | null> {
   const context = getRequestSessionContext(event)
-  if (context.requestSession !== undefined)
-    return context.requestSession
-
   const inFlight = context[requestSessionLoadKey]
   if (inFlight)
     return inFlight
 
-  return loadSession(event)
+  if (context.requestSession !== undefined)
+    return context.requestSession
+
+  const mutation = getRequestSessionMutation(context)
+  const { headers, response } = await loadSession(event)
+  if (getRequestSessionMutation(context) === mutation)
+    appendSetCookieHeaders(event, headers)
+  return response
 }
 
-export async function refreshSessionCookieCache(event: H3Event): Promise<AppSession | null> {
+export function setRequestSession(event: ServerEvent, session: AppSession | null): void {
+  const context = getRequestSessionContext(event)
+  markRequestSessionMutation(context)
+  context.requestSession = session
+  delete context[requestSessionLoadKey]
+}
+
+export async function refreshSessionCookieCache(event: ServerEvent): Promise<AppSession | null> {
   const context = getRequestSessionContext(event)
   const inFlight = context[requestSessionLoadKey]
-  if (inFlight)
-    await inFlight.catch(() => undefined)
+  const load = (inFlight ?? Promise.resolve(null)).catch(() => undefined).then(async () => {
+    if (context[requestSessionLoadKey] !== load)
+      return context.requestSession ?? null
 
-  delete context.requestSession
-  const load = loadFreshSession(event).then(({ headers, response }) => {
+    delete context.requestSession
+    const [{ headers, response }, authContext] = await Promise.all([
+      loadFreshSession(event),
+      getServerAuthContext(event),
+    ])
+
+    if (context[requestSessionLoadKey] !== load)
+      return context.requestSession ?? null
+
     appendSetCookieHeaders(event, headers)
+    expireUnrefreshedSessionCookieCache(event, headers, authContext.authCookies.sessionData)
     context.requestSession = response
     return response
   })
 
+  markRequestSessionMutation(context)
   context[requestSessionLoadKey] = load
   try {
     return await load
@@ -351,7 +407,7 @@ export async function refreshSessionCookieCache(event: H3Event): Promise<AppSess
   }
 }
 
-export async function setSessionCookie(event: H3Event, token: string): Promise<void> {
+export async function setSessionCookie(event: ServerEvent, token: string): Promise<void> {
   const context = await getServerAuthContext(event)
   const sessionCookie = await serializeSignedCookie(
     context.authCookies.sessionToken.name,
@@ -368,6 +424,7 @@ export async function setSessionCookie(event: H3Event, token: string): Promise<v
   expireCookies(event, context.authCookies.dontRememberToken)
 
   const requestContext = getRequestSessionContext(event)
+  markRequestSessionMutation(requestContext)
   delete requestContext.requestSession
   delete requestContext[requestSessionLoadKey]
   updateRequestHeaders(event, sessionCookie, [
@@ -376,26 +433,32 @@ export async function setSessionCookie(event: H3Event, token: string): Promise<v
   ])
 }
 
-export async function createSession(event: H3Event, userId: string): Promise<AuthSession> {
+export async function createSession(event: ServerEvent, userId: string): Promise<AuthSession> {
   const context = await getServerAuthContext(event)
-  return context.internalAdapter.createSession?.(userId, false) as Promise<AuthSession>
+  if (typeof context.internalAdapter.createSession !== 'function') {
+    throw new TypeError(
+      '[@nuxtjs/better-auth] Cannot create a session: the installed Better Auth version does not expose internalAdapter.createSession().',
+    )
+  }
+
+  return context.internalAdapter.createSession(userId, false) as Promise<AuthSession>
 }
 
-export async function requireUserSession(event: H3Event, options?: RequireSessionOptions): Promise<AppSession> {
+export async function requireUserSession(event: ServerEvent, options?: RequireSessionOptions): Promise<AppSession> {
   const session = await getRequestSession(event)
 
   if (!session)
-    throw createError({ statusCode: 401, statusMessage: 'Authentication required' })
+    throw createAuthError(401, 'Authentication required')
 
   if (options?.user) {
     if (!matchesUser(session.user, options.user))
-      throw createError({ statusCode: 403, statusMessage: 'Access denied' })
+      throw createAuthError(403, 'Access denied')
   }
 
   if (options?.rule) {
     const allowed = await options.rule({ user: session.user, session: session.session })
     if (!allowed)
-      throw createError({ statusCode: 403, statusMessage: 'Access denied' })
+      throw createAuthError(403, 'Access denied')
   }
 
   return session

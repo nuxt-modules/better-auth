@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const { client, user } = useUserSession()
+const { user } = useUserSession()
+const client = useAuthClient()
 const toast = useToast()
 
 // Type assertion for admin plugin methods

@@ -26,6 +26,8 @@ export interface AuthSession {
   userAgent?: string | null
 }
 
+export type ClientAuthSession = Omit<AuthSession, 'token'>
+
 // Server auth context - extended by generated types with hub:db types
 export interface ServerAuthContext {
   runtimeConfig: Record<string, unknown>
@@ -36,16 +38,22 @@ export interface ServerAuthContext {
 // Extended by generated types from configured socialProviders keys.
 export interface AuthSocialProviderRegistry {}
 
+// Writable fields; generated types add input-enabled configured fields.
+export interface AuthUserUpdateInput {
+  name?: string
+  image?: string | null
+}
+
 // Composable return type
 export interface UserSessionComposable {
   user: Ref<AuthUser | null>
-  session: Ref<AuthSession | null>
+  session: Ref<ClientAuthSession | null>
   loggedIn: ComputedRef<boolean>
   ready: ComputedRef<boolean>
   fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>
   waitForSession: () => Promise<void>
   signOut: (options?: { onSuccess?: () => void | Promise<void> }) => Promise<void>
-  updateUser: (updates: Partial<AuthUser>) => Promise<void>
+  updateUser: (updates: AuthUserUpdateInput) => Promise<void>
 }
 
 export type UserMatch<T> = { [K in keyof T]?: T[K] | T[K][] }

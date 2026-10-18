@@ -1,31 +1,117 @@
 import { configDefaults, defineConfig } from 'vitest/config'
+import { fileURLToPath } from 'node:url'
+
+const typeTests = [
+  'test/auth-schema-types.test.ts',
+  'test/client-only-types.test.ts',
+  'test/config-extend-hook.test.ts',
+  'test/define-server-auth-literal-inference.test.ts',
+  'test/infer-nitro-endpoints-types.test.ts',
+  'test/infer-plugins-types.test.ts',
+  'test/infer-use-fetch-endpoints-types.test.ts',
+  'test/require-user-session-typing.test.ts',
+  'test/root-entrypoint-typing.test.ts',
+  'test/use-signin-provider-alias-typing.test.ts',
+]
 
 const integrationTests = [
+  'test/app-base-url.test.ts',
+  'test/client-only-ssr-auth.test.ts',
+  'test/auth-schema-export.test.ts',
+  'test/composables-subpath-exports.test.ts',
+  'test/config-paths.test.ts',
+  'test/dev-trusted-origins.test.ts',
+  'test/devtools-styles.test.ts',
+  'test/exports.test.ts',
+  'test/fonts-route-rules.test.ts',
+  'test/layer-default-configs.test.ts',
+  'test/layer-explicit-configs.test.ts',
+  'test/layer-plugin-contributions.test.ts',
+  'test/module-setup.test.ts',
   'test/module.test.ts',
+  'test/test-utils-e2e.test.ts',
+  'test/test-utils-base-url.test.ts',
   'test/no-db.test.ts',
   'test/no-hub.test.ts',
-  'test/dev-trusted-origins.test.ts',
+  'test/non-tty-secret-prompt.test.ts',
+  'test/nuxthub-drizzle-schema-regression.test.ts',
+  'test/nuxthub-prerender-db-import.test.ts',
+  'test/pinia-setup-store.test.ts',
+  'test/preserve-redirect-custom-key.test.ts',
+  'test/preserve-redirect-custom-login.test.ts',
+  'test/preserve-redirect-disabled.test.ts',
+  'test/public-auto-imports.test.ts',
+  'test/redirects-option.test.ts',
+  'test/runtime-only-secret-build.test.ts',
   'test/server-auth-base-url-cache.test.ts',
+  'test/server-auth-project-references-typecheck.test.ts',
 ]
+
+const nitroCompatibilityAlias = {
+  '#better-auth/app-secret': fileURLToPath(new URL('./src/runtime/server/internal/app-secret-unavailable.ts', import.meta.url)),
+  '#better-auth/nitro-compat': fileURLToPath(new URL('./src/runtime/server/internal/nitro2.ts', import.meta.url)),
+}
 
 export default defineConfig({
   test: {
+    globalSetup: ['./test/setup/build-package.ts'],
     projects: [
       {
+        define: {
+          'import.meta.dev': 'false',
+          'import.meta.prerender': 'false',
+        },
+        resolve: {
+          alias: nitroCompatibilityAlias,
+        },
         test: {
           name: 'unit',
           include: ['test/**/*.test.ts'],
-          exclude: [...configDefaults.exclude, ...integrationTests],
+          // Let tests mock the runtime config that Nuxt's portable `nuxt/server` reads.
+          server: { deps: { inline: [/[\\/]nuxt[\\/]dist[\\/]server[\\/]/] } },
+          exclude: [...configDefaults.exclude, ...typeTests, ...integrationTests],
         },
       },
       {
+        // Exercise the same auth implementation with Nuxt's development flags.
+        define: {
+          'import.meta.dev': 'true',
+          'import.meta.prerender': 'false',
+        },
+        resolve: {
+          alias: nitroCompatibilityAlias,
+        },
+        test: {
+          name: 'unit-dev',
+          include: ['test/get-base-url.test.ts', 'test/server-auth-app-secret.test.ts'],
+        },
+      },
+      {
+        resolve: {
+          alias: nitroCompatibilityAlias,
+        },
+        test: {
+          name: 'types',
+          include: typeTests,
+          fileParallelism: false,
+          testTimeout: 360_000,
+          sequence: {
+            groupOrder: 1,
+          },
+        },
+      },
+      {
+        resolve: {
+          alias: nitroCompatibilityAlias,
+        },
         test: {
           name: 'integration',
+          testTimeout: 360_000,
           include: integrationTests,
           fileParallelism: false,
           hookTimeout: 180_000,
           sequence: {
-            groupOrder: 1,
+            groupOrder: 2,
           },
         },
       },

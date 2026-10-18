@@ -1,5 +1,6 @@
 import type { ModuleDatabaseProviderId } from './runtime/config'
 import type { BetterAuthDatabaseProviderDefinition, BetterAuthDatabaseProviderEnabledContext } from './types/hooks'
+import { diagnostics } from './module/diagnostics'
 
 export interface ResolveDatabaseProviderInput {
   providers: Record<string, BetterAuthDatabaseProviderDefinition>
@@ -20,7 +21,7 @@ export function resolveDatabaseProvider(input: ResolveDatabaseProviderInput): Re
     .filter(([_id, provider]) => provider.isEnabled?.(input.context) ?? true)
 
   if (!enabledProviders.length) {
-    throw new Error('[nuxt-better-auth] No database provider is enabled. Register one with the better-auth:database:providers hook.')
+    throw diagnostics.NUXT_AUTH_NO_DATABASE_PROVIDER()
   }
 
   enabledProviders.sort((a, b) => (b[1].priority ?? 0) - (a[1].priority ?? 0))

@@ -1,9 +1,9 @@
 import type { ComputedRef, Ref } from 'vue'
-import type { AppAuthClient, AuthSession, AuthUser } from '#nuxt-better-auth'
+import type { AppAuthClient, AuthSession, AuthUser, AuthUserUpdateInput, ClientAuthSession } from '#nuxt-better-auth'
 import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeConfig, useState, watch } from '#imports'
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
-import { fetchSessionClient, fetchSessionServer, stripToken } from '../internal/session-fetch'
+import { fetchSessionClient, fetchSessionServer, isExpectedSignedOutSessionError, stripToken } from '../internal/session-fetch'
 import { isRecord } from '../internal/utils'
 import { createVueSafeAuthFacade, isAuthProxyProbeKey } from '../internal/vue-safe-auth-proxy'
 import { wrapAuthMethod } from '../internal/wrap-auth-method'
@@ -11,18 +11,18 @@ import { getAuthRuntimeFlags, useRawAuthClient } from './useAuthClient'
 
 export interface SignOutOptions { onSuccess?: () => void | Promise<void> }
 
-let _sessionSignalListenerBound = false
 let _signOutPromise: Promise<void> | null = null
+const _sessionSyncApps = new WeakSet<object>()
 
 export interface UseUserSessionReturn {
-  session: Ref<AuthSession | null>
+  session: Ref<ClientAuthSession | null>
   user: Ref<AuthUser | null>
   loggedIn: ComputedRef<boolean>
   ready: ComputedRef<boolean>
   signOut: (options?: SignOutOptions) => Promise<void>
   waitForSession: () => Promise<void>
   fetchSession: (options?: { headers?: HeadersInit, force?: boolean }) => Promise<void>
-  updateUser: (updates: Partial<AuthUser>) => Promise<void>
+  updateUser: (updates: AuthUserUpdateInput) => Promise<void>
 }
 
 interface UpdateUserResponse { error?: unknown }
@@ -43,26 +43,10 @@ function createServerOnlyActionNamespace(path: string) {
 const _signInServerOnly = createServerOnlyActionNamespace('signIn')
 const _signUpServerOnly = createServerOnlyActionNamespace('signUp')
 
-function ensureSessionSignalListener(client: AppAuthClient, onSignal: () => Promise<void>) {
-  if (_sessionSignalListenerBound)
-    return
-
-  const store = (client as unknown as { $store?: unknown }).$store
-  if (!isRecord(store))
-    return
-
-  const listen = (store as { listen?: unknown }).listen
-  if (typeof listen !== 'function')
-    return
-
-  _sessionSignalListenerBound = true
-  const listenFn = listen as (signal: string, cb: () => void | Promise<void>) => unknown
-  listenFn('$sessionSignal', async () => {
-    try {
-      await onSignal()
-    }
-    catch {}
-  })
+function shouldWaitForSignUpSession(context: unknown): boolean {
+  if (!isRecord(context) || !isRecord(context.data))
+    return true
+  return context.data.token !== null
 }
 
 export function useUserSession(): UseUserSessionReturn {
@@ -72,11 +56,12 @@ export function useUserSession(): UseUserSessionReturn {
   const rawClient = useRawAuthClient()
 
   // Shared state via useState for SSR hydration
-  const session = useState<AuthSession | null>('auth:session', () => null)
+  const session = useState<ClientAuthSession | null>('auth:session', () => null)
   const user = useState<AuthUser | null>('auth:user', () => null)
   const authReady = useState('auth:ready', () => false)
   const prerenderReadyResetQueued = useState('auth:prerender-ready-reset-queued', () => false)
   const hydrationReconcileQueued = useState('auth:hydration-reconcile-queued', () => false)
+  const signOutInProgress = useState('auth:sign-out-in-progress', () => false)
   const ready = computed(() => authReady.value)
   const loggedIn = computed(() => Boolean(session.value && user.value))
   const isPrerenderedPayload = computed(() => Boolean(nuxtApp.payload.prerenderedAt || nuxtApp.payload.isCached))
@@ -86,22 +71,6 @@ export function useUserSession(): UseUserSessionReturn {
     if (!nuxtApp.isHydrating || !nuxtApp.payload.serverRendered || !isPrerenderedPayload.value)
       return false
     return !session.value && !user.value
-  })
-
-  const skipHydratedSsrGetSession = computed(() => {
-    const authConfig = runtimeConfig.public.auth as { session?: { skipHydratedSsrGetSession?: boolean } } | undefined
-    return Boolean(authConfig?.session?.skipHydratedSsrGetSession)
-  })
-  const shouldSkipInitialClientSessionFetch = computed(() => {
-    if (!skipHydratedSsrGetSession.value)
-      return false
-    if (!runtimeFlags.client)
-      return false
-    if (!nuxtApp.payload.serverRendered)
-      return false
-    if (isPrerenderedPayload.value)
-      return false
-    return Boolean(session.value && user.value)
   })
 
   if (isPrerenderHydrationEmptySnapshot.value && authReady.value && !prerenderReadyResetQueued.value) {
@@ -117,9 +86,6 @@ export function useUserSession(): UseUserSessionReturn {
     })
   }
 
-  if (shouldSkipInitialClientSessionFetch.value && !authReady.value)
-    authReady.value = true
-
   function clearSession() {
     session.value = null
     user.value = null
@@ -132,18 +98,22 @@ export function useUserSession(): UseUserSessionReturn {
       return fetchSessionClient(rawClient, session, user, authReady, options)
   }
 
-  async function updateUser(updates: Partial<AuthUser>) {
+  async function updateUser(updates: AuthUserUpdateInput) {
     if (!user.value)
       return
 
     const previousUser = user.value
     user.value = { ...user.value, ...updates }
+    // Keep the rollback attached to this optimistic snapshot. A session
+    // refresh, sign-out, or another update may replace the shared ref while
+    // the request is in flight; an older failure must not restore stale data.
+    const optimisticUser = user.value
 
     if (!rawClient)
       return
 
     try {
-      const clientWithUpdateUser = rawClient as AppAuthClient & { updateUser: (updates: Partial<AuthUser>) => Promise<UpdateUserResponse> }
+      const clientWithUpdateUser = rawClient as AppAuthClient & { updateUser: (updates: AuthUserUpdateInput) => Promise<UpdateUserResponse> }
       const result = await clientWithUpdateUser.updateUser(updates)
       if (result?.error) {
         if (result.error instanceof Error)
@@ -153,7 +123,8 @@ export function useUserSession(): UseUserSessionReturn {
       }
     }
     catch (error) {
-      user.value = previousUser
+      if (user.value === optimisticUser)
+        user.value = previousUser
       if (!(error instanceof Error)) {
         const normalizedError = normalizeAuthActionError(error)
         throw new Error(normalizedError.message)
@@ -162,13 +133,82 @@ export function useUserSession(): UseUserSessionReturn {
     }
   }
 
+  let mountedReconciliationStarted = false
+  let sessionExpiredRedirecting = false
+
+  function getSessionExpiredRedirect(): string | undefined {
+    return (runtimeConfig.public.auth as { redirects?: { sessionExpired?: string } } | undefined)?.redirects?.sessionExpired
+  }
+
+  function scheduleSessionExpiredRedirect() {
+    const sessionExpiredRedirect = getSessionExpiredRedirect()
+    if (!sessionExpiredRedirect || signOutInProgress.value || sessionExpiredRedirecting)
+      return
+
+    sessionExpiredRedirecting = true
+    void nextTick().then(() => {
+      if (sessionExpiredRedirecting)
+        void navigateTo(sessionExpiredRedirect)
+    })
+  }
+
+  function queueHydrationReconciliation() {
+    if (hydrationReconcileQueued.value)
+      return
+
+    hydrationReconcileQueued.value = true
+    const reconcile = async () => {
+      const sessionWasActive = loggedIn.value
+      try {
+        await fetchSession({ force: true })
+        if (sessionWasActive && !loggedIn.value)
+          scheduleSessionExpiredRedirect()
+      }
+      catch (error) {
+        console.error('[nuxt-better-auth] Failed to fetch session during hydration reconciliation:', error)
+      }
+      finally {
+        hydrationReconcileQueued.value = false
+      }
+    }
+
+    if (mountedReconciliationStarted) {
+      void reconcile()
+    }
+    else {
+      nuxtApp.hook('app:mounted', () => {
+        mountedReconciliationStarted = true
+        return reconcile()
+      })
+    }
+  }
+
   // On client, subscribe to better-auth's reactive session store
-  if (runtimeFlags.client && rawClient && !shouldSkipInitialClientSessionFetch.value) {
+  if (runtimeFlags.client && rawClient && !_sessionSyncApps.has(nuxtApp)) {
     const clientSession = rawClient.useSession()
+    const initialClientSession = clientSession.value
+    let hydrationSessionWasActive
+      = nuxtApp.isHydrating
+        && nuxtApp.payload.serverRendered
+        && Boolean(session.value && user.value)
+        && !initialClientSession?.data?.session
+        && !initialClientSession?.data?.user
+
+    const shouldReconcileInitialHydration
+      = nuxtApp.isHydrating
+        && nuxtApp.payload.serverRendered
+        && Boolean(session.value && user.value)
+        && !initialClientSession?.data?.session
+        && !initialClientSession?.data?.user
+        && !initialClientSession?.isPending
+        && !initialClientSession?.isRefetching
+
+    if (shouldReconcileInitialHydration)
+      queueHydrationReconciliation()
 
     watch(
       () => clientSession.value,
-      (newSession) => {
+      (newSession, previousSession) => {
         const shouldWaitForPrerenderResolution
           = isPrerenderHydrationEmptySnapshot.value
             && !newSession?.data?.session
@@ -178,6 +218,8 @@ export function useUserSession(): UseUserSessionReturn {
           return
 
         if (newSession?.data?.session && newSession?.data?.user) {
+          sessionExpiredRedirecting = false
+          hydrationSessionWasActive = false
           session.value = stripToken(newSession.data.session as AuthSession & { token?: string })
           user.value = newSession.data.user as AuthUser
         }
@@ -190,23 +232,27 @@ export function useUserSession(): UseUserSessionReturn {
               && !newSession?.data?.user
 
           if (isHydrationEmptySnapshot) {
-            if (!hydrationReconcileQueued.value) {
-              hydrationReconcileQueued.value = true
-              nuxtApp.hook('app:mounted', async () => {
-                await fetchSession({ force: true })
-                hydrationReconcileQueued.value = false
-              })
-            }
+            queueHydrationReconciliation()
             return
           }
 
-          clearSession()
+          const sessionWasActive = hydrationSessionWasActive || Boolean(previousSession?.data?.session && previousSession?.data?.user)
+          const sessionWasInvalidated = !newSession?.error || isExpectedSignedOutSessionError(newSession.error)
+
+          if (sessionWasInvalidated) {
+            hydrationSessionWasActive = false
+            clearSession()
+          }
+
+          if (sessionWasActive && sessionWasInvalidated)
+            scheduleSessionExpiredRedirect()
         }
         if (!authReady.value && !newSession?.isPending && !newSession?.isRefetching)
           authReady.value = true
       },
-      { immediate: true, deep: true },
     )
+
+    _sessionSyncApps.add(nuxtApp)
   }
 
   function waitForSession(): Promise<void> {
@@ -228,10 +274,6 @@ export function useUserSession(): UseUserSessionReturn {
     })
   }
 
-  if (runtimeFlags.client && rawClient && shouldSkipInitialClientSessionFetch.value) {
-    ensureSessionSignalListener(rawClient, () => fetchSession({ force: true }))
-  }
-
   async function signOut(options?: SignOutOptions) {
     if (!rawClient)
       throw new Error('signOut can only be called on client-side')
@@ -242,19 +284,27 @@ export function useUserSession(): UseUserSessionReturn {
     }
 
     _signOutPromise = (async () => {
-      await rawClient.signOut()
-      clearSession()
+      signOutInProgress.value = true
+      try {
+        const result = await rawClient.signOut()
+        if (isRecord(result) && result.error)
+          throw new Error(normalizeAuthActionError(result.error).message)
+        clearSession()
 
-      if (options?.onSuccess) {
-        await options.onSuccess()
-        return
+        if (options?.onSuccess) {
+          await options.onSuccess()
+          return
+        }
+
+        const authConfig = runtimeConfig.public.auth as { redirects?: { logout?: string } } | undefined
+        const logoutRedirect = authConfig?.redirects?.logout
+        if (logoutRedirect) {
+          await nextTick()
+          await navigateTo(logoutRedirect)
+        }
       }
-
-      const authConfig = runtimeConfig.public.auth as { redirects?: { logout?: string } } | undefined
-      const logoutRedirect = authConfig?.redirects?.logout
-      if (logoutRedirect) {
-        await nextTick()
-        await navigateTo(logoutRedirect)
+      finally {
+        signOutInProgress.value = false
       }
     })().finally(() => {
       _signOutPromise = null
@@ -295,17 +345,17 @@ export function useAuthActionNamespaces() {
         const method = targetRecord[prop]
         if (typeof method !== 'function')
           return method
-        const shouldSkipSessionSync = prop === 'social'
-          ? (data: unknown) => {
-              const socialData = isRecord(data) ? data : undefined
-              return socialData?.disableRedirect !== true
-            }
-          : undefined
-        const transformData = prop === 'social' ? (data: unknown) => withFallbackSocialCallbackURL(data, requestURL) : undefined
+        const isRedirectOAuthSignIn = prop === 'social' || prop === 'oauth2'
         return wrapAuthMethod(
           (...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args),
           wrapDeps,
-          { shouldSkipSessionSync, transformData },
+          isRedirectOAuthSignIn
+            ? {
+                shouldSkipSessionSync: (data: unknown) => !isRecord(data) || data.disableRedirect !== true,
+                shouldWaitForSession: () => true,
+                transformData: (data: unknown) => withFallbackSocialCallbackURL(data, requestURL),
+              }
+            : { shouldWaitForSession: () => true },
         )
       })
     : _signInServerOnly as SignIn
@@ -316,7 +366,11 @@ export function useAuthActionNamespaces() {
         const method = targetRecord[prop]
         if (typeof method !== 'function')
           return method
-        return wrapAuthMethod((...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args), wrapDeps)
+        return wrapAuthMethod(
+          (...args: unknown[]) => (targetRecord[prop] as (...a: unknown[]) => Promise<unknown>)(...args),
+          wrapDeps,
+          { shouldWaitForSession: shouldWaitForSignUpSession },
+        )
       })
     : _signUpServerOnly as SignUp
 

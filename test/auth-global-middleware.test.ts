@@ -66,6 +66,8 @@ describe('auth.global middleware', () => {
     user.value = null
     runtimeConfig.public.auth.redirects.login = '/login'
     runtimeConfig.public.auth.redirects.guest = '/app'
+    runtimeConfig.public.auth.preserveRedirect = true
+    runtimeConfig.public.auth.redirectQueryKey = 'redirect'
   })
 
   it('keeps public routes unaffected when no auth rule is resolved', async () => {
@@ -131,6 +133,96 @@ describe('auth.global middleware', () => {
 
     expect(fetchSession).toHaveBeenCalledTimes(1)
     expect(navigateTo).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves repeated login query values during client navigation', async () => {
+    runtimeConfig.public.auth.redirects.login = '/login?scope=read&scope=write'
+    const middleware = await loadMiddleware()
+
+    await middleware({
+      path: '/protected',
+      fullPath: '/protected?foo=1',
+      meta: { auth: 'user' },
+    })
+
+    expect(navigateTo).toHaveBeenCalledWith({
+      path: '/login',
+      query: { scope: ['read', 'write'], redirect: '/protected?foo=1' },
+    })
+  })
+
+  it('preserves additional query and hash delimiters in the login target', async () => {
+    runtimeConfig.public.auth.redirects.login = '/login?next=/app?tab=details&mode=email#top#bottom'
+    const middleware = await loadMiddleware()
+
+    await middleware({
+      path: '/protected',
+      fullPath: '/protected',
+      meta: { auth: 'user' },
+    })
+
+    expect(navigateTo).toHaveBeenCalledWith({
+      path: '/login',
+      query: { next: '/app?tab=details', mode: 'email', redirect: '/protected' },
+      hash: '#top#bottom',
+    })
+  })
+
+  it.each(['returnTo', 'return&to'])('uses the configured query key %j during client navigation', async (key) => {
+    runtimeConfig.public.auth.redirectQueryKey = key
+    const middleware = await loadMiddleware()
+
+    await middleware({
+      path: '/protected',
+      fullPath: '/protected?foo=1',
+      meta: { auth: 'user' },
+    })
+
+    expect(navigateTo).toHaveBeenCalledWith({
+      path: '/login',
+      query: { [key]: '/protected?foo=1' },
+    })
+  })
+
+  it('keeps an existing redirect query unchanged', async () => {
+    const target = '/login?redirect=%2Fchosen&redirect=%2Fother#top#bottom'
+    runtimeConfig.public.auth.redirects.login = target
+    const middleware = await loadMiddleware()
+
+    await middleware({
+      path: '/protected',
+      fullPath: '/protected',
+      meta: { auth: 'user' },
+    })
+
+    expect(navigateTo).toHaveBeenCalledWith(target)
+  })
+
+  it('does not redirect protected navigation when the session check fails', async () => {
+    getRouteRules.mockResolvedValueOnce({ auth: 'user' })
+    fetchSession.mockRejectedValueOnce(new Error('Auth backend unavailable'))
+
+    const middleware = await loadMiddleware()
+    await expect(middleware({
+      path: '/app',
+      fullPath: '/app',
+      meta: {},
+    })).rejects.toThrow('Auth backend unavailable')
+
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('ignores internal module routes even when broad route rules set page meta', async () => {
+    const middleware = await loadMiddleware()
+    await middleware({
+      path: '/__better-auth-devtools',
+      fullPath: '/__better-auth-devtools',
+      meta: { auth: 'user' },
+    })
+
+    expect(getRouteRules).not.toHaveBeenCalled()
+    expect(fetchSession).not.toHaveBeenCalled()
+    expect(navigateTo).not.toHaveBeenCalled()
   })
 
   it('forces a fresh session check during prerender hydration for protected routes', async () => {

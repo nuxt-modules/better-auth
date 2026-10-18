@@ -5,7 +5,7 @@ tabs:
   - name: nuxt.config.ts
     code: |
       export default defineNuxtConfig({
-        modules: ['@onmax/nuxt-better-auth'],
+        modules: ['@nuxtjs/better-auth'],
         routeRules: {
           '/dashboard/**': { auth: 'user' },
           '/admin/**': { auth: 'admin' },
@@ -13,7 +13,7 @@ tabs:
       })
   - name: server/auth.config.ts
     code: |
-      import { defineServerAuth } from '@onmax/nuxt-better-auth/config'
+      import { defineServerAuth } from '@nuxtjs/better-auth/config'
       import { admin, twoFactor } from 'better-auth/plugins'
 
       export default defineServerAuth({
@@ -25,7 +25,7 @@ tabs:
       })
   - name: app/auth.config.ts
     code: |
-      import { defineClientAuth } from '@onmax/nuxt-better-auth/config'
+      import { defineClientAuth } from '@nuxtjs/better-auth/config'
       import { adminClient, twoFactorClient } from 'better-auth/client/plugins'
 
       export default defineClientAuth({

@@ -19,6 +19,11 @@ describe('nuxt-better-auth module', async () => {
       expect(response.status).toBe(404)
     })
 
+    it('does not expose the auth test bridge in ordinary builds', async () => {
+      const response = await fetch(url('/api/auth/__test__'), { method: 'POST' })
+      expect(response.status).toBe(404)
+    })
+
     it('exposes runtime database metadata as nuxthub', async () => {
       const response = await $fetch('/api/test/config') as { useDatabase: boolean, databaseProvider: string }
       expect(response.useDatabase).toBe(true)
@@ -67,9 +72,19 @@ describe('nuxt-better-auth module', async () => {
       expect(response.headers.get('location')).toContain('/custom-login?redirect=/')
       expect(response.headers.get('location')).not.toContain('%2Fcustom-protected-has-redirect%3Ffoo%3D1')
     })
+
+    it('returns 404 for protected routes that match no page', async () => {
+      const response = await fetch(url('/unmatched/page'), { redirect: 'manual' })
+      expect(response.status).toBe(404)
+    })
   })
 
   describe('aPI protection', () => {
+    it('enforces auth route rules before app API handlers run', async () => {
+      const response = await fetch(url('/api/test/route-rule-only'))
+      expect(response.status).toBe(401)
+    })
+
     it('returns 401 on protected API without auth', async () => {
       const response = await fetch(url('/api/test/me'))
       expect(response.status).toBe(401)
@@ -95,6 +110,16 @@ describe('nuxt-better-auth module', async () => {
       expect(meRes.status).toBe(200)
       const data = await meRes.json()
       expect(data.email).toBe(testUser.email)
+
+      const routeRuleRes = await fetch(url('/api/test/route-rule-only'), { headers: { cookie: cookies } })
+      expect(routeRuleRes.status).toBe(200)
+      await expect(routeRuleRes.json()).resolves.toEqual({ exposed: true })
+    })
+
+    it('preserves Date fields in the SSR plugin and explicit session refresh', async () => {
+      const response = await fetch(url('/session-dates'), { headers: { cookie: cookies } })
+      expect(response.status).toBe(200)
+      expect(await response.text()).toContain('Initial dates: true; refreshed dates: true')
     })
 
     it('hydrates session on SSR', async () => {

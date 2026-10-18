@@ -1,20 +1,22 @@
 import type { BetterAuthOptions } from 'better-auth'
-import type { H3Event } from 'h3'
-import { betterAuth } from 'better-auth'
-import { getRequestHost, getRequestProtocol } from 'h3'
-import { useRuntimeConfig } from 'nitropack/runtime'
-import { withoutProtocol } from 'ufo'
+import type { ServerEvent } from '../internal/nitro-compat'
+import { betterAuth, env } from 'better-auth'
 import { createDatabase, db } from '#auth/database'
-import { createSecondaryStorage } from '#auth/secondary-storage'
 import createServerAuth from '#auth/server'
+import type { DerivedAuthSecretState } from '../internal/auth-secret'
+import { getConfiguredAuthSecret, getDerivedAuthSecret, hasExplicitAuthSecret, prepareAuthSecret } from '../internal/auth-secret'
+import { getRequestHost, getRequestProtocol, useRuntimeConfig } from '../internal/nitro-compat'
+import { resolveAuthBaseURL } from '../../internal/auth-base-url'
 import { resolveCustomSecondaryStorageRequirement } from './custom-secondary-storage'
 
 type AuthOptions = ReturnType<typeof createServerAuth>
 type UserAuthConfig = AuthOptions & {
+  rateLimit?: BetterAuthOptions['rateLimit']
+  secrets?: BetterAuthOptions['secrets']
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   secondaryStorage?: BetterAuthOptions['secondaryStorage']
 }
-type ResolvedAuthOptions = UserAuthConfig & {
+type ResolvedAuthOptions = Omit<UserAuthConfig, 'secret' | 'baseURL' | 'trustedOrigins' | 'database'> & {
   secret: string
   baseURL: string
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
@@ -26,6 +28,9 @@ const _authCache = new Map<string, AuthInstance>()
 const requestAuthKey = Symbol.for('nuxt-better-auth.requestAuth')
 let _baseURLInferenceLogged = false
 let _customSecondaryStorageMisconfigWarned = false
+let _unsupportedHubSecondaryStorageWarned = false
+let _secondaryStorageRateLimitFallbackWarned = false
+let _derivedSecretFallbackWarned = false
 
 interface RequestAuthContext {
   [requestAuthKey]?: AuthInstance
@@ -33,8 +38,8 @@ interface RequestAuthContext {
 
 const fallbackRequestAuthContext = new WeakMap<object, RequestAuthContext>()
 
-function getRequestAuthContext(event: H3Event): RequestAuthContext {
-  const eventWithContext = event as H3Event & { context?: unknown }
+function getRequestAuthContext(event: ServerEvent): RequestAuthContext {
+  const eventWithContext = event as ServerEvent & { context?: unknown }
   if (eventWithContext.context && typeof eventWithContext.context === 'object')
     return eventWithContext.context as RequestAuthContext
 
@@ -74,10 +79,29 @@ function logInferredBaseURL(baseURL: string, source: string): void {
 
 function validateURL(url: string): string {
   try {
-    return normalizeLoopbackOrigin(new URL(url).origin)
+    // WHATWG URL parsing strips leading spaces and C0 controls, which could otherwise
+    // turn a credential-bearing value into an apparently safe origin.
+    const firstCode = url.charCodeAt(0)
+    if (firstCode <= 32 || firstCode === 127)
+      throw new Error('leading whitespace and control characters are not allowed')
+    const parsed = new URL(url)
+
+    // Better Auth builds callback URLs and origin checks from this value. An
+    // opaque origin (for example `javascript:`) or a URL containing
+    // credentials is never a valid site origin and could otherwise result in
+    // surprising redirects or origin mismatches.
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+      throw new Error('unsupported protocol')
+    // URL parsing discards empty userinfo. Inspect the original authority too,
+    // accounting for the whitespace and backslashes accepted by HTTP(S) URLs.
+    const hasUserinfo = /^https?:[/\\]*[^/\\?#]*@/i.test(url.trim().replace(/[\t\n\r]/g, ''))
+    if (parsed.username || parsed.password || hasUserinfo)
+      throw new Error('credentials are not allowed')
+
+    return normalizeLoopbackOrigin(parsed.origin)
   }
   catch {
-    throw new Error(`Invalid siteUrl: "${url}". Must be a valid URL.`)
+    throw new Error('Invalid siteUrl. Must be a valid HTTP(S) URL without credentials.')
   }
 }
 
@@ -88,7 +112,7 @@ function resolveConfiguredSiteUrl(config: ReturnType<typeof useRuntimeConfig>): 
   return validateURL(config.public.siteUrl)
 }
 
-function resolveEventOrigin(event?: H3Event): string | undefined {
+function resolveEventOrigin(event?: ServerEvent): string | undefined {
   if (!event)
     return undefined
 
@@ -117,46 +141,38 @@ function getNitroOrigin(): string | undefined {
   let port: string | undefined
   if (import.meta.dev)
     port = process.env.NITRO_PORT || process.env.PORT || '3000'
-  let protocol = (cert && key) || !import.meta.dev ? 'https' : 'http'
+  const protocol = (cert && key) || !import.meta.dev ? 'https' : 'http'
 
   try {
     if ((import.meta.dev || import.meta.prerender) && process.env.__NUXT_DEV__) {
-      const origin = JSON.parse(process.env.__NUXT_DEV__).proxy.url
-      host = withoutProtocol(origin)
-      protocol = origin.includes('https') ? 'https' : 'http'
+      const url = new URL(JSON.parse(process.env.__NUXT_DEV__).proxy.url)
+      if (url.protocol === 'http:' || url.protocol === 'https:')
+        return url.origin
     }
     else if ((import.meta.dev || import.meta.prerender) && process.env.NUXT_VITE_NODE_OPTIONS) {
-      const origin = JSON.parse(process.env.NUXT_VITE_NODE_OPTIONS).baseURL.replace('/__nuxt_vite_node__', '')
-      host = withoutProtocol(origin)
-      protocol = origin.includes('https') ? 'https' : 'http'
+      const url = new URL(JSON.parse(process.env.NUXT_VITE_NODE_OPTIONS).baseURL)
+      if (url.protocol === 'http:' || url.protocol === 'https:')
+        return url.origin
     }
   }
   catch {
-    // JSON parse failed, continue with env fallbacks
+    // Invalid proxy configuration, continue with listener environment fallbacks.
   }
 
   if (!host)
     return undefined
 
-  if (host.startsWith('[') && host.includes(']:')) {
-    const lastBracketColon = host.lastIndexOf(']:')
-    const extractedPort = host.slice(lastBracketColon + 2)
-    host = host.slice(0, lastBracketColon + 1)
-    if (extractedPort)
-      port = extractedPort
-  }
-  else if (host.includes(':') && !host.startsWith('[')) {
-    const hostParts = host.split(':')
-    port = hostParts.pop()
-    host = hostParts.join(':')
-  }
+  // Listener hosts can be bare IPv6 addresses. Bracket them before adding a port.
+  if (!host.startsWith('[') && host.indexOf(':') !== host.lastIndexOf(':'))
+    host = `[${host}]`
 
-  const portSuffix = port ? `:${port}` : ''
+  const hasExplicitPort = host.startsWith('[') ? host.includes(']:') : host.includes(':')
+  const portSuffix = !hasExplicitPort && port ? `:${port}` : ''
   return `${protocol}://${host}${portSuffix}`
 }
 
 function resolveEnvironmentOrigin(): { origin: string, source: string } | undefined {
-  const nitroOrigin = getNitroOrigin()
+  const nitroOrigin = import.meta.dev ? getNitroOrigin() : undefined
   if (nitroOrigin)
     return { origin: validateURL(nitroOrigin), source: 'Nitro environment detection' }
 
@@ -164,7 +180,7 @@ function resolveEnvironmentOrigin(): { origin: string, source: string } | undefi
     return { origin: validateURL(`https://${process.env.VERCEL_URL}`), source: 'VERCEL_URL' }
 
   if (process.env.CF_PAGES_URL)
-    return { origin: validateURL(`https://${process.env.CF_PAGES_URL}`), source: 'CF_PAGES_URL' }
+    return { origin: validateURL(process.env.CF_PAGES_URL), source: 'CF_PAGES_URL' }
 
   if (process.env.URL)
     return { origin: validateURL(process.env.URL.startsWith('http') ? process.env.URL : `https://${process.env.URL}`), source: 'URL' }
@@ -179,13 +195,13 @@ function resolveDevFallback(): { origin: string, source: string } | undefined {
   return { origin: 'http://localhost:3000', source: 'development fallback' }
 }
 
-function getBaseURL(event?: H3Event): string {
+function getBaseURL(event?: ServerEvent): string {
   const config = useRuntimeConfig()
   const configuredSiteUrl = resolveConfiguredSiteUrl(config)
   if (configuredSiteUrl)
     return configuredSiteUrl
 
-  const eventOrigin = resolveEventOrigin(event)
+  const eventOrigin = import.meta.dev ? resolveEventOrigin(event) : undefined
   if (eventOrigin) {
     logInferredBaseURL(eventOrigin, 'request origin')
     return eventOrigin
@@ -203,7 +219,7 @@ function getBaseURL(event?: H3Event): string {
     return devFallback.origin
   }
 
-  throw new Error('siteUrl required. Set NUXT_PUBLIC_SITE_URL.')
+  throw new Error('siteUrl required in production. Set NUXT_PUBLIC_SITE_URL to the public application URL or provide VERCEL_URL, CF_PAGES_URL, or URL.')
 }
 
 function dedupeOrigins(origins: readonly string[]): string[] {
@@ -219,8 +235,7 @@ function getDevTrustedOrigins(): string[] {
   try {
     const url = new URL(nitroOrigin)
     const protocol = url.protocol === 'https:' ? 'https' : 'http'
-    const port = url.port || '3000'
-    const localhostOrigin = `${protocol}://localhost:${port}`
+    const localhostOrigin = `${protocol}://localhost${url.port ? `:${url.port}` : ''}`
     return dedupeOrigins([localhostOrigin, url.origin])
   }
   catch {
@@ -272,11 +287,56 @@ function withDevTrustedOrigins(
   }
 }
 
+function missingAuthSecretMessage(derived: DerivedAuthSecretState): string {
+  const message = '[nuxt-better-auth] An auth secret is required in production. Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_SECRETS, or defineServerAuth({ secrets })'
+  if (!derived.available)
+    return `${message}.`
+  if (derived.error !== undefined)
+    return `${message}, or set NUXT_APP_SECRET (at least 32 characters) to derive one from Nuxt's appSecret.`
+  return `${message}. The secret derived from NUXT_APP_SECRET is resolved asynchronously, and serverAuth() was called before it was ready, outside a request. Use \`await ensureServerAuth()\` in code that runs at server startup.`
+}
+
+function warnDerivedSecretFallback(derived: DerivedAuthSecretState): void {
+  if (_derivedSecretFallbackWarned)
+    return
+
+  _derivedSecretFallbackWarned = true
+  const reason = derived.error !== undefined
+    ? 'could not be derived from NUXT_APP_SECRET. Set NUXT_APP_SECRET (at least 32 characters) or NUXT_BETTER_AUTH_SECRET.'
+    : 'derived from NUXT_APP_SECRET was not ready yet. Use `await ensureServerAuth()` in code that runs at server startup.'
+  console.warn(`[nuxt-better-auth] Better Auth's development default secret is used for this call: the auth secret ${reason}`)
+}
+
+/**
+ * Returns the Better Auth instance like `serverAuth()`, after waiting for the auth secret that
+ * Nuxt 4.6+ derives from `appSecret` (`NUXT_APP_SECRET`). Use it in code that can run before the
+ * first request, such as a Nitro plugin or task at server startup.
+ */
+export async function ensureServerAuth(event?: ServerEvent): Promise<AuthInstance> {
+  await prepareAuthSecret()
+  return serverAuth(event)
+}
+
 /** Returns Better Auth instance. Caches per resolved host (or single instance when siteUrl is explicit). */
-export function serverAuth(event?: H3Event): AuthInstance {
+export function serverAuth(event?: ServerEvent): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
-  const siteUrl = getBaseURL(event)
+  const configuredSecret = getConfiguredAuthSecret(runtimeConfig)
+  if (configuredSecret && configuredSecret.length < 32)
+    throw new Error('[nuxt-better-auth] Singular auth secret must be at least 32 characters for security')
+
+  const derived = getDerivedAuthSecret()
   const requestOrigin = resolveEventOrigin(event)
+  let userConfig: UserAuthConfig | undefined
+  if (!import.meta.dev && !configuredSecret && !env.BETTER_AUTH_SECRETS && !derived.secret) {
+    userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+    if (userConfig.secrets === undefined) {
+      // Let a later call use the derived secret when this one ran before any request primed it.
+      void prepareAuthSecret()
+      throw new Error(missingAuthSecretMessage(derived))
+    }
+  }
+
+  const siteUrl = getBaseURL(event)
   const hasExplicitSiteUrl = runtimeConfig.public.siteUrl && typeof runtimeConfig.public.siteUrl === 'string'
   const cacheKey = hasExplicitSiteUrl ? '__explicit__' : siteUrl
   const requestContext = event ? getRequestAuthContext(event) : undefined
@@ -284,11 +344,25 @@ export function serverAuth(event?: H3Event): AuthInstance {
   if (requestContext?.[requestAuthKey])
     return requestContext[requestAuthKey]
 
-  const database = createDatabase(event)
-  const userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+  userConfig ??= createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
+
+  // Explicit secrets keep their existing precedence; Nuxt's appSecret only fills the gap (4.6+).
+  const usesDerivedSecret = derived.available && userConfig.secrets === undefined && !hasExplicitAuthSecret(runtimeConfig)
+  const derivedSecretMissing = usesDerivedSecret && !derived.secret
+  if (derivedSecretMissing) {
+    void prepareAuthSecret()
+    warnDerivedSecretFallback(derived)
+  }
+  const betterAuthSecret = configuredSecret || (usesDerivedSecret ? derived.secret ?? '' : '')
+
+  const database = (createDatabase as (event?: ServerEvent) => BetterAuthOptions['database'])(event)
   const trustedOrigins = withDevTrustedOrigins(userConfig.trustedOrigins)
 
   const hubSecondaryStorage = (runtimeConfig.auth as { hubSecondaryStorage?: boolean | 'custom' })?.hubSecondaryStorage
+  if (hubSecondaryStorage === true && !_unsupportedHubSecondaryStorageWarned) {
+    _unsupportedHubSecondaryStorageWarned = true
+    console.warn('[nuxt-better-auth] Runtime hubSecondaryStorage: true is unsupported with Better Auth 1.7 and will be ignored. The module will preserve secondaryStorage from defineServerAuth(). Remove NUXT_AUTH_HUB_SECONDARY_STORAGE or set it to false.')
+  }
   const customSecondaryStorage = resolveCustomSecondaryStorageRequirement(hubSecondaryStorage, userConfig.secondaryStorage != null, Boolean(import.meta.dev))
   if (customSecondaryStorage?.shouldThrow)
     throw new Error(customSecondaryStorage.message)
@@ -297,7 +371,20 @@ export function serverAuth(event?: H3Event): AuthInstance {
     console.warn(customSecondaryStorage.message)
   }
 
-  if (!database) {
+  const useMemoryRateLimit = userConfig.rateLimit?.storage === 'secondary-storage'
+    && !userConfig.rateLimit.customStorage
+    && !userConfig.secondaryStorage
+  if (useMemoryRateLimit && !_secondaryStorageRateLimitFallbackWarned) {
+    _secondaryStorageRateLimitFallbackWarned = true
+    console.warn('[nuxt-better-auth] rateLimit.storage: "secondary-storage" requires secondaryStorage. Falling back to process-local memory. Set rateLimit.storage to "database" or provide rateLimit.customStorage for shared limits.')
+  }
+  const rateLimit = useMemoryRateLimit
+    ? { ...userConfig.rateLimit, storage: 'memory' as const }
+    : userConfig.rateLimit
+
+  // An instance without the derived secret must not outlive the request that needed it.
+  const cacheable = !database && !derivedSecretMissing
+  if (cacheable) {
     const cached = _authCache.get(cacheKey)
     if (cached) {
       if (requestContext)
@@ -308,10 +395,10 @@ export function serverAuth(event?: H3Event): AuthInstance {
 
   const authOptions: ResolvedAuthOptions = {
     ...userConfig,
+    ...(rateLimit ? { rateLimit } : {}),
     ...(database ? { database } : {}),
-    ...(hubSecondaryStorage === true ? { secondaryStorage: createSecondaryStorage() } : {}),
-    secret: runtimeConfig.betterAuthSecret,
-    baseURL: siteUrl,
+    secret: betterAuthSecret,
+    baseURL: resolveAuthBaseURL(siteUrl, runtimeConfig.app?.baseURL),
     trustedOrigins,
   }
   const auth = betterAuth(authOptions)
@@ -319,7 +406,7 @@ export function serverAuth(event?: H3Event): AuthInstance {
   if (requestContext)
     requestContext[requestAuthKey] = auth
 
-  if (!database)
+  if (cacheable)
     _authCache.set(cacheKey, auth)
 
   return auth

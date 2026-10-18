@@ -1,13 +1,14 @@
+import type { DevtoolsSchema } from './_schema'
 import type { Session } from 'better-auth/types'
-import { defineEventHandler, getQuery } from 'h3'
 import { paginationQuerySchema, sanitizeSearchPattern } from './_schema'
+import { defineEventHandler, getQuery } from '../../internal/nitro-compat'
 
 type SafeSession = Pick<Session, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'expiresAt' | 'ipAddress' | 'userAgent'>
 
 export default defineEventHandler(async (event) => {
   try {
     const { db } = await import('@nuxthub/db')
-    const { schema } = await import('#auth/schema')
+    const { schema } = await import('#auth/schema') as { schema: DevtoolsSchema }
     if (!schema?.session)
       return { sessions: [], total: 0, error: 'Session table not found' }
 

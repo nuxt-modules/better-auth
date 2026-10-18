@@ -3,7 +3,7 @@ definePageMeta({ layout: 'auth' })
 
 const DIGITS_ONLY_RE = /^\d+$/
 
-const { client } = useUserSession()
+const client = useAuthClient()
 const toast = useToast()
 
 // Type assertion for twoFactor plugin

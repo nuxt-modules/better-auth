@@ -9,6 +9,7 @@ export default defineNuxtConfig({
   },
 
   routeRules: {
+    '/api/test/route-rule-only': { auth: 'user' },
     '/protected': { auth: 'user' },
     '/admin': { auth: { user: { role: 'admin' } } },
     '/login': { auth: 'guest' },
@@ -16,5 +17,6 @@ export default defineNuxtConfig({
     '/custom-protected-has-redirect': { auth: { only: 'user', redirectTo: '/custom-login?redirect=/' } },
     '/dynamic/protected': { auth: 'user' },
     '/dynamic/guest': { auth: 'guest' },
+    '/unmatched/**': { auth: 'user' },
   },
 })

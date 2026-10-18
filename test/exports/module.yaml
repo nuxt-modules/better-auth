@@ -3,15 +3,23 @@
   defineClientAuth: function
   defineServerAuth: function
 ./composables:
+  runWithSessionRefresh: function
   useAction: function
   useAuthAsyncData: function
   useAuthClient: function
   useAuthClientAction: function
   useAuthRequestFetch: function
   useSignIn: function
+  useSignOut: function
   useSignUp: function
   useUserSession: function
   useUserSessionState: function
 ./config:
   defineClientAuth: function
   defineServerAuth: function
+  extendClientAuth: function
+  extendServerAuth: function
+./test-utils/runtime:
+  createUserSessionMock: function
+./test-utils/e2e:
+  createAuthTestContext: function

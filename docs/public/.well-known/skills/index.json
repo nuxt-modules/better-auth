@@ -1,7 +1,7 @@
 {
   "skills": [{
     "name": "nuxt-better-auth",
-    "description": "Use when implementing auth in Nuxt apps with @onmax/nuxt-better-auth - provides useUserSession composable, server auth helpers, route protection, and Better Auth plugins integration.",
+    "description": "Guides authentication in Nuxt apps using @nuxtjs/better-auth. Use when installing or configuring the module, using its client or server APIs, protecting routes, refreshing sessions, or integrating Better Auth plugins.",
     "files": [
       "SKILL.md",
       "references/client-auth.md",

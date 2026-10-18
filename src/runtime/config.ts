@@ -1,23 +1,33 @@
 import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
-import type { BetterAuthClientOptions } from 'better-auth/client'
-import type { Casing } from 'drizzle-orm/utils'
+import type { BetterAuthClientOptions, BetterAuthClientPlugin } from 'better-auth/client'
 import type { ServerAuthContext as BaseServerAuthContext } from './types/augment'
 import { createAuthClient } from 'better-auth/vue'
 
 export interface ServerAuthContextExtension {}
 export type ServerAuthContext = BaseServerAuthContext & ServerAuthContextExtension
+export type SchemaCasing = 'snake_case' | 'camelCase'
 
 export interface ClientAuthContext {
   siteUrl: string
 }
 
-export type ServerAuthConfig = Omit<BetterAuthOptions, 'secret' | 'baseURL'> & {
+export type ServerAuthConfig = Omit<BetterAuthOptions, 'secret' | 'baseURL' | 'basePath'> & {
+  /** The module registers its server handler at /api/auth. */
+  basePath?: '/api/auth'
   plugins?: readonly BetterAuthPlugin[]
 }
 export type ClientAuthConfig = Omit<BetterAuthClientOptions, 'baseURL'> & { baseURL?: string }
 
 export type ServerAuthConfigFn = (ctx: ServerAuthContext) => ServerAuthConfig
 export type ClientAuthConfigFn = (ctx: ClientAuthContext) => ClientAuthConfig
+type ServerPlugins<T> = T extends { plugins: infer P extends readonly BetterAuthPlugin[] } ? P : []
+type ClientPlugins<T> = T extends { plugins: infer P extends BetterAuthClientPlugin[] } ? P : []
+type ExtendedServerAuthConfig<T, P extends readonly BetterAuthPlugin[]> = Omit<T, 'plugins'> & { plugins: [...ServerPlugins<T>, ...P] }
+type ExtendedClientAuthConfig<T, P extends BetterAuthClientPlugin[]> = Omit<T, 'plugins'> & { plugins: [...ClientPlugins<T>, ...P] }
+
+export type ClientAuthFactory<T extends ClientAuthConfig> = ((baseURL: string) => ReturnType<typeof createAuthClient<T>>) & {
+  resolveOptions: (baseURL: string) => T & { baseURL: string }
+}
 export type ModuleDatabaseProviderId = 'none' | 'nuxthub' | (string & {})
 export type EffectiveDatabaseProviderId = 'user' | ModuleDatabaseProviderId
 
@@ -29,6 +39,10 @@ export interface BetterAuthModuleOptions {
   serverConfig?: string
   /** Client config path. Relative paths resolve from the layer that declares them. Default: 'app/auth.config' */
   clientConfig?: string
+  /** Server plugin modules. Relative paths resolve from the declaring layer. Sources are additive and are not deduplicated. */
+  serverPluginSources?: string[]
+  /** Client plugin modules. Relative paths resolve from the declaring layer. Sources are additive and are not deduplicated. */
+  clientPluginSources?: string[]
   redirects?: {
     /** Where to redirect unauthenticated users. Default: '/login' */
     login?: string
@@ -38,6 +52,8 @@ export interface BetterAuthModuleOptions {
     authenticated?: string
     /** Where to navigate after logout. Default: no automatic navigation */
     logout?: string
+    /** Where to navigate when a previously authenticated session expires or is revoked. Default: no automatic navigation */
+    sessionExpired?: string
   }
   /**
    * When redirecting unauthenticated users to the login route, append a query param
@@ -52,20 +68,10 @@ export interface BetterAuthModuleOptions {
    * Default: 'redirect'
    */
   redirectQueryKey?: string
-  session?: {
-    /**
-     * When enabled, and session/user are already hydrated from SSR, skip the initial
-     * client `/api/auth/get-session` bootstrap request. This also skips Better Auth's
-     * session refresh manager on those pages.
-     *
-     * Default: false
-     */
-    skipHydratedSsrGetSession?: boolean
-  }
   /**
-   * Enable secondary storage for sessions.
-   * - `true`: Use NuxtHub KV (requires hub.kv: true)
-   * - `'custom'`: User provides own secondaryStorage in defineServerAuth()
+   * Configure secondary storage for sessions.
+   * - `true`: Temporarily falls back to database-backed sessions with a setup warning
+   * - `'custom'`: User provides an atomic secondaryStorage in defineServerAuth()
    * - `false` (default): No secondary storage from module
    */
   hubSecondaryStorage?: boolean | 'custom'
@@ -74,19 +80,20 @@ export interface BetterAuthModuleOptions {
     /** Plural table names: user → users. Default: false */
     usePlural?: boolean
     /** Column/table name casing. Explicit value takes precedence over hub.db.casing. */
-    casing?: Casing
+    casing?: SchemaCasing
+    /** PostgreSQL schema namespace. */
+    schemaName?: string
   }
 }
 
 // Runtime config type for public.auth
 export interface AuthRuntimeConfig {
-  redirects: { login: string, guest: string, authenticated?: string, logout?: string }
+  redirects: { login: string, guest: string, authenticated?: string, logout?: string, sessionExpired?: string }
   preserveRedirect: boolean
   redirectQueryKey: string
   useDatabase: boolean
   databaseProvider: EffectiveDatabaseProviderId
   clientOnly: boolean
-  session: { skipHydratedSsrGetSession: boolean }
 }
 
 // Private runtime config (server-only)
@@ -95,17 +102,49 @@ export interface AuthPrivateRuntimeConfig {
 }
 
 export function defineServerAuth<const R>(config: (ctx: ServerAuthContext) => R & ServerAuthConfig): (ctx: ServerAuthContext) => R
-export function defineServerAuth<const R>(config: R & ServerAuthConfig): (ctx: ServerAuthContext) => R
+export function defineServerAuth<const R>(config: R & ServerAuthConfig & (R extends (...args: never[]) => unknown ? never : unknown)): (ctx: ServerAuthContext) => R
 export function defineServerAuth(config: ServerAuthConfig | ((ctx: ServerAuthContext) => ServerAuthConfig)): (ctx: ServerAuthContext) => ServerAuthConfig {
-  return typeof config === 'function' ? config : () => config
+  return (ctx) => {
+    const resolved = typeof config === 'function' ? config(ctx) : config
+    if (resolved.basePath !== undefined && resolved.basePath !== '/api/auth')
+      throw new Error('[nuxt-better-auth] Server basePath must be /api/auth. Remove basePath from defineServerAuth() or set it to /api/auth. External clientOnly backends may use a custom client basePath.')
+    return resolved
+  }
 }
 
-export function defineClientAuth<T extends ClientAuthConfig>(config: T | ((ctx: ClientAuthContext) => T)): (baseURL: string) => ReturnType<typeof createAuthClient<T>> {
-  return (baseURL: string) => {
+export function extendServerAuth<const R extends ServerAuthConfig, const P extends readonly BetterAuthPlugin[]>(
+  createConfig: (ctx: ServerAuthContext) => R,
+  plugins: P,
+): (ctx: ServerAuthContext) => ExtendedServerAuthConfig<R, P> {
+  return (ctx) => {
+    const config = createConfig(ctx)
+    const basePlugins = (config.plugins || []) as ServerPlugins<R>
+    return { ...config, plugins: [...basePlugins, ...plugins] } as ExtendedServerAuthConfig<R, P>
+  }
+}
+
+function createClientAuthFactory<T extends ClientAuthConfig>(resolveOptions: (baseURL: string) => T & { baseURL: string }): ClientAuthFactory<T> {
+  const factory = ((baseURL: string) => createAuthClient(resolveOptions(baseURL))) as ClientAuthFactory<T>
+  factory.resolveOptions = resolveOptions
+  return factory
+}
+
+export function defineClientAuth<T extends ClientAuthConfig>(config: T | ((ctx: ClientAuthContext) => T)): ClientAuthFactory<T> {
+  return createClientAuthFactory((baseURL) => {
     const ctx: ClientAuthContext = { siteUrl: baseURL }
     const resolved = typeof config === 'function' ? config(ctx) : config
     const { baseURL: configuredBaseURL, ...resolvedOptions } = resolved
-    const clientOptions = { ...resolvedOptions, baseURL: configuredBaseURL ?? baseURL } as T
-    return createAuthClient(clientOptions)
-  }
+    return { ...resolvedOptions, baseURL: configuredBaseURL ?? baseURL } as T & { baseURL: string }
+  })
+}
+
+export function extendClientAuth<T extends ClientAuthConfig, const P extends BetterAuthClientPlugin[]>(
+  createClient: ClientAuthFactory<T>,
+  plugins: P,
+): ClientAuthFactory<ExtendedClientAuthConfig<T, P>> {
+  return createClientAuthFactory((baseURL) => {
+    const config = createClient.resolveOptions(baseURL)
+    const basePlugins = (config.plugins || []) as ClientPlugins<T>
+    return { ...config, plugins: [...basePlugins, ...plugins] } as ExtendedClientAuthConfig<T, P> & { baseURL: string }
+  })
 }
