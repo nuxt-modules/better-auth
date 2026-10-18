@@ -101,5 +101,10 @@ export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
 }
 
 export function createAuthError(status: number, statusText: string): Error {
-  return createError({ statusCode: status, statusMessage: statusText })
+  // h3 v2 exposes HTTP status details as `status`/`statusText`, while Nitro 2
+  // still reads the legacy `statusCode`/`statusMessage` properties.
+  return Object.assign(createError({ statusCode: status, statusMessage: statusText }), {
+    statusCode: status,
+    statusMessage: statusText,
+  })
 }
