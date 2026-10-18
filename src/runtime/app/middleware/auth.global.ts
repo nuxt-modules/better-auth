@@ -27,7 +27,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const runtimeConfig = useRuntimeConfig()
   const path = normalizeAuthRoutePath(to.path, runtimeConfig.app?.baseURL)
 
-  if (shouldSkipAuthRouteRules(path))
+  // Depending on the router mode, `to.path` may already omit app.baseURL.
+  // Check both representations so internal assets stay public in either case.
+  if (shouldSkipAuthRouteRules(to.path) || shouldSkipAuthRouteRules(path))
     return
 
   // Let Nuxt render its own 404 for URLs that match no page. Without this, a broad
