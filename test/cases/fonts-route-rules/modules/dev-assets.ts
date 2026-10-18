@@ -14,6 +14,12 @@ export default defineNuxtModule({
     nuxt.hook('fonts:public-asset-context', (context) => {
       context.renderedFontURLs.set('auth-route-rules-test.woff2', 'data:application/octet-stream;base64,dGVzdCBmb250')
     })
+    // Keep the fixture deterministic across @nuxt/fonts versions while exercising
+    // the mounted internal asset path through Nuxt's dev server.
+    addDevServerHandler({
+      route: joinURL(nuxt.options.app.baseURL, '/_fonts/auth-route-rules-test.woff2'),
+      handler: eventHandler(() => 'test font'),
+    })
     // Registration alone must not make this API public when the handler falls through.
     addDevServerHandler({
       route: joinURL(nuxt.options.app.baseURL, '/api/auth-required'),
