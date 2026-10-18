@@ -394,15 +394,15 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
     }
   }
 
-  const authOptions: ResolvedAuthOptions = {
+  const authOptions = {
     ...userConfig,
-    ...(userConfig.plugins ? { plugins: [...userConfig.plugins] } : {}),
+    ...(userConfig.plugins ? { plugins: [...userConfig.plugins] as BetterAuthOptions['plugins'] } : {}),
     ...(rateLimit ? { rateLimit } : {}),
     ...(database ? { database } : {}),
     secret: betterAuthSecret,
     baseURL: resolveAuthBaseURL(siteUrl, runtimeConfig.app?.baseURL),
     trustedOrigins,
-  }
+  } as ResolvedAuthOptions
   const auth = betterAuth(authOptions)
 
   if (requestContext)
