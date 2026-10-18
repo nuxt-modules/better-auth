@@ -91,7 +91,7 @@ export function splitCookiesString(cookiesString: string | string[]): string[] {
 export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
   // h3 v2 events created by Nitro 2 compatibility handlers may omit the
   // legacy context object. Nitro's route-rules helper stores its cache there.
-  const eventWithContext = event as Nitro2Event & { context?: Record<string, unknown> }
+  const eventWithContext = event as unknown as { context?: Record<string, unknown> }
   if (!eventWithContext.context)
     eventWithContext.context = {}
   return getRouteRules(event) as AuthRouteRules
