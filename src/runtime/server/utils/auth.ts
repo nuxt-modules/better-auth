@@ -1,4 +1,4 @@
-import type { BetterAuthOptions } from 'better-auth'
+import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import type { ServerEvent } from '../internal/nitro-compat'
 import { betterAuth, env } from 'better-auth'
 import { createDatabase, db } from '#auth/database'
@@ -396,7 +396,9 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
 
   const authOptions = {
     ...userConfig,
-    ...(userConfig.plugins ? { plugins: [...userConfig.plugins] as BetterAuthOptions['plugins'] } : {}),
+    ...((userConfig as UserAuthConfig & { plugins?: readonly BetterAuthPlugin[] }).plugins
+      ? { plugins: [...(userConfig as UserAuthConfig & { plugins: readonly BetterAuthPlugin[] }).plugins] as BetterAuthOptions['plugins'] }
+      : {}),
     ...(rateLimit ? { rateLimit } : {}),
     ...(database ? { database } : {}),
     secret: betterAuthSecret,

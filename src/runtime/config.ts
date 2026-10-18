@@ -14,7 +14,7 @@ export interface ClientAuthContext {
 export type ServerAuthConfig = Omit<BetterAuthOptions, 'secret' | 'baseURL' | 'basePath'> & {
   /** The module registers its server handler at /api/auth. */
   basePath?: '/api/auth'
-  plugins?: readonly BetterAuthPlugin[]
+  plugins?: readonly unknown[]
 }
 export type ClientAuthConfig = Omit<BetterAuthClientOptions, 'baseURL'> & { baseURL?: string }
 
@@ -102,10 +102,7 @@ export interface AuthPrivateRuntimeConfig {
 }
 
 export function defineServerAuth<const R extends ServerAuthConfig>(config: (ctx: ServerAuthContext) => R): (ctx: ServerAuthContext) => R
-// Keep config factories usable across Better Auth minor releases whose plugin
-// option types may be narrower than the module's shared ServerAuthConfig.
-export function defineServerAuth<const R>(config: (ctx: ServerAuthContext) => R): (ctx: ServerAuthContext) => R
-export function defineServerAuth<const R>(config: R & ServerAuthConfig & (R extends (...args: never[]) => unknown ? never : unknown)): (ctx: ServerAuthContext) => R
+export function defineServerAuth<const R extends ServerAuthConfig>(config: R & (R extends (...args: never[]) => unknown ? never : unknown)): (ctx: ServerAuthContext) => R
 export function defineServerAuth(config: ServerAuthConfig | ((ctx: ServerAuthContext) => ServerAuthConfig)): (ctx: ServerAuthContext) => ServerAuthConfig {
   return (ctx) => {
     const resolved = typeof config === 'function' ? config(ctx) : config
