@@ -2,7 +2,7 @@
   "name": "@nuxtjs/better-auth",
   "type": "module",
   "version": "0.3.10",
-  "packageManager": "pnpm@12.11.2",
+  "packageManager": "pnpm@12.14.0",
   "description": "Nuxt module for Better Auth integration with NuxtHub, route protection, session management, and role-based access",
   "author": "onmax",
   "license": "MIT",

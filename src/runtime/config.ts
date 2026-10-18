@@ -102,7 +102,7 @@ export interface AuthPrivateRuntimeConfig {
 }
 
 export function defineServerAuth<const R extends ServerAuthConfig>(config: (ctx: ServerAuthContext) => R): (ctx: ServerAuthContext) => R
-export function defineServerAuth<const R>(config: (ctx: ServerAuthContext) => R & (R extends { basePath: infer B } ? B extends '/api/auth' ? unknown : never : unknown)): (ctx: ServerAuthContext) => R
+export function defineServerAuth<const R>(config: (ctx: ServerAuthContext) => R & ServerAuthConfig & (R extends { basePath: infer B } ? B extends '/api/auth' ? unknown : never : unknown)): (ctx: ServerAuthContext) => R
 export function defineServerAuth<const R extends ServerAuthConfig>(config: R & (R extends (...args: never[]) => unknown ? never : unknown)): (ctx: ServerAuthContext) => R
 export function defineServerAuth(config: ServerAuthConfig | ((ctx: ServerAuthContext) => ServerAuthConfig)): (ctx: ServerAuthContext) => ServerAuthConfig {
   return (ctx) => {
