@@ -1,30 +1,85 @@
 import type { H3Event } from 'h3'
+import type { IncomingMessage } from 'node:http'
 import type { AuthRouteRules } from '../../types'
 import { splitSetCookieString } from 'cookie-es'
 import {
   createError,
   defineEventHandler,
-  getQuery,
-  getRequestHost,
-  getRequestProtocol,
-  getRequestURL,
-  readBody,
-  toWebRequest,
 } from 'h3'
 import { getRouteRules, useRuntimeConfig } from 'nitropack/runtime'
 
 export {
   defineEventHandler,
-  getQuery,
-  getRequestHost,
-  getRequestProtocol,
-  getRequestURL,
-  readBody,
-  toWebRequest,
   useRuntimeConfig,
 }
 
 export type ServerEvent = H3Event
+type Nitro2Event = ServerEvent & { node?: { req?: IncomingMessage }, web?: { request?: Request } }
+
+// Nitro 2 events expose Node's IncomingMessage while h3 v2 helpers expect a
+// Web Request based event. Keep this shim independent of h3's event shape so
+// Nitro 2 hosts continue to work when the project installs h3 v2.
+function requestHeaders(event: ServerEvent): IncomingMessage['headers'] {
+  return (event as Nitro2Event).node?.req?.headers ?? {}
+}
+
+export function getRequestHost(event: ServerEvent, options: { xForwardedHost?: boolean } = {}): string {
+  const headers = requestHeaders(event)
+  if (options.xForwardedHost) {
+    const forwarded = headers['x-forwarded-host']
+    const host = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0]?.trim()
+    if (host)
+      return host
+  }
+  const host = headers.host
+  return (Array.isArray(host) ? host[0] : host) || 'localhost'
+}
+
+export function getRequestProtocol(event: ServerEvent, options: { xForwardedProto?: boolean } = {}): string {
+  const headers = requestHeaders(event)
+  if (options.xForwardedProto !== false && headers['x-forwarded-proto'] === 'https')
+    return 'https'
+  return (event as Nitro2Event).node?.req?.socket?.encrypted ? 'https' : 'http'
+}
+
+export function getRequestURL(event: ServerEvent): URL {
+  const req = (event as Nitro2Event).node?.req ?? {}
+  const path = req.originalUrl || req.url || '/'
+  return new URL(path, `${getRequestProtocol(event)}://${getRequestHost(event)}`)
+}
+
+export function getQuery(event: ServerEvent): Record<string, string | string[]> {
+  const query: Record<string, string | string[]> = {}
+  for (const [key, value] of getRequestURL(event).searchParams) {
+    const previous = query[key]
+    query[key] = previous === undefined ? value : Array.isArray(previous) ? [...previous, value] : [previous, value]
+  }
+  return query
+}
+
+export function toWebRequest(event: ServerEvent): Request {
+  const req = (event as Nitro2Event).node?.req
+  if ((event as Nitro2Event).web?.request)
+    return (event as Nitro2Event).web.request
+  const init: RequestInit & { duplex?: 'half' } = {
+    method: req?.method,
+    headers: req?.headers,
+    duplex: 'half',
+  }
+  if (req?.method !== 'GET' && req?.method !== 'HEAD')
+    init.body = req
+  return new Request(getRequestURL(event), init)
+}
+
+export async function readBody(event: ServerEvent): Promise<unknown> {
+  const request = toWebRequest(event)
+  const contentType = request.headers.get('content-type') || ''
+  if (contentType.includes('application/json'))
+    return request.json()
+  if (contentType.includes('application/x-www-form-urlencoded'))
+    return Object.fromEntries((await request.text()).split('&').filter(Boolean).map(pair => pair.split('=').map(decodeURIComponent)))
+  return request.text()
+}
 
 export function splitCookiesString(cookiesString: string | string[]): string[] {
   return splitSetCookieString(cookiesString)
