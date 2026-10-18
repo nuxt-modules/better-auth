@@ -16,7 +16,8 @@ type UserAuthConfig = AuthOptions & {
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   secondaryStorage?: BetterAuthOptions['secondaryStorage']
 }
-type ResolvedAuthOptions = Omit<UserAuthConfig, 'secret' | 'baseURL' | 'trustedOrigins' | 'database'> & {
+type ResolvedAuthOptions = Omit<UserAuthConfig, 'secret' | 'baseURL' | 'trustedOrigins' | 'database' | 'plugins'> & {
+  plugins?: BetterAuthOptions['plugins']
   secret: string
   baseURL: string
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
@@ -395,6 +396,7 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
 
   const authOptions: ResolvedAuthOptions = {
     ...userConfig,
+    ...(userConfig.plugins ? { plugins: [...userConfig.plugins] } : {}),
     ...(rateLimit ? { rateLimit } : {}),
     ...(database ? { database } : {}),
     secret: betterAuthSecret,

@@ -394,8 +394,8 @@ importers:
         specifier: ^0.4.10
         version: 0.4.10(magicast@0.5.4)(vue@3.5.43(typescript@5.9.3))
       resend:
-        specifier: 6.32.1
-        version: 6.32.1
+        specifier: 6.34.1
+        version: 6.34.1
     devDependencies:
       '@libsql/client':
         specifier: ^0.18.0
@@ -9562,8 +9562,8 @@ packages:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
 
-  resend@6.32.1:
-    resolution: {integrity: sha512-Z9DxkIZt5uvVNkjxjc+r4rCPI0MdDIJ7H+GvU50o9GkhrD0tVTwP6caE8KYEco90sos312l6R72jAEMCBFBiFQ==}
+  resend@6.34.1:
+    resolution: {integrity: sha512-3jo/j1WAW7CBkE6pzK4qLjZCfHRLIhY3ph3x/wzU+MN51cSw3EtReGce8S1cA1R0ipNDOdFYU5Lmt5r563lvYw==}
     engines: {node: '>=20'}
     peerDependencies:
       '@react-email/render': '*'
@@ -24011,7 +24011,7 @@ snapshots:
 
   require-from-string@2.0.2: {}
 
-  resend@6.32.1:
+  resend@6.34.1:
     dependencies:
       postal-mime: 2.7.6
       standardwebhooks: 1.1.1
