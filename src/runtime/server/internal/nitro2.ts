@@ -39,7 +39,7 @@ export function getRequestProtocol(event: ServerEvent, options: { xForwardedProt
   const headers = requestHeaders(event)
   if (options.xForwardedProto !== false && headers['x-forwarded-proto'] === 'https')
     return 'https'
-  return (event as Nitro2Event).node?.req?.socket?.encrypted ? 'https' : 'http'
+  return (event as Nitro2Event).node?.req?.socket && (event as Nitro2Event).node.req.socket['encrypted' as never] ? 'https' : 'http'
 }
 
 export function getRequestURL(event: ServerEvent): URL {
@@ -59,15 +59,18 @@ export function getQuery(event: ServerEvent): Record<string, string | string[]> 
 
 export function toWebRequest(event: ServerEvent): Request {
   const req = (event as Nitro2Event).node?.req
-  if ((event as Nitro2Event).web?.request)
-    return (event as Nitro2Event).web.request
+  const webRequest = (event as Nitro2Event).web?.request
+  if (webRequest)
+    return webRequest
   const init: RequestInit & { duplex?: 'half' } = {
     method: req?.method,
-    headers: req?.headers,
+    headers: req?.headers
+      ? Object.fromEntries(Object.entries(req.headers).flatMap(([key, value]) => value === undefined ? [] : [[key, Array.isArray(value) ? value.join(', ') : value]]))
+      : undefined,
     duplex: 'half',
   }
   if (req?.method !== 'GET' && req?.method !== 'HEAD')
-    init.body = req
+    init.body = req as unknown as BodyInit
   return new Request(getRequestURL(event), init)
 }
 
