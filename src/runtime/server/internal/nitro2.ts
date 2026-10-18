@@ -3,7 +3,6 @@ import type { IncomingMessage } from 'node:http'
 import type { AuthRouteRules } from '../../types'
 import { splitSetCookieString } from 'cookie-es'
 import {
-  createError,
   defineEventHandler,
 } from 'h3'
 import { getRouteRules, useRuntimeConfig } from 'nitropack/runtime'
@@ -101,14 +100,15 @@ export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
 }
 
 export function createAuthError(status: number, statusText: string): Error {
-  // h3 v2 exposes HTTP status details as `status`/`statusText`, while Nitro 2
-  // still reads the legacy `statusCode`/`statusMessage` properties. They are
-  // getter-only on h3 v2's prototype, so define own properties instead of
-  // assigning to them.
-  const error = createError({ statusCode: status, statusMessage: statusText })
-  Object.defineProperties(error, {
-    statusCode: { value: status, configurable: true, enumerable: true, writable: true },
-    statusMessage: { value: statusText, configurable: true, enumerable: true, writable: true },
+  // Nitro 2 reads the legacy fields while h3 v2 uses `status`/`statusText`.
+  // A plain Error avoids h3 v2 wrapping the error and dropping Nitro's fields
+  // when a h3 v1 dev handler has already handled the request.
+  const error = new Error(statusText)
+  Object.assign(error, {
+    status,
+    statusText,
+    statusCode: status,
+    statusMessage: statusText,
   })
   return error
 }
