@@ -9,8 +9,6 @@ minimumReleaseAgeExclude:
   - '@nuxt/vite-server@4.6.0'
   - nuxt@4.6.0
 
-shellEmulator: true
-
 trustPolicy: no-downgrade
 trustPolicyExclude:
   - chokidar@4.0.3
@@ -45,6 +43,8 @@ trustPolicyExclude:
   - postcss-svgo@9.0.4
   - stylehacks@9.0.7
   - semver@6.3.1
+
+shellEmulator: true
 
 packages:
   - docs
