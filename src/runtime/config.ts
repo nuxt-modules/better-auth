@@ -102,9 +102,7 @@ export interface AuthPrivateRuntimeConfig {
 }
 
 export function defineServerAuth<const R extends ServerAuthConfig>(config: (ctx: ServerAuthContext) => R): (ctx: ServerAuthContext) => R
-// Keep config factories usable across Better Auth minor releases whose option
-// types may be narrower than the module's shared ServerAuthConfig.
-export function defineServerAuth<const R>(config: (ctx: ServerAuthContext) => R): (ctx: ServerAuthContext) => R
+export function defineServerAuth<const R>(config: (ctx: ServerAuthContext) => R extends { basePath: infer B } ? B extends '/api/auth' ? R : never : R): (ctx: ServerAuthContext) => R
 export function defineServerAuth<const R extends ServerAuthConfig>(config: R & (R extends (...args: never[]) => unknown ? never : unknown)): (ctx: ServerAuthContext) => R
 export function defineServerAuth(config: ServerAuthConfig | ((ctx: ServerAuthContext) => ServerAuthConfig)): (ctx: ServerAuthContext) => ServerAuthConfig {
   return (ctx) => {
