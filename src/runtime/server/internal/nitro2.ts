@@ -17,11 +17,9 @@ type Nitro2Event = ServerEvent & { path?: string, node?: { req?: IncomingMessage
 // as h3 errors so that renderer keeps their status instead of wrapping them
 // as an unhandled 500 error. h3 v2 recognizes the same shape by name/status.
 class Nitro2AuthError extends Error {
-  // h3 v1 detects errors through a constructor marker. Use an accessor so
-  // the marker remains present when Nitro bundles this compatibility shim.
-  static get __h3_error__() {
-    return true
-  }
+  // h3 v1 detects errors through a constructor marker. Keep it as a regular
+  // static field so Nitro's bundler preserves it on the final constructor.
+  static __h3_error__ = true
 
   status: number
   statusText: string
@@ -31,6 +29,9 @@ class Nitro2AuthError extends Error {
 
   constructor(status: number, statusText: string) {
     super(statusText)
+    // Nitro's bundled error pipeline can replace the Error subclass
+    // prototype. Preserve the constructor marker on the instance as well.
+    Object.defineProperty(this, 'constructor', { value: Nitro2AuthError })
     this.name = 'HTTPError'
     this.status = status
     this.statusText = statusText
@@ -41,7 +42,6 @@ class Nitro2AuthError extends Error {
 
 // Keep the marker on the final constructor object as well as in the
 // constructor. Nitro's bundled h3 v1 checks this exact property.
-Object.defineProperty(Nitro2AuthError, '__h3_error__', { value: true })
 Object.defineProperty(Nitro2AuthError.prototype, '__h3_error__', { value: true })
 
 // Nitro 2 events expose Node's IncomingMessage while h3 v2 helpers expect a
