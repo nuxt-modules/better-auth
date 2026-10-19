@@ -16,8 +16,9 @@ export default defineNuxtModule({
       const url = 'data:application/octet-stream;base64,dGVzdCBmb250'
       // @nuxt/fonts v1 indexes this map by the mounted asset path, while
       // older releases used the bare filename.
-      context.renderedFontURLs.set(`${context.assetsBaseURL.replace(/^\/+/, '').replace(/\/+$/, '')}/${filename}`, url)
-      context.renderedFontURLs.set(filename, url)
+      const font = { url }
+      context.renderedFontURLs.set(`${context.assetsBaseURL.replace(/^\/+/, '').replace(/\/+$/, '')}/${filename}`, font)
+      context.renderedFontURLs.set(filename, font)
     })
     // Keep the fixture deterministic across @nuxt/fonts versions while exercising
     // the mounted internal asset path through Nuxt's dev server.
