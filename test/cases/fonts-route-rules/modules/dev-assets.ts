@@ -12,15 +12,13 @@ export default defineNuxtModule({
       }
     })
     // Keep the fixture deterministic across @nuxt/fonts versions while exercising
-    // the mounted internal asset path through Nuxt's dev server.
-    addDevServerHandler({
-      route: joinURL(nuxt.options.app.baseURL, '/_fonts/auth-route-rules-test.woff2'),
-      handler: eventHandler(() => 'test font'),
-    })
-    // Nuxt's dev server matches mounted handlers after stripping app.baseURL.
-    addDevServerHandler({
-      route: '/_fonts/auth-route-rules-test.woff2',
-      handler: eventHandler(() => 'test font'),
+    // the mounted internal asset path through Nitro's server route.
+    nuxt.hook('nitro:config', (config) => {
+      config.handlers ||= []
+      config.handlers.push({
+        route: joinURL(nuxt.options.app.baseURL, '/_fonts/auth-route-rules-test.woff2'),
+        handler: eventHandler(() => 'test font'),
+      })
     })
     // Registration alone must not make this API public when the handler falls through.
     addDevServerHandler({
