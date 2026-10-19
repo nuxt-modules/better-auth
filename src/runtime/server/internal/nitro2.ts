@@ -115,7 +115,15 @@ export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
   // Dev handlers may fall through before Nitro has initialized route rules on
   // the event. Treat that as an unruled route so auth middleware can continue
   // and apply the configured protection instead of throwing on `rules.auth`.
-  return (getRouteRules(event) as AuthRouteRules | undefined) || {}
+  // A dev server handler can invoke middleware before Nitro has fully
+  // initialized its route-rule state. In that case the Nitro helper may
+  // throw; the caller can still resolve the generated auth rules below.
+  try {
+    return (getRouteRules(event) as AuthRouteRules | undefined) || {}
+  }
+  catch {
+    return {}
+  }
 }
 
 export function createAuthError(status: number, statusText: string): Error {
