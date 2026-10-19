@@ -25,6 +25,10 @@ function createNitro2AuthError(status: number, statusText: string): Error {
   Object.defineProperty(markerConstructor, '__h3_error__', { value: true })
   Object.defineProperty(error, 'constructor', { value: markerConstructor })
   Object.defineProperties(error, {
+    // Nitro 2's bundled h3 v1 serializer reads the legacy field names,
+    // while h3 v2 exposes the status through statusCode/statusMessage.
+    status: { value: status, configurable: true, enumerable: true, writable: true },
+    statusText: { value: statusText, configurable: true, enumerable: true, writable: true },
     statusCode: { value: status, configurable: true, enumerable: true, writable: true },
     statusMessage: { value: statusText, configurable: true, enumerable: true, writable: true },
   })
