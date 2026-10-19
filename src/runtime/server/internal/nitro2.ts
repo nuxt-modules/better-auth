@@ -130,7 +130,10 @@ export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
     eventWithContext.context = {}
   if (!eventWithContext.path)
     eventWithContext.path = getRequestURL(event).pathname
-  return getRouteRules(event) as AuthRouteRules
+  // Dev handlers may fall through before Nitro has initialized route rules on
+  // the event. Treat that as an unruled route so auth middleware can continue
+  // and apply the configured protection instead of throwing on `rules.auth`.
+  return (getRouteRules(event) as AuthRouteRules | undefined) || {}
 }
 
 export function createAuthError(status: number, statusText: string): Error {
