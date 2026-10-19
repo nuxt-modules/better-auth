@@ -6,7 +6,15 @@ const internalAssetPaths = ['/_fonts', '/_ipx', '/_nuxt', '/api/_nuxt_icon']
 
 export function isInternalAssetPath(path: string): boolean {
   const pathname = path.split(/[?#]/, 1)[0] || '/'
-  return internalAssetPaths.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  return internalAssetPaths.some((prefix) => {
+    // Router paths may retain the app base URL (for example, `/dashboard/_fonts`).
+    // Match the namespace at any path depth so both router representations stay
+    // public without requiring callers to know which representation they got.
+    return pathname === prefix
+      || pathname.startsWith(`${prefix}/`)
+      || pathname.endsWith(prefix)
+      || pathname.includes(`${prefix}/`)
+  })
 }
 
 const internalRouteRuleAuthPaths = new Set([

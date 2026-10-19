@@ -1,7 +1,20 @@
 minimumReleaseAgeExcludePrune: true
 
+minimumReleaseAgeExclude:
+  - '@emnapi/core@1.14.0'
+  - '@emnapi/runtime@1.14.0'
+  - '@nuxt/cli@4.0.0'
+  - '@nuxt/kit@4.6.0'
+  - '@nuxt/nitro-server@4.6.0'
+  - '@nuxt/schema@4.6.0'
+  - '@nuxt/vite-builder@4.6.0'
+  - '@nuxt/vite-server@4.6.0'
+  - nuxt@4.6.0
+
 trustPolicy: no-downgrade
 trustPolicyExclude:
+  - '@emnapi/core@1.14.0'
+  - '@emnapi/runtime@1.14.0'
   - chokidar@4.0.3
   - cssnano@9.2.2
   - cssnano-preset-default@9.2.2

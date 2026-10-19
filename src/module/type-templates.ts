@@ -385,6 +385,8 @@ declare module '#nuxt-better-auth' {
     emailVerified: boolean
     name: string
     image?: string | null
+    /** Whether the user has enabled two-factor authentication. */
+    twoFactorEnabled?: boolean
   }
 
   export interface AuthSession {
