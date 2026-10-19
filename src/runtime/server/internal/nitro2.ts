@@ -34,6 +34,11 @@ function createNitro2AuthError(status: number, statusText: string): Error {
     statusText: { value: statusText, configurable: true, enumerable: true, writable: true },
     statusCode: { value: status, configurable: true, enumerable: true, writable: true },
     statusMessage: { value: statusText, configurable: true, enumerable: true, writable: true },
+    // Nitro 2's bundled h3 v1 also uses these fields when normalizing an
+    // error that crossed a dev-server handler boundary.
+    name: { value: 'H3Error', configurable: true, enumerable: true, writable: true },
+    unhandled: { value: false, configurable: true, enumerable: true, writable: true },
+    fatal: { value: false, configurable: true, enumerable: true, writable: true },
   })
   return error
 }
