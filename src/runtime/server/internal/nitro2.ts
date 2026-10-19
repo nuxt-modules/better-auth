@@ -17,7 +17,12 @@ type Nitro2Event = ServerEvent & { path?: string, node?: { req?: IncomingMessage
 // as h3 errors so that renderer keeps their status instead of wrapping them
 // as an unhandled 500 error. h3 v2 recognizes the same shape by name/status.
 class Nitro2AuthError extends Error {
-  static __h3_error__ = true
+  // h3 v1 detects errors through a constructor marker. Use an accessor so
+  // the marker remains present when Nitro bundles this compatibility shim.
+  static get __h3_error__() {
+    return true
+  }
+
   status: number
   statusText: string
   statusCode: number
