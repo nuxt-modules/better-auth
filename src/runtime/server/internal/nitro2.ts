@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import type { IncomingMessage } from 'node:http'
 import type { AuthRouteRules } from '../../types'
 import { splitSetCookieString } from 'cookie-es'
-import { defineEventHandler } from 'h3'
+import { createError, defineEventHandler } from 'h3'
 import { getRouteRules, useRuntimeConfig } from 'nitropack/runtime'
 
 export {
@@ -16,38 +16,20 @@ type Nitro2Event = ServerEvent & { path?: string, node?: { req?: IncomingMessage
 // Nitro 2's dev server still serializes errors with h3 v1. Mark auth errors
 // as h3 errors so that renderer keeps their status instead of wrapping them
 // as an unhandled 500 error. h3 v2 recognizes the same shape by name/status.
-class Nitro2AuthError extends Error {
-  // h3 v1 detects errors through a constructor marker. Keep it as a regular
-  // static field so Nitro's bundler preserves it on the final constructor.
-  static __h3_error__ = true
-
-  status: number
-  statusText: string
-  statusCode: number
-  statusMessage: string
-  __h3_error__ = true
-
-  constructor(status: number, statusText: string) {
-    super(statusText)
-    // Nitro's bundled error pipeline can replace the Error subclass
-    // prototype. Preserve the constructor marker on the instance as well.
-    // Nitro's h3 v1 check reads the marker from the thrown value's
-    // constructor. Use a small marker constructor so bundling cannot replace
-    // the class identity with the unmarked native Error constructor.
-    const markerConstructor = function Nitro2ErrorConstructor() {}
-    Object.defineProperty(markerConstructor, '__h3_error__', { value: true })
-    Object.defineProperty(this, 'constructor', { value: markerConstructor })
-    this.name = 'HTTPError'
-    this.status = status
-    this.statusText = statusText
-    this.statusCode = status
-    this.statusMessage = statusText
-  }
+// Nitro 2 still serializes errors with h3 v1 while the module runs on h3 v2.
+// Create the native h3 v2 error so its pipeline preserves the status, then
+// provide the legacy constructor marker used by Nitro 2's renderer.
+function createNitro2AuthError(status: number, statusText: string): Error {
+  const error = createError({ status, statusText })
+  const markerConstructor = function Nitro2ErrorConstructor() {}
+  Object.defineProperty(markerConstructor, '__h3_error__', { value: true })
+  Object.defineProperty(error, 'constructor', { value: markerConstructor })
+  Object.defineProperties(error, {
+    statusCode: { value: status, configurable: true, enumerable: true, writable: true },
+    statusMessage: { value: statusText, configurable: true, enumerable: true, writable: true },
+  })
+  return error
 }
-
-// Keep the marker on the final constructor object as well as in the
-// constructor. Nitro's bundled h3 v1 checks this exact property.
-Object.defineProperty(Nitro2AuthError.prototype, '__h3_error__', { value: true })
 
 // Nitro 2 events expose Node's IncomingMessage while h3 v2 helpers expect a
 // Web Request based event. Keep this shim independent of h3's event shape so
@@ -137,5 +119,5 @@ export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
 }
 
 export function createAuthError(status: number, statusText: string): Error {
-  return new Nitro2AuthError(status, statusText)
+  return createNitro2AuthError(status, statusText)
 }
