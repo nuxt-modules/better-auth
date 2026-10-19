@@ -4,7 +4,7 @@ import { computed, navigateTo, nextTick, useNuxtApp, useRequestURL, useRuntimeCo
 import { normalizeAuthActionError } from '../internal/auth-action-error'
 import { resolvePostAuthSuccessRedirect, withFallbackSocialCallbackURL } from '../internal/redirect-helpers'
 import { fetchSessionClient, fetchSessionServer, isExpectedSignedOutSessionError, stripToken } from '../internal/session-fetch'
-import { isRecord } from '../internal/utils'
+import { isRecord, setIfChanged } from '../internal/utils'
 import { createVueSafeAuthFacade, isAuthProxyProbeKey } from '../internal/vue-safe-auth-proxy'
 import { wrapAuthMethod } from '../internal/wrap-auth-method'
 import { getAuthRuntimeFlags, useRawAuthClient } from './useAuthClient'
@@ -220,8 +220,8 @@ export function useUserSession(): UseUserSessionReturn {
         if (newSession?.data?.session && newSession?.data?.user) {
           sessionExpiredRedirecting = false
           hydrationSessionWasActive = false
-          session.value = stripToken(newSession.data.session as AuthSession & { token?: string })
-          user.value = newSession.data.user as AuthUser
+          setIfChanged(session, stripToken(newSession.data.session as AuthSession & { token?: string }))
+          setIfChanged(user, newSession.data.user as AuthUser)
         }
         else if (!newSession?.isPending && !newSession?.isRefetching) {
           const isHydrationEmptySnapshot
