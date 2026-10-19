@@ -4,13 +4,6 @@ import { joinURL } from 'ufo'
 
 export default defineNuxtModule({
   setup(_options, nuxt) {
-    // Exercise the real fonts handler without initializing remote providers.
-    nuxt.hook('fonts:providers', (providers) => {
-      for (const name of Object.keys(providers)) {
-        if (name !== 'local')
-          delete providers[name]
-      }
-    })
     // Keep the fixture deterministic across @nuxt/fonts versions while exercising
     // the mounted internal asset path through Nitro's server route.
     nuxt.hook('nitro:config', (config) => {
