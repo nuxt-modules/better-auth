@@ -23,7 +23,13 @@ type ResolvedAuthOptions = Omit<UserAuthConfig, 'secret' | 'baseURL' | 'trustedO
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   database?: BetterAuthOptions['database']
 }
-type AuthInstance = ReturnType<typeof betterAuth<ResolvedAuthOptions>>
+// Better Auth derives plugin endpoints from concrete options. Keep the endpoint
+// exposed for generated configs whose plugin tuple is widened at this boundary.
+type AuthInstance = ReturnType<typeof betterAuth<ResolvedAuthOptions>> & {
+  api: ReturnType<typeof betterAuth<ResolvedAuthOptions>>['api'] & {
+    signInUsername?: (...args: unknown[]) => unknown
+  }
+}
 
 const _authCache = new Map<string, AuthInstance>()
 const requestAuthKey = Symbol.for('nuxt-better-auth.requestAuth')
@@ -405,7 +411,7 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
     baseURL: resolveAuthBaseURL(siteUrl, runtimeConfig.app?.baseURL),
     trustedOrigins,
   } as ResolvedAuthOptions
-  const auth = betterAuth(authOptions)
+  const auth = betterAuth(authOptions) as AuthInstance
 
   if (requestContext)
     requestContext[requestAuthKey] = auth
