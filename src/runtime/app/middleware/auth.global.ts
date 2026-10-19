@@ -4,7 +4,7 @@ import { defu } from 'defu'
 import { createRouter, toRouteMatcher } from 'radix3'
 import { parsePath, parseQuery } from 'ufo'
 import { createError, defineNuxtRouteMiddleware, getRouteRules, navigateTo, useNuxtApp, useRequestHeaders, useRuntimeConfig } from '#imports'
-import { shouldSkipAuthRouteRules } from '../../internal/auth-route-rules'
+import { normalizeAuthRoutePath, shouldSkipAuthRouteRules } from '../../internal/auth-route-rules'
 import { matchesUser } from '../../utils/match-user'
 import { useUserSession } from '../composables/useUserSession'
 
@@ -24,7 +24,12 @@ let authRouteRulesPromise: Promise<Record<string, AuthRouteRules>> | null = null
 let routeRulesMatcherPromise: Promise<ReturnType<typeof toRouteMatcher> | null> | null = null
 
 export default defineNuxtRouteMiddleware(async (to) => {
-  if (shouldSkipAuthRouteRules(to.path))
+  const runtimeConfig = useRuntimeConfig()
+  const path = normalizeAuthRoutePath(to.path, runtimeConfig.app?.baseURL)
+
+  // Depending on the router mode, `to.path` may already omit app.baseURL.
+  // Check both representations so internal assets stay public in either case.
+  if (shouldSkipAuthRouteRules(to.path) || shouldSkipAuthRouteRules(path))
     return
 
   // Let Nuxt render its own 404 for URLs that match no page. Without this, a broad
@@ -57,7 +62,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (auth === undefined || auth === false)
     return
 
-  const config = useRuntimeConfig().public.auth as AuthRuntimeConfig | undefined
+  const config = runtimeConfig.public.auth as AuthRuntimeConfig | undefined
   if (import.meta.server && config?.clientOnly)
     return
 
