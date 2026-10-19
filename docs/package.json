@@ -21,7 +21,7 @@
     "nuxt": "^4.6.0",
     "nuxt-shiki": "^0.3.2",
     "nuxt-site-config": "^5.0.0",
-    "satori": "^0.62.0"
+    "satori": "^0.63.0"
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.8",
