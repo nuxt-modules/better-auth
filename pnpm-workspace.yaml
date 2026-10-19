@@ -13,6 +13,8 @@ shellEmulator: true
 
 trustPolicy: no-downgrade
 trustPolicyExclude:
+  - '@emnapi/core@1.14.0'
+  - '@emnapi/runtime@1.14.0'
   - chokidar@4.0.3
   - cssnano@9.2.2
   - cssnano-preset-default@9.2.2
