@@ -17,6 +17,11 @@ export default defineNuxtModule({
       route: joinURL(nuxt.options.app.baseURL, '/_fonts/auth-route-rules-test.woff2'),
       handler: eventHandler(() => 'test font'),
     })
+    // Nuxt's dev server matches mounted handlers after stripping app.baseURL.
+    addDevServerHandler({
+      route: '/_fonts/auth-route-rules-test.woff2',
+      handler: eventHandler(() => 'test font'),
+    })
     // Registration alone must not make this API public when the handler falls through.
     addDevServerHandler({
       route: joinURL(nuxt.options.app.baseURL, '/api/auth-required'),
