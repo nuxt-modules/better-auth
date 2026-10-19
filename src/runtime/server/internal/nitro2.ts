@@ -13,6 +13,26 @@ export {
 export type ServerEvent = H3Event
 type Nitro2Event = ServerEvent & { path?: string, node?: { req?: IncomingMessage }, web?: { request?: Request } }
 
+// Nitro 2's dev server still serializes errors with h3 v1. Mark auth errors
+// as h3 errors so that renderer keeps their status instead of wrapping them
+// as an unhandled 500 error. h3 v2 recognizes the same shape by name/status.
+class Nitro2AuthError extends Error {
+  static __h3_error__ = true
+  status: number
+  statusText: string
+  statusCode: number
+  statusMessage: string
+
+  constructor(status: number, statusText: string) {
+    super(statusText)
+    this.name = 'HTTPError'
+    this.status = status
+    this.statusText = statusText
+    this.statusCode = status
+    this.statusMessage = statusText
+  }
+}
+
 // Nitro 2 events expose Node's IncomingMessage while h3 v2 helpers expect a
 // Web Request based event. Keep this shim independent of h3's event shape so
 // Nitro 2 hosts continue to work when the project installs h3 v2.
@@ -98,16 +118,5 @@ export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
 }
 
 export function createAuthError(status: number, statusText: string): Error {
-  // Nitro 2 reads the legacy fields while h3 v2 uses `status`/`statusText`.
-  // A plain Error avoids h3 v2 wrapping the error and dropping Nitro's fields
-  // when a h3 v1 dev handler has already handled the request.
-  const error = new Error(statusText)
-  Object.assign(error, {
-    name: 'HTTPError',
-    status,
-    statusText,
-    statusCode: status,
-    statusMessage: statusText,
-  })
-  return error
+  return new Nitro2AuthError(status, statusText)
 }
