@@ -599,6 +599,39 @@ describe('useUserSession hydration bootstrap', () => {
     expect((nuxtHooks.get('app:mounted') || [])).toHaveLength(1)
   })
 
+  it('keeps session and user identity when a refetch returns unchanged data', async () => {
+    const snapshot = () => ({
+      session: { id: 'session-1', token: 'secret', expiresAt: new Date('2030-01-01T00:00:00.000Z') },
+      user: { id: 'user-1', email: 'user@example.com', roles: ['admin'] },
+    })
+    sessionAtom.value = { data: snapshot(), isPending: false, isRefetching: false, error: null }
+
+    const useUserSession = await loadUseUserSession()
+    const auth = useUserSession()
+    sessionAtom.value = { data: snapshot(), isPending: false, isRefetching: true, error: null }
+    await flushPromises()
+    const session = auth.session.value
+    const user = auth.user.value
+    expect(session).toEqual({ id: 'session-1', expiresAt: new Date('2030-01-01T00:00:00.000Z') })
+
+    // Window focus refetch: refetching with the cached data, then the same data again.
+    sessionAtom.value = { data: snapshot(), isPending: false, isRefetching: true, error: null }
+    await flushPromises()
+    sessionAtom.value = { data: snapshot(), isPending: false, isRefetching: false, error: null }
+    await flushPromises()
+    mockClient.getSession.mockResolvedValueOnce({ data: snapshot() })
+    await auth.fetchSession()
+
+    expect(auth.session.value).toBe(session)
+    expect(auth.user.value).toBe(user)
+
+    sessionAtom.value = { data: { ...snapshot(), user: { ...snapshot().user, email: 'new@example.com' } }, isPending: false, isRefetching: false, error: null }
+    await flushPromises()
+    expect(auth.session.value).toBe(session)
+    expect(auth.user.value).not.toBe(user)
+    expect(auth.user.value?.email).toBe('new@example.com')
+  })
+
   it('fetchSession still calls getSession and updates state', async () => {
     mockClient.getSession.mockResolvedValueOnce({
       data: {
