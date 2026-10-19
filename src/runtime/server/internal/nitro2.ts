@@ -20,7 +20,7 @@ type Nitro2Event = ServerEvent & { path?: string, node?: { req?: IncomingMessage
 // Create the native h3 v2 error so its pipeline preserves the status, then
 // provide the legacy constructor marker used by Nitro 2's renderer.
 function createNitro2AuthError(status: number, statusText: string): Error {
-  const error = createError({ status, statusText })
+  const error = createError({ statusCode: status, statusMessage: statusText })
   const markerConstructor = function Nitro2ErrorConstructor() {}
   Object.defineProperty(markerConstructor, '__h3_error__', { value: true })
   Object.defineProperty(error, 'constructor', { value: markerConstructor })
