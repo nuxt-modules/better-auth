@@ -12,6 +12,8 @@ export interface AuthUser {
   emailVerified: boolean
   name: string
   image?: string | null
+  /** Whether the user has enabled two-factor authentication. */
+  twoFactorEnabled?: boolean
 }
 
 // Base session - extended by InferSession<Config> from generated types
