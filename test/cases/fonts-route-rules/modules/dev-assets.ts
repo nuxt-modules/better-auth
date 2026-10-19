@@ -14,11 +14,11 @@ export default defineNuxtModule({
     nuxt.hook('fonts:public-asset-context', (context) => {
       const filename = 'auth-route-rules-test.woff2'
       const url = 'data:application/octet-stream;base64,dGVzdCBmb250'
-      // @nuxt/fonts v1 indexes this map by the mounted asset path, while
-      // older releases used the bare filename.
-      const font = { url }
-      context.renderedFontURLs.set(`${context.assetsBaseURL.replace(/^\/+/, '').replace(/\/+$/, '')}/${filename}`, font)
-      context.renderedFontURLs.set(filename, font)
+      // @nuxt/fonts 0.x indexes this map by the mounted asset path, while
+      // older releases used the bare filename. Keep the value as a URL string
+      // for the 0.x handler used by this fixture.
+      context.renderedFontURLs.set(`${context.assetsBaseURL.replace(/^\/+/, '').replace(/\/+$/, '')}/${filename}`, url)
+      context.renderedFontURLs.set(filename, url)
     })
     // Keep the fixture deterministic across @nuxt/fonts versions while exercising
     // the mounted internal asset path through Nuxt's dev server.
