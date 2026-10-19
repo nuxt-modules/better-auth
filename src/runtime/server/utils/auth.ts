@@ -1,4 +1,4 @@
-import type { BetterAuthOptions } from 'better-auth'
+import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import type { ServerEvent } from '../internal/nitro-compat'
 import { betterAuth, env } from 'better-auth'
 import { createDatabase, db } from '#auth/database'
@@ -16,13 +16,20 @@ type UserAuthConfig = AuthOptions & {
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   secondaryStorage?: BetterAuthOptions['secondaryStorage']
 }
-type ResolvedAuthOptions = Omit<UserAuthConfig, 'secret' | 'baseURL' | 'trustedOrigins' | 'database'> & {
+type ResolvedAuthOptions = Omit<UserAuthConfig, 'secret' | 'baseURL' | 'trustedOrigins' | 'database' | 'plugins'> & {
+  plugins?: BetterAuthOptions['plugins']
   secret: string
   baseURL: string
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   database?: BetterAuthOptions['database']
 }
-type AuthInstance = ReturnType<typeof betterAuth<ResolvedAuthOptions>>
+// Better Auth derives plugin endpoints from concrete options. Keep the endpoint
+// exposed for generated configs whose plugin tuple is widened at this boundary.
+type AuthInstance = ReturnType<typeof betterAuth<ResolvedAuthOptions>> & {
+  api: ReturnType<typeof betterAuth<ResolvedAuthOptions>>['api'] & {
+    signInUsername?: (...args: unknown[]) => unknown
+  }
+}
 
 const _authCache = new Map<string, AuthInstance>()
 const requestAuthKey = Symbol.for('nuxt-better-auth.requestAuth')
@@ -407,15 +414,18 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
     }
   }
 
-  const authOptions: ResolvedAuthOptions = {
+  const authOptions = {
     ...userConfig,
+    ...((userConfig as UserAuthConfig & { plugins?: readonly BetterAuthPlugin[] }).plugins
+      ? { plugins: [...(userConfig as UserAuthConfig & { plugins: readonly BetterAuthPlugin[] }).plugins] as BetterAuthOptions['plugins'] }
+      : {}),
     ...(rateLimit ? { rateLimit } : {}),
     ...(database ? { database } : {}),
     secret: betterAuthSecret,
     baseURL: resolveAuthBaseURL(siteUrl, runtimeConfig.app?.baseURL),
     trustedOrigins,
-  }
-  const auth = betterAuth(authOptions)
+  } as ResolvedAuthOptions
+  const auth = betterAuth(authOptions) as AuthInstance
 
   if (requestContext)
     requestContext[requestAuthKey] = auth
