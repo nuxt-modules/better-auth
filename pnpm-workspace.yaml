@@ -1,20 +1,21 @@
 minimumReleaseAgeExcludePrune: true
 
 minimumReleaseAgeExclude:
-  - '@emnapi/core@1.14.0'
-  - '@emnapi/runtime@1.14.0'
   - '@nuxt/cli@4.0.0'
   - '@nuxt/kit@4.6.0'
-  - '@nuxt/nitro-server@4.6.0'
-  - '@nuxt/schema@4.6.0'
-  - '@nuxt/vite-builder@4.6.0'
-  - '@nuxt/vite-server@4.6.0'
-  - nuxt@4.6.0
+  - '@better-auth/core@1.7.11'
+  - '@better-auth/drizzle-adapter@1.7.11'
+  - '@better-auth/kysely-adapter@1.7.11'
+  - '@better-auth/memory-adapter@1.7.11'
+  - '@better-auth/mongo-adapter@1.7.11'
+  - '@better-auth/passkey@1.7.11'
+  - '@better-auth/prisma-adapter@1.7.11'
+  - '@better-auth/telemetry@1.7.11'
+  - auth@1.7.11
+  - better-auth@1.7.11
 
 trustPolicy: no-downgrade
 trustPolicyExclude:
-  - '@emnapi/core@1.14.0'
-  - '@emnapi/runtime@1.14.0'
   - chokidar@4.0.3
   - cssnano@9.2.2
   - cssnano-preset-default@9.2.2
