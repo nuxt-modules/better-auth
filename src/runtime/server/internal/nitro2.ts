@@ -31,7 +31,12 @@ class Nitro2AuthError extends Error {
     super(statusText)
     // Nitro's bundled error pipeline can replace the Error subclass
     // prototype. Preserve the constructor marker on the instance as well.
-    Object.defineProperty(this, 'constructor', { value: Nitro2AuthError })
+    // Nitro's h3 v1 check reads the marker from the thrown value's
+    // constructor. Use a small marker constructor so bundling cannot replace
+    // the class identity with the unmarked native Error constructor.
+    const markerConstructor = function Nitro2ErrorConstructor() {}
+    Object.defineProperty(markerConstructor, '__h3_error__', { value: true })
+    Object.defineProperty(this, 'constructor', { value: markerConstructor })
     this.name = 'HTTPError'
     this.status = status
     this.statusText = statusText
