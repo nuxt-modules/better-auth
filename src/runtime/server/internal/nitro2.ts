@@ -31,6 +31,10 @@ class Nitro2AuthError extends Error {
 
   constructor(status: number, statusText: string) {
     super(statusText)
+    // Nitro's bundled error pipeline can replace the Error subclass
+    // prototype. Keep the constructor marker on the instance so h3 v1's
+    // `isError` check still recognizes the original auth error.
+    Object.defineProperty(this, 'constructor', { value: Nitro2AuthError })
     // Keep the marker available when the compatibility shim is bundled by
     // Nitro. Some bundlers drop static class accessors while preserving the
     // constructor itself.
