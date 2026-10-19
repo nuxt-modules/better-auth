@@ -30,6 +30,10 @@ class Nitro2AuthError extends Error {
 
   constructor(status: number, statusText: string) {
     super(statusText)
+    // Keep the marker available when the compatibility shim is bundled by
+    // Nitro. Some bundlers drop static class accessors while preserving the
+    // constructor itself.
+    Object.defineProperty(this.constructor, '__h3_error__', { value: true })
     this.name = 'HTTPError'
     this.status = status
     this.statusText = statusText
