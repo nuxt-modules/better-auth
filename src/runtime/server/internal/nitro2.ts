@@ -27,6 +27,7 @@ class Nitro2AuthError extends Error {
   statusText: string
   statusCode: number
   statusMessage: string
+  __h3_error__ = true
 
   constructor(status: number, statusText: string) {
     super(statusText)
@@ -45,6 +46,7 @@ class Nitro2AuthError extends Error {
 // Keep the marker on the final constructor object as well as in the
 // constructor. Nitro's bundled h3 v1 checks this exact property.
 Object.defineProperty(Nitro2AuthError, '__h3_error__', { value: true })
+Object.defineProperty(Nitro2AuthError.prototype, '__h3_error__', { value: true })
 
 // Nitro 2 events expose Node's IncomingMessage while h3 v2 helpers expect a
 // Web Request based event. Keep this shim independent of h3's event shape so
