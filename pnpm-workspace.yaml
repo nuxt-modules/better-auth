@@ -1,6 +1,6 @@
 minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeExclude:
-  - '@nuxthub/core@0.10.9'
+  - '@nuxthub/core@0.10.10'
   - better-call@1.4.4
   - '@better-auth/core@1.7.12'
   - '@better-auth/drizzle-adapter@1.7.12'
