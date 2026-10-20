@@ -13,7 +13,6 @@ minimumReleaseAgeExclude:
   - auth@1.7.12
   - better-auth@1.7.12
   - better-call@1.4.4
-  - satori@0.63.2
   - miniflare@5.20261019.1-beta
   - wrangler@4.151.3
 
