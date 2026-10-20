@@ -72,6 +72,8 @@ export default defineClientAuth({})
 
 ## NuxtHub setup
 
+Install `auth` as a dev dependency on the same version as `better-auth`. The module uses it to generate the schema.
+
 ```ts
 export default defineNuxtConfig({
   modules: ['@nuxthub/core', '@nuxtjs/better-auth'],
