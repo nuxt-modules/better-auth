@@ -11,7 +11,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from '../src/module/schema'
 import { buildSchemaExportCode } from '../src/module/templates'
 import { defineClientAuth, defineServerAuth } from '../src/runtime/config'
-import { generateDrizzleSchema, loadUserAuthConfig } from '../src/schema-generator'
+import type { PackageJson } from '../src/schema-generator'
+import { checkBetterAuthCli, generateDrizzleSchema, loadUserAuthConfig } from '../src/schema-generator'
 
 const TEST_DIR = join(import.meta.dirname, '.test-configs')
 const projectDirs: string[] = []
@@ -22,6 +23,7 @@ beforeAll(() => {
 })
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
   for (const dir of projectDirs.splice(0, projectDirs.length))
     rmSync(dir, { recursive: true, force: true })
 })
@@ -181,6 +183,61 @@ describe('generateDrizzleSchema', () => {
   it('generates relations', async () => {
     const schema = await generateDrizzleSchema({}, 'postgresql')
     expect(schema).toContain('relations')
+  })
+})
+
+describe('checkBetterAuthCli', () => {
+  function packages(installed: Partial<Record<'auth' | 'better-auth', PackageJson>>) {
+    return (name: 'auth' | 'better-auth') => installed[name]
+  }
+
+  function projectWith(lockfile?: string) {
+    const rootDir = mkdtempSync(join(tmpdir(), 'nuxt-better-auth-cli-'))
+    projectDirs.push(rootDir)
+    if (lockfile)
+      writeFileSync(join(rootDir, lockfile), '')
+    return rootDir
+  }
+
+  it('accepts the installed auth package', () => {
+    expect(checkBetterAuthCli(projectWith())).toEqual({})
+  })
+
+  it('fails with an install command pinned to the app better-auth version', () => {
+    const result = checkBetterAuthCli(projectWith('pnpm-lock.yaml'), packages({ 'better-auth': { name: 'better-auth', version: '1.7.3' } }))
+
+    expect(result.error?.code).toBe('NUXT_AUTH_CLI_MISSING')
+    expect(result.error?.fix).toBe('Run pnpm add -D auth@1.7.3. Keep auth on the same version as better-auth.')
+  })
+
+  it('uses the package manager that owns the project lockfile', () => {
+    vi.stubEnv('npm_config_user_agent', 'pnpm/11.21.0 node/v24.21.0')
+    const missing = packages({ 'better-auth': { name: 'better-auth', version: '1.7.3' } })
+
+    expect(checkBetterAuthCli(projectWith('yarn.lock'), missing).error?.fix).toContain('yarn add -D auth@1.7.3')
+    expect(checkBetterAuthCli(projectWith('package-lock.json'), missing).error?.fix).toContain('npm install -D auth@1.7.3')
+    expect(checkBetterAuthCli(projectWith(), missing).error?.fix).toContain('pnpm add -D auth@1.7.3')
+  })
+
+  it('warns when auth would install a second better-auth', () => {
+    const result = checkBetterAuthCli(projectWith('pnpm-lock.yaml'), packages({
+      'better-auth': { name: 'better-auth', version: '1.7.3' },
+      'auth': { name: 'auth', version: '1.7.11', dependencies: { 'better-auth': '1.7.11' } },
+    }))
+
+    expect(result.error).toBeUndefined()
+    expect(result.warn?.code).toBe('NUXT_AUTH_CLI_VERSION_MISMATCH')
+    expect(result.warn?.message).toContain('auth@1.7.11 installs better-auth@1.7.11, but this app uses better-auth@1.7.3')
+    expect(result.warn?.fix).toBe('Run pnpm add -D auth@1.7.3 so auth and better-auth use the same version.')
+  })
+
+  it('does not warn when auth accepts a better-auth range', () => {
+    const result = checkBetterAuthCli(projectWith(), packages({
+      'better-auth': { name: 'better-auth', version: '1.7.3' },
+      'auth': { name: 'auth', version: '1.8.0', dependencies: { 'better-auth': '^1.7.3' } },
+    }))
+
+    expect(result).toEqual({})
   })
 })
 

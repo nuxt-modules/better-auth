@@ -9,7 +9,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate } from '@nuxt/kit'
 import { Diagnostic, formatDiagnostic } from 'nostics'
 import { join } from 'pathe'
-import { generateDrizzleSchema, loadUserAuthConfig } from '../schema-generator'
+import { checkBetterAuthCli, generateDrizzleSchema, loadUserAuthConfig } from '../schema-generator'
 import { resolveAuthConfigFile } from './config-paths'
 import { diagnostics } from './diagnostics'
 import { getHubCasing, getHubDialect } from './hub'
@@ -117,6 +117,12 @@ export async function setupBetterAuthSchema(
     consola.warn(formatDiagnostic(diagnostics.NUXT_AUTH_UNSUPPORTED_DIALECT({ dialect })))
     return
   }
+
+  const cli = checkBetterAuthCli(nuxt.options.rootDir)
+  if (cli.error)
+    throw cli.error
+  if (cli.warn)
+    consola.warn(formatDiagnostic(cli.warn))
 
   const context: SchemaContext = { nuxt, serverConfigPath }
 
