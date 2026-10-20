@@ -45,6 +45,14 @@ export const diagnostics = defineDiagnostics({
       why: (p: { configPath: string, cause: unknown }) => `Failed to load auth config at ${p.configPath}: ${p.cause instanceof Error ? p.cause.message : String(p.cause)}`,
       fix: 'Check the config imports and required environment variables, then restart Nuxt to regenerate the schema.',
     },
+    NUXT_AUTH_CLI_MISSING: {
+      why: 'NuxtHub schema generation needs the Better Auth CLI package (auth), which is not installed.',
+      fix: (p: { command: string }) => `Run ${p.command}. Keep auth on the same version as better-auth.`,
+    },
+    NUXT_AUTH_CLI_VERSION_MISMATCH: {
+      why: (p: { cliVersion: string, cliBetterAuthVersion: string, betterAuthVersion: string }) => `auth@${p.cliVersion} installs better-auth@${p.cliBetterAuthVersion}, but this app uses better-auth@${p.betterAuthVersion}. Two copies of Better Auth cause conflicting types.`,
+      fix: (p: { command: string }) => `Run ${p.command} so auth and better-auth use the same version.`,
+    },
     NUXT_AUTH_EMPTY_SCHEMA: {
       why: (p: { dialect: string }) => `Schema generation returned empty result for ${p.dialect}`,
       fix: 'Check the Better Auth plugins and database options in defineServerAuth(), then regenerate the schema.',

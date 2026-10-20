@@ -1,9 +1,10 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { generateDrizzleSchema as GenerateDrizzleSchema } from 'auth/api'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { consola } from 'consola'
 import { Diagnostic, formatDiagnostic } from 'nostics'
-import { join } from 'pathe'
+import { dirname, join } from 'pathe'
 import { diagnostics } from './module/diagnostics'
 import type { SchemaCasing } from './runtime/config'
 
@@ -21,6 +22,60 @@ interface SchemaGeneratorAdapter {
 
 function dialectToProvider(dialect: Dialect): Provider {
   return dialect === 'postgresql' ? 'pg' : dialect
+}
+
+export interface PackageJson { name?: string, version?: string, dependencies?: Record<string, string> }
+
+const EXACT_VERSION_RE = /^\d+\.\d+\.\d+(?:-[\w.]+)?$/
+const LOCKFILES = [['pnpm-lock.yaml', 'pnpm'], ['yarn.lock', 'yarn'], ['bun.lock', 'bun'], ['bun.lockb', 'bun'], ['package-lock.json', 'npm']] as const
+
+function readInstalledPackage(name: string): PackageJson | undefined {
+  let entry: string
+  try {
+    entry = createRequire(import.meta.url).resolve(name === 'auth' ? 'auth/api' : name)
+  }
+  catch {
+    return undefined
+  }
+  // Neither package exports its package.json, so walk up from the resolved entry.
+  for (let dir = dirname(entry); dir !== dirname(dir); dir = dirname(dir)) {
+    const file = join(dir, 'package.json')
+    if (!existsSync(file))
+      continue
+    const pkg = JSON.parse(readFileSync(file, 'utf8')) as PackageJson
+    if (pkg.name === name)
+      return pkg
+  }
+}
+
+function devInstallCommand(spec: string, rootDir: string): string {
+  const agent = process.env.npm_config_user_agent?.split('/')[0]
+  const manager = LOCKFILES.find(([file]) => existsSync(join(rootDir, file)))?.[1]
+    ?? LOCKFILES.find(([, name]) => name === agent)?.[1]
+    ?? 'npm'
+  return manager === 'npm' ? `npm install -D ${spec}` : `${manager} add -D ${spec}`
+}
+
+/**
+ * `auth` is the Better Auth CLI. It pins an exact `better-auth`, so a mismatched
+ * version installs a second copy of better-auth and @better-auth/core next to the
+ * app's, which surfaces as incompatible Better Auth types.
+ */
+export function checkBetterAuthCli(
+  rootDir: string,
+  readPackage: (name: 'auth' | 'better-auth') => PackageJson | undefined = readInstalledPackage,
+): { error?: Diagnostic, warn?: Diagnostic } {
+  const betterAuthVersion = readPackage('better-auth')?.version
+  const spec = betterAuthVersion ? `auth@${betterAuthVersion}` : 'auth'
+  const cli = readPackage('auth')
+  if (!cli)
+    return { error: diagnostics.NUXT_AUTH_CLI_MISSING({ command: devInstallCommand(spec, rootDir) }) }
+
+  const cliBetterAuthVersion = cli.dependencies?.['better-auth']
+  if (betterAuthVersion && cliBetterAuthVersion && EXACT_VERSION_RE.test(cliBetterAuthVersion) && cliBetterAuthVersion !== betterAuthVersion)
+    return { warn: diagnostics.NUXT_AUTH_CLI_VERSION_MISMATCH({ cliVersion: cli.version ?? cliBetterAuthVersion, cliBetterAuthVersion, betterAuthVersion, command: devInstallCommand(spec, rootDir) }) }
+
+  return {}
 }
 
 export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dialect: Dialect, schemaOptions?: SchemaOptions): Promise<string> {
