@@ -21,9 +21,6 @@ type Nitro2Event = ServerEvent & { path?: string, node?: { req?: IncomingMessage
 // provide the legacy constructor marker used by Nitro 2's renderer.
 function createNitro2AuthError(status: number, statusText: string): Error {
   const error = createError({ statusCode: status, statusMessage: statusText })
-  const markerConstructor = function Nitro2ErrorConstructor() {}
-  Object.defineProperty(markerConstructor, '__h3_error__', { value: true })
-  Object.defineProperty(error, 'constructor', { value: markerConstructor })
   Object.defineProperties(error, {
     // Nitro's bundled h3 v1 may inspect the thrown value after the error
     // crosses a handler boundary, so retain the marker on the instance too.
