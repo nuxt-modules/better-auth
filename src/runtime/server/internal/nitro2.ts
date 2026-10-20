@@ -37,6 +37,21 @@ function createNitro2AuthError(status: number, statusText: string): Error {
     statusText: { value: statusText, configurable: true, enumerable: true, writable: true },
     statusCode: { value: status, configurable: true, enumerable: true, writable: true },
     statusMessage: { value: statusText, configurable: true, enumerable: true, writable: true },
+    // A Nitro 2 dev handler may JSON-serialize the error before handing it
+    // back to the bundled h3 v1 renderer. Include both generations of field
+    // names so the status survives that boundary as well.
+    toJSON: {
+      value: () => ({
+        status,
+        statusText,
+        statusCode: status,
+        statusMessage: statusText,
+        message: statusText,
+        unhandled: false,
+        fatal: false,
+      }),
+      configurable: true,
+    },
     // Nitro 2's bundled h3 v1 also uses these fields when normalizing an
     // error that crossed a dev-server handler boundary.
     unhandled: { value: false, configurable: true, enumerable: true, writable: true },
