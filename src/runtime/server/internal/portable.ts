@@ -31,8 +31,8 @@ export function splitCookiesString(cookiesString: string | string[]): string[] {
 }
 
 export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
-  const rules = getRouteRules(event) as { auth?: unknown }
-  return { auth: normalizeAuthRouteRule(rules.auth) }
+  const rules = getRouteRules(event) as { auth?: unknown } | undefined
+  return { auth: normalizeAuthRouteRule(rules?.auth) }
 }
 
 export function createAuthError(status: number, statusText: string): Error {

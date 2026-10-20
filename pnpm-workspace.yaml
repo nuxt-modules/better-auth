@@ -2,6 +2,7 @@ minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeExclude:
   - '@nuxthub/core@0.10.9'
   - better-call@1.4.4
+  - satori@0.63.1
   - '@better-auth/core@1.7.12'
   - '@better-auth/drizzle-adapter@1.7.12'
   - '@better-auth/kysely-adapter@1.7.12'
