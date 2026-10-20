@@ -1,29 +1,19 @@
 minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeExclude:
-  - '@nuxt/cli@4.0.0'
-  - '@nuxt/kit@4.6.0'
-  - '@better-auth/core@1.7.11'
+  - '@nuxthub/core@0.10.9'
+  - better-call@1.4.4
   - '@better-auth/core@1.7.12'
-  - '@better-auth/drizzle-adapter@1.7.11'
   - '@better-auth/drizzle-adapter@1.7.12'
-  - '@better-auth/kysely-adapter@1.7.11'
   - '@better-auth/kysely-adapter@1.7.12'
-  - '@better-auth/memory-adapter@1.7.11'
   - '@better-auth/memory-adapter@1.7.12'
-  - '@better-auth/mongo-adapter@1.7.11'
   - '@better-auth/mongo-adapter@1.7.12'
-  - '@better-auth/passkey@1.7.11'
   - '@better-auth/passkey@1.7.12'
-  - '@better-auth/prisma-adapter@1.7.11'
   - '@better-auth/prisma-adapter@1.7.12'
-  - '@better-auth/telemetry@1.7.11'
   - '@better-auth/telemetry@1.7.12'
-  - auth@1.7.11
   - auth@1.7.12
-  - better-auth@1.7.11
   - better-auth@1.7.12
   - better-call@1.4.4
-  - satori@0.63.2
+  - satori@0.63.1
 
 shellEmulator: true
 
