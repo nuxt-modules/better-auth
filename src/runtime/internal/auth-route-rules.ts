@@ -2,7 +2,7 @@ import type { AuthRouteRules } from '../types'
 import { withoutBase } from 'ufo'
 
 // These namespaces serve public assets, not app routes or authentication endpoints.
-const internalAssetPaths = ['/_fonts', '/_ipx', '/_nuxt', '/api/_nuxt_icon']
+const internalAssetPaths = ['/_fonts', '/_ipx', '/_nuxt', '/_scripts/assets', '/api/_nuxt_icon']
 
 export function isInternalAssetPath(path: string): boolean {
   const pathname = path.split(/[?#]/, 1)[0] || '/'

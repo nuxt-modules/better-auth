@@ -30,6 +30,8 @@ describe('internal auth route rule defaults', () => {
     expect(shouldSkipAuthRouteRules('/_fonts')).toBe(true)
     expect(shouldSkipAuthRouteRules('/_fonts/font.woff2')).toBe(true)
     expect(shouldSkipAuthRouteRules('/_nuxt/app.js')).toBe(true)
+    expect(shouldSkipAuthRouteRules('/_scripts/assets')).toBe(true)
+    expect(shouldSkipAuthRouteRules('/_scripts/assets/script.js')).toBe(true)
     expect(shouldSkipAuthRouteRules('/_ipx/w_64/icon.png')).toBe(true)
     expect(shouldSkipAuthRouteRules('/api/_nuxt_icon/lucide:home.svg')).toBe(true)
     expect(shouldSkipAuthRouteRules('/api/_better-auth/config')).toBe(true)
@@ -39,6 +41,8 @@ describe('internal auth route rule defaults', () => {
   it('keeps app routes and app APIs protectable', () => {
     expect(shouldSkipAuthRouteRules('/app')).toBe(false)
     expect(shouldSkipAuthRouteRules('/_fontsx/font.woff2')).toBe(false)
+    expect(shouldSkipAuthRouteRules('/_scripts/p/example.com/collect')).toBe(false)
+    expect(shouldSkipAuthRouteRules('/_scripts/assets-foo/script.js')).toBe(false)
     expect(shouldSkipAuthRouteRules('/_app')).toBe(false)
     expect(shouldSkipAuthRouteRules('/api/test/me')).toBe(false)
     expect(shouldSkipAuthRouteRules('/api/authenticate')).toBe(false)
