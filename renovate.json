@@ -30,6 +30,7 @@
     {
       "description": "Keep Nuxt, auth, NuxtHub, and database/runtime-sensitive packages manual.",
       "matchPackageNames": [
+        "auth",
         "better-auth",
         "/^@better-auth\\//",
         "nuxt",
@@ -42,6 +43,11 @@
         "/^@libsql\\//"
       ],
       "automerge": false
+    },
+    {
+      "description": "Update Better Auth and its CLI in one PR. auth pins an exact better-auth, so a lone auth bump installs a second copy.",
+      "matchPackageNames": ["auth", "better-auth", "/^@better-auth\\//"],
+      "groupName": "better-auth monorepo"
     }
   ]
 }
