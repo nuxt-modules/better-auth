@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import type { IncomingMessage } from 'node:http'
 import type { AuthRouteRules } from '../../types'
 import { splitSetCookieString } from 'cookie-es'
-import { createError, defineEventHandler } from 'h3'
+import { defineEventHandler } from 'h3'
 import { getRouteRules, useRuntimeConfig } from 'nitropack/runtime'
 
 export {
@@ -13,34 +13,23 @@ export {
 export type ServerEvent = H3Event
 type Nitro2Event = ServerEvent & { path?: string, node?: { req?: IncomingMessage }, web?: { request?: Request } }
 
-// Nitro 2's dev server still serializes errors with h3 v1. Mark auth errors
-// as h3 errors so that renderer keeps their status instead of wrapping them
-// as an unhandled 500 error. h3 v2 recognizes the same shape by name/status.
-// Nitro 2 still serializes errors with h3 v1 while the module runs on h3 v2.
-// Create the native h3 v2 error so its pipeline preserves the status, then
-// provide the legacy constructor marker used by Nitro 2's renderer.
+// Nitro 2's dev server serializes errors with h3 v1 while the module runs on h3 v2.
 function createNitro2AuthError(status: number, statusText: string): Error {
-  const error = createError({ statusCode: status, statusMessage: statusText })
-  // Nitro 2's bundled h3 v1 checks the constructor marker when an error
-  // crosses a dev-server handler boundary. Keep the native h3 v2 prototype
-  // and name while supplying that legacy marker on the instance.
-  // Nitro 2 checks the constructor marker after the error crosses a dev
-  // handler boundary. Mark the native h3 v2 constructor in place so its
-  // identity and name remain intact for the h3 v2 pipeline.
-  Object.defineProperty(error.constructor, '__h3_error__', { value: true, configurable: true })
+  // Use a plain Error with both h3 generations' identity fields. Nitro 2's
+  // bundled h3 v1 recognizes the constructor marker, while h3 v2 recognizes
+  // the HTTPError name and status. Keeping the object independent of either
+  // package's Error subclass lets it cross the dev-server boundary intact.
+  const error = new Error(statusText)
+  const markerConstructor = function Nitro2ErrorConstructor() {}
+  Object.defineProperty(markerConstructor, '__h3_error__', { value: true })
   Object.defineProperties(error, {
-    // Nitro's bundled h3 v1 may inspect the thrown value after the error
-    // crosses a handler boundary, so retain the marker on the instance too.
+    name: { value: 'HTTPError', configurable: true, enumerable: false, writable: true },
+    constructor: { value: markerConstructor, configurable: true },
     __h3_error__: { value: true, configurable: true, enumerable: true, writable: true },
-    // Nitro 2's bundled h3 v1 serializer reads the legacy field names,
-    // while h3 v2 exposes the status through statusCode/statusMessage.
     status: { value: status, configurable: true, enumerable: true, writable: true },
     statusText: { value: statusText, configurable: true, enumerable: true, writable: true },
     statusCode: { value: status, configurable: true, enumerable: true, writable: true },
     statusMessage: { value: statusText, configurable: true, enumerable: true, writable: true },
-    // A Nitro 2 dev handler may JSON-serialize the error before handing it
-    // back to the bundled h3 v1 renderer. Include both generations of field
-    // names so the status survives that boundary as well.
     toJSON: {
       value: () => ({
         status,
@@ -53,8 +42,6 @@ function createNitro2AuthError(status: number, statusText: string): Error {
       }),
       configurable: true,
     },
-    // Nitro 2's bundled h3 v1 also uses these fields when normalizing an
-    // error that crossed a dev-server handler boundary.
     unhandled: { value: false, configurable: true, enumerable: true, writable: true },
     fatal: { value: false, configurable: true, enumerable: true, writable: true },
   })
