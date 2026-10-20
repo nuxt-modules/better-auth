@@ -2,6 +2,8 @@ minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeExclude:
   - '@nuxt/cli@4.0.0'
   - '@nuxt/kit@4.6.0'
+  - '@nuxthub/core@0.10.9'
+  - 'better-call@1.4.4'
   - '@better-auth/core@1.7.11'
   - '@better-auth/drizzle-adapter@1.7.11'
   - '@better-auth/kysely-adapter@1.7.11'
