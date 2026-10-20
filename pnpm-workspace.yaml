@@ -1,7 +1,10 @@
 minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeExclude:
   - '@nuxt/cli@4.0.0'
+  # eslint-disable-next-line yaml/plain-scalar
   - '@nuxt/kit@4.6.0'
+  - '@nuxthub/core@0.10.9'
+  - better-call@1.4.4
   - '@better-auth/core@1.7.11'
   - '@better-auth/core@1.7.12'
   - '@better-auth/drizzle-adapter@1.7.11'
@@ -23,7 +26,7 @@ minimumReleaseAgeExclude:
   - better-auth@1.7.11
   - better-auth@1.7.12
   - better-call@1.4.4
-  - satori@0.63.2
+  - satori@0.63.1
 
 trustPolicy: no-downgrade
 trustPolicyExclude:
