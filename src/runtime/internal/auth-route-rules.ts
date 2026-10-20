@@ -4,16 +4,11 @@ import { withoutBase } from 'ufo'
 // These namespaces serve public assets, not app routes or authentication endpoints.
 const internalAssetPaths = ['/_fonts', '/_ipx', '/_nuxt', '/_scripts/assets', '/api/_nuxt_icon']
 
-export function isInternalAssetPath(path: string): boolean {
+export function isInternalAssetPath(path: string, baseURL = '/'): boolean {
   const pathname = path.split(/[?#]/, 1)[0] || '/'
+  const normalizedPathname = withoutBase(pathname, baseURL) || '/'
   return internalAssetPaths.some((prefix) => {
-    // Router paths may retain the app base URL (for example, `/dashboard/_fonts`).
-    // Match the namespace at any path depth so both router representations stay
-    // public without requiring callers to know which representation they got.
-    return pathname === prefix
-      || pathname.startsWith(`${prefix}/`)
-      || pathname.endsWith(prefix)
-      || pathname.includes(`${prefix}/`)
+    return normalizedPathname === prefix || normalizedPathname.startsWith(`${prefix}/`)
   })
 }
 
@@ -45,7 +40,7 @@ export function normalizeAuthRouteRule(rule: unknown): AuthRouteRules['auth'] {
   return rule as AuthRouteRules['auth']
 }
 
-export function shouldSkipAuthRouteRules(path: string): boolean {
+export function shouldSkipAuthRouteRules(path: string, baseURL = '/'): boolean {
   const pathname = path.split(/[?#]/, 1)[0] || '/'
-  return isInternalAssetPath(pathname) || internalRouteRuleAuthPaths.has(pathname) || internalRouteRuleAuthPrefixes.some(prefix => pathname.startsWith(prefix))
+  return isInternalAssetPath(pathname, baseURL) || internalRouteRuleAuthPaths.has(pathname) || internalRouteRuleAuthPrefixes.some(prefix => pathname.startsWith(prefix))
 }

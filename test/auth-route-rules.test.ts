@@ -83,6 +83,20 @@ describe('auth route rule intersections', () => {
     })).not.toThrow()
   })
 
+  it('allows scripts assets below the configured app base URL', () => {
+    expect(() => assertSafeAuthRouteRules({
+      '/**': { auth: 'user' },
+      '/dashboard/_scripts/assets/**': { cache: { maxAge: 60 } },
+    }, '/dashboard/')).not.toThrow()
+  })
+
+  it('does not exempt nested application routes containing an asset namespace', () => {
+    expect(() => assertSafeAuthRouteRules({
+      '/**': { auth: 'user' },
+      '/private/_scripts/assets/**': { cache: { maxAge: 60 } },
+    })).toThrow('/private/_scripts/assets')
+  })
+
   it.each(['/_fontsx', '/_scripts/p', '/_scripts/assets-foo', '/assets', '/api/private', '/api/auth', '/api/_better-auth'])('still checks application routes under %s', (path) => {
     expect(() => assertSafeAuthRouteRules({
       '/**': { auth: 'user' },
