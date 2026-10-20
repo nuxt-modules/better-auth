@@ -4,8 +4,6 @@ minimumReleaseAgeExclude:
   # eslint-disable-next-line yaml/plain-scalar
   - '@nuxt/kit@4.6.0'
   - '@nuxthub/core@0.10.9'
-  - '@nuxthub/core@0.10.10'
-  - happy-dom@21.0.4
   - better-call@1.4.4
   - '@better-auth/core@1.7.11'
   - '@better-auth/core@1.7.12'
@@ -28,7 +26,7 @@ minimumReleaseAgeExclude:
   - better-auth@1.7.11
   - better-auth@1.7.12
   - better-call@1.4.4
-  - satori@0.63.1
+  - satori@0.63.2
   - miniflare@5.20261019.1-beta
   - wrangler@4.151.3
 
