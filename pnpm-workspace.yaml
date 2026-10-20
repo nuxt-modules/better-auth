@@ -23,7 +23,7 @@ minimumReleaseAgeExclude:
   - better-auth@1.7.11
   - better-auth@1.7.12
   - better-call@1.4.4
-  - satori@0.63.1
+  - satori@0.63.2
 
 shellEmulator: true
 
