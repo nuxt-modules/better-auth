@@ -1,5 +1,5 @@
 import { addDevServerHandler, defineNuxtModule } from '@nuxt/kit'
-import { eventHandler, setResponseHeader } from 'h3'
+import { eventHandler } from 'h3'
 import { joinURL } from 'ufo'
 
 export default defineNuxtModule({
@@ -35,7 +35,7 @@ export default defineNuxtModule({
     addDevServerHandler({
       route: joinURL(nuxt.options.app.baseURL, '/api/auth-required'),
       handler: eventHandler((event) => {
-        setResponseHeader(event, 'x-test-dev-handler', 'fallthrough')
+        event.node?.res?.setHeader('x-test-dev-handler', 'fallthrough')
       }),
     })
   },
