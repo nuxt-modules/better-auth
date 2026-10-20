@@ -80,7 +80,7 @@
   "peerDependencies": {
     "@nuxt/test-utils": "^4.1.0",
     "@nuxthub/core": ">=0.10.5",
-    "auth": "1.7.11",
+    "auth": "1.7.12",
     "better-auth": ">=1.7.3 <2"
   },
   "peerDependenciesMeta": {
