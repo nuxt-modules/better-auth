@@ -1,7 +1,6 @@
 minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeExclude:
   - '@nuxt/cli@4.0.0'
-  # eslint-disable-next-line yaml/plain-scalar
   - '@nuxt/kit@4.6.0'
   - '@nuxthub/core@0.10.9'
   - 'better-call@1.4.4'
