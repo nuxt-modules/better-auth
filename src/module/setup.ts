@@ -125,11 +125,11 @@ function getRuntimeRouteRules(nuxt: Nuxt): Record<string, unknown> {
 export function registerAuthRouteRulesValidation(nuxt: Nuxt): void {
   // Nitro initialization follows all modules:done and nitro:config callbacks.
   nuxt.hook('nitro:init', (nitro: { options: { routeRules: Record<string, unknown> } }) => {
-    assertSafeAuthRouteRules(nitro.options.routeRules)
+    assertSafeAuthRouteRules(nitro.options.routeRules, nuxt.options.app.baseURL)
   })
 }
 
-export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>): void {
+export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>, baseURL = '/'): void {
   if (!Object.keys(routeRules).length)
     return
 
@@ -139,7 +139,7 @@ export function assertSafeAuthRouteRules(routeRules: Record<string, unknown>): v
   for (const path of collectRouteRulePaths(patterns, ''))
     paths.add(path)
   const conflicts = [...paths].flatMap((path) => {
-    if (isInternalAssetPath(path))
+    if (isInternalAssetPath(path, baseURL))
       return []
 
     const matches = matcher.matchAll(path) as Record<string, unknown>[]
