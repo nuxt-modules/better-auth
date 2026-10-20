@@ -24,13 +24,14 @@ function createNitro2AuthError(status: number, statusText: string): Error {
   // Nitro 2's bundled h3 v1 checks the constructor marker when an error
   // crosses a dev-server handler boundary. Keep the native h3 v2 prototype
   // and name while supplying that legacy marker on the instance.
-  const markerConstructor = function Nitro2ErrorConstructor() {}
-  Object.defineProperty(markerConstructor, '__h3_error__', { value: true })
+  // Nitro 2 checks the constructor marker after the error crosses a dev
+  // handler boundary. Mark the native h3 v2 constructor in place so its
+  // identity and name remain intact for the h3 v2 pipeline.
+  Object.defineProperty(error.constructor, '__h3_error__', { value: true, configurable: true })
   Object.defineProperties(error, {
     // Nitro's bundled h3 v1 may inspect the thrown value after the error
     // crosses a handler boundary, so retain the marker on the instance too.
     __h3_error__: { value: true, configurable: true, enumerable: true, writable: true },
-    constructor: { value: markerConstructor, configurable: true },
     // Nitro 2's bundled h3 v1 serializer reads the legacy field names,
     // while h3 v2 exposes the status through statusCode/statusMessage.
     status: { value: status, configurable: true, enumerable: true, writable: true },
