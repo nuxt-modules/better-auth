@@ -189,6 +189,36 @@ Set the corresponding environment variable in your build environment for product
     verify: 'Restart Nuxt. Confirm the config loads and the regenerated schema contains your additional fields and plugin tables.',
     guide: { label: 'Understand schema generation', path: '/getting-started/schema-generation' },
   },
+  NUXT_AUTH_CLI_MISSING: {
+    title: 'Better Auth CLI is not installed',
+    description: 'Install the auth package so the module can generate the NuxtHub schema.',
+    example: diagnostics.NUXT_AUTH_CLI_MISSING({ command: 'pnpm add -D auth@1.7.11' }),
+    cause: 'NuxtHub schema generation uses the Drizzle generator from the Better Auth CLI, published as auth. The module lists auth as an optional peer dependency instead of bundling it, because auth pins an exact better-auth version. A bundled copy would install a second better-auth next to yours whenever the versions differ. Apps that do not use NuxtHub do not need auth.',
+    solution: `Install auth at the same version as better-auth. The diagnostic prints the command for your package manager and installed version:
+
+\`\`\`bash
+pnpm add -D auth@1.7.11
+\`\`\`
+
+When you upgrade better-auth later, upgrade auth to the same version.`,
+    verify: 'Run pnpm exec nuxt prepare. The module should log the generated schema without NUXT_AUTH_CLI_MISSING.',
+    guide: { label: 'Set up NuxtHub', path: '/integrations/nuxthub' },
+  },
+  NUXT_AUTH_CLI_VERSION_MISMATCH: {
+    title: 'Better Auth CLI version does not match better-auth',
+    description: 'Align auth and better-auth so the app resolves one copy of Better Auth.',
+    example: diagnostics.NUXT_AUTH_CLI_VERSION_MISMATCH({ cliVersion: '1.7.11', cliBetterAuthVersion: '1.7.11', betterAuthVersion: '1.7.3', command: 'pnpm add -D auth@1.7.3' }),
+    cause: 'The auth package depends on an exact better-auth version. When it differs from the better-auth version in your app, the package manager installs both, along with two copies of @better-auth/core. Better Auth plugins such as @better-auth/oauth-provider can then resolve a different core than better-auth, and TypeScript reports errors such as a string not being assignable to never.',
+    solution: `Install auth at the version of better-auth your app uses:
+
+\`\`\`bash
+pnpm add -D auth@1.7.3
+\`\`\`
+
+Alternatively, upgrade better-auth and auth together to the same newer version.`,
+    verify: 'Run pnpm exec nuxt prepare. The warning should no longer appear, and pnpm why better-auth should list a single version.',
+    guide: { label: 'Set up NuxtHub', path: '/integrations/nuxthub' },
+  },
   NUXT_AUTH_EMPTY_SCHEMA: {
     title: 'Schema generator returned no code',
     description: 'Check Better Auth database options and plugins when schema generation returns an empty result.',
