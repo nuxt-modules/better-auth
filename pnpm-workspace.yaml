@@ -18,6 +18,7 @@ minimumReleaseAgeExclude:
   - happy-dom@21.0.4
   - miniflare@5.20261019.1-beta
   - wrangler@4.151.3
+  - '@rollup/plugin-yaml@5.0.1'
 
 packages:
   - .
