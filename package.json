@@ -139,6 +139,7 @@
     "playwright-core": "1.64.1",
     "postgres": "^3.4.9",
     "typescript": "~6.0.3",
+    "typescript-next": "npm:typescript@~7.0.0",
     "unstorage": "^1.17.5",
     "vitest": "^5.0.0",
     "vue": "3.5.44",
