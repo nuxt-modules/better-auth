@@ -29,6 +29,7 @@ it('rejects runtime options during typechecking', { timeout: 180_000 }, () => {
     'esnext',
     '--strict',
     '--skipLibCheck',
+    '--ignoreConfig',
     '--types',
     'node',
     fileURLToPath(import.meta.url),
