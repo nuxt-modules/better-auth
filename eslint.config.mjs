@@ -3,7 +3,7 @@ import antfu from '@antfu/eslint-config'
 
 export default antfu(
   {
-    ignores: ['**/*.md', 'dist/**', '.nuxt/**'],
+    ignores: ['**/*.md', 'dist/**', '.nuxt/**', 'pnpm-workspace.yaml'],
   },
   {
     rules: {
