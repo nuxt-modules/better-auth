@@ -1,6 +1,7 @@
 minimumReleaseAgeExcludePrune: true
 minimumReleaseAgeExclude:
-  - '@nuxthub/core@0.10.9'
+  - h3@2.0.7
+  - '@nuxthub/core@0.10.10'
   - better-call@1.4.4
   - '@better-auth/core@1.7.12'
   - '@better-auth/drizzle-adapter@1.7.12'
@@ -13,7 +14,8 @@ minimumReleaseAgeExclude:
   - auth@1.7.12
   - better-auth@1.7.12
   - better-call@1.4.4
-  - satori@0.63.1
+  - satori@0.63.2
+  - happy-dom@21.0.4
   - miniflare@5.20261019.1-beta
   - wrangler@4.151.3
 
