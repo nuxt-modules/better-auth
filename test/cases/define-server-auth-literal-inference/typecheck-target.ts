@@ -21,16 +21,20 @@ const callbackConfig = defineServerAuth(() => ({
 void objectConfig
 void callbackConfig
 
-// @ts-expect-error invalid generateId literal
 defineServerAuth({
-  advanced: { database: { generateId: 'invalid-id' } },
+  advanced: { database: {
+    // @ts-expect-error invalid generateId literal
+    generateId: 'invalid-id',
+  } },
 })
 
-// @ts-expect-error invalid additionalFields type literal
 defineServerAuth({
   user: {
     additionalFields: {
-      badField: { type: 'invalid-type' },
+      badField: {
+        // @ts-expect-error invalid additionalFields type literal
+        type: 'invalid-type',
+      },
     },
   },
 })
