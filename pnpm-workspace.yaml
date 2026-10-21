@@ -20,6 +20,7 @@ minimumReleaseAgeExclude:
   - wrangler@4.151.3
 
 packages:
+  - .
   - docs
   - playground
 
