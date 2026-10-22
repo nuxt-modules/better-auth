@@ -10,6 +10,10 @@ const env = {
   ...process.env,
   BETTER_AUTH_SECRET: 'test-secret-for-testing-only-32chars',
 }
+const typecheckEnv = {
+  ...env,
+  NODE_OPTIONS: `${process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} ` : ''}--import=${fileURLToPath(new URL('../scripts/typescript6-shim.mjs', import.meta.url))} --experimental-loader=${fileURLToPath(new URL('../scripts/typescript6-shim.mjs', import.meta.url))}`,
+}
 
 describe('layer plugin contributions', async () => {
   await setup({ rootDir: runtimeFixtureDir })
@@ -26,7 +30,7 @@ describe('layer plugin contributions', async () => {
   it('includes contributed server fields, endpoints, and client actions in app types', () => {
     const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
       cwd: fixtureDir,
-      env,
+      env: typecheckEnv,
       encoding: 'utf8',
       timeout: 120_000,
     })
@@ -34,7 +38,7 @@ describe('layer plugin contributions', async () => {
 
     const typecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', '.nuxt/tsconfig.app.json'], {
       cwd: fixtureDir,
-      env,
+      env: typecheckEnv,
       encoding: 'utf8',
       timeout: 120_000,
     })
