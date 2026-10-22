@@ -72,7 +72,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "NODE_OPTIONS='--import=./scripts/typescript6-shim.mjs --experimental-loader=./scripts/typescript6-shim.mjs' vue-tsc --noEmit",
     "typecheck:runtime-server": "cd test/cases/plugins-type-inference && NODE_OPTIONS='--import=../../../scripts/typescript6-shim.mjs --experimental-loader=../../../scripts/typescript6-shim.mjs' nuxi prepare && NODE_OPTIONS='--import=../../../scripts/typescript6-shim.mjs --experimental-loader=../../../scripts/typescript6-shim.mjs' vue-tsc --noEmit --pretty false -p .nuxt/tsconfig.server.json",
-    "typecheck:playground": "NODE_OPTIONS='--import=./scripts/typescript6-shim.mjs --experimental-loader=./scripts/typescript6-shim.mjs' pnpm -C playground exec nuxi prepare && NODE_OPTIONS='--import=./scripts/typescript6-shim.mjs --experimental-loader=./scripts/typescript6-shim.mjs' pnpm -C playground exec vue-tsc --noEmit -p .nuxt/tsconfig.app.json",
+    "typecheck:playground": "NODE_OPTIONS=\"--import=$PWD/scripts/typescript6-shim.mjs --experimental-loader=$PWD/scripts/typescript6-shim.mjs\" pnpm -C playground exec nuxi prepare && NODE_OPTIONS=\"--import=$PWD/scripts/typescript6-shim.mjs --experimental-loader=$PWD/scripts/typescript6-shim.mjs\" pnpm -C playground exec vue-tsc --noEmit -p .nuxt/tsconfig.app.json",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:runtime": "vitest run --config vitest.runtime.config.ts"
