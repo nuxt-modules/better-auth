@@ -24,9 +24,17 @@ describe('#auth/schema export', async () => {
     NODE_OPTIONS: `${process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} ` : ''}--import=${fileURLToPath(new URL('../scripts/typescript6-shim.mjs', import.meta.url))} --experimental-loader=${fileURLToPath(new URL('../scripts/typescript6-shim.mjs', import.meta.url))}`,
   }
 
-  await setup({
-    rootDir,
-  })
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await setup({ rootDir })
+      break
+    }
+    catch (error) {
+      if (attempt >= 2 || !String(error).includes('EADDRINUSE'))
+        throw error
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+  }
 
   it('exports stable aliases for custom core model names with plural generation enabled', async () => {
     const res = await $fetch('/api/test/schema') as {
