@@ -248,6 +248,9 @@ importers:
       '@types/better-sqlite3':
         specifier: ^9.6.0
         version: 9.6.0
+      '@typescript/typescript6':
+        specifier: 6.0.2
+        version: 6.0.2
       '@vue/test-utils':
         specifier: ^2.4.6
         version: 2.5.1(@vue/compiler-dom@3.5.44)(@vue/server-renderer@3.5.44)(vue@3.5.44(typescript@7.0.2))
@@ -15414,7 +15417,6 @@ snapshots:
   '@typescript/typescript6@6.0.2':
     dependencies:
       '@typescript/old': typescript@6.0.3
-    optional: true
 
   '@ungap/structured-clone@1.4.0': {}
 
@@ -21961,8 +21963,7 @@ snapshots:
 
   typescript@5.9.3: {}
 
-  typescript@6.0.3:
-    optional: true
+  typescript@6.0.3: {}
 
   typescript@7.0.2:
     optionalDependencies:

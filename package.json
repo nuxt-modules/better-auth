@@ -60,7 +60,7 @@
     "node": "^22.19.0 || ^24.11.0 || >=26.0.0"
   },
   "scripts": {
-    "prepack": "nuxt-module-build build",
+    "prepack": "NODE_OPTIONS='--import=./scripts/typescript6-shim.mjs --experimental-loader=./scripts/typescript6-shim.mjs' nuxt-module-build build",
     "build": "pnpm build:docs",
     "dev": "pnpm dev:prepare && nuxi dev playground",
     "dev:build": "nuxi build playground",
@@ -68,11 +68,11 @@
     "dev:docs": "nuxi dev docs",
     "build:docs": "nuxi build docs",
     "deploy": "wrangler deploy",
-    "lint": "eslint .",
+    "lint": "NODE_OPTIONS='--import=./scripts/typescript6-shim.mjs --experimental-loader=./scripts/typescript6-shim.mjs' eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "vue-tsc --noEmit",
-    "typecheck:runtime-server": "cd test/cases/plugins-type-inference && nuxi prepare && vue-tsc --noEmit --pretty false -p .nuxt/tsconfig.server.json",
-    "typecheck:playground": "pnpm -C playground exec nuxi prepare && pnpm -C playground exec vue-tsc --noEmit -p .nuxt/tsconfig.app.json",
+    "typecheck": "NODE_OPTIONS='--import=./scripts/typescript6-shim.mjs --experimental-loader=./scripts/typescript6-shim.mjs' vue-tsc --noEmit",
+    "typecheck:runtime-server": "NODE_OPTIONS='--import=./scripts/typescript6-shim.mjs --experimental-loader=./scripts/typescript6-shim.mjs' cd test/cases/plugins-type-inference && nuxi prepare && vue-tsc --noEmit --pretty false -p .nuxt/tsconfig.server.json",
+    "typecheck:playground": "NODE_OPTIONS='--import=./scripts/typescript6-shim.mjs --experimental-loader=./scripts/typescript6-shim.mjs' pnpm -C playground exec nuxi prepare && pnpm -C playground exec vue-tsc --noEmit -p .nuxt/tsconfig.app.json",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:runtime": "vitest run --config vitest.runtime.config.ts"
@@ -123,6 +123,7 @@
     "@nuxthub/core": "^0.10.8",
     "@pinia/nuxt": "^1.0.2",
     "@types/better-sqlite3": "^9.6.0",
+    "@typescript/typescript6": "6.0.2",
     "@vue/test-utils": "^2.4.6",
     "auth": "1.7.12",
     "better-auth": "1.7.12",
