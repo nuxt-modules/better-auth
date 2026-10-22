@@ -116,7 +116,7 @@
     "@libsql/client": "^0.18.0",
     "@libsql/linux-x64-gnu": "0.5.29",
     "@nuxt/devtools": "^3.4.1",
-    "@nuxt/fonts": "1.0.1",
+    "@nuxt/fonts": "1.1.0",
     "@nuxt/module-builder": "^1.0.3",
     "@nuxt/schema": "^4.6.0",
     "@nuxt/test-utils": "^4.3.3",
@@ -145,7 +145,7 @@
     "vitest": "^5.0.0",
     "vue": "3.5.44",
     "vue-tsc": "^3.3.10",
-    "wrangler": "4.151.3",
+    "wrangler": "4.152.0",
     "yaml": "^2.9.0"
   }
 }
