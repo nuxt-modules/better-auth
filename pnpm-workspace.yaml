@@ -1,4 +1,5 @@
 minimumReleaseAgeExclude:
+  - '@nuxt/fonts@1.1.0'
   - h3@2.0.8
   - '@nuxthub/core@0.10.10'
   - better-call@1.4.4
