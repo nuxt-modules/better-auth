@@ -8,12 +8,16 @@ const env = {
   ...process.env,
   BETTER_AUTH_SECRET: 'test-secret-for-testing-only-32chars',
 }
+const typecheckEnv = {
+  ...env,
+  NODE_OPTIONS: `${process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} ` : ''}--import=${fileURLToPath(new URL('../scripts/typescript6-shim.mjs', import.meta.url))} --experimental-loader=${fileURLToPath(new URL('../scripts/typescript6-shim.mjs', import.meta.url))}`,
+}
 
 describe('type inference regressions #107, #192, and #382', () => {
   it('typechecks plugin/additional fields and serverAuth plugin API inference', () => {
     const prepare = spawnSync('npx', ['nuxi', 'prepare'], {
       cwd: fixtureDir,
-      env,
+      env: typecheckEnv,
       encoding: 'utf8',
       timeout: 120_000,
     })
@@ -21,7 +25,7 @@ describe('type inference regressions #107, #192, and #382', () => {
 
     const typecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', 'tsconfig.type-check.json'], {
       cwd: fixtureDir,
-      env,
+      env: typecheckEnv,
       encoding: 'utf8',
       timeout: 120_000,
     })
@@ -36,7 +40,7 @@ describe('type inference regressions #107, #192, and #382', () => {
 
     const appTypecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', '.nuxt/tsconfig.app.json'], {
       cwd: fixtureDir,
-      env,
+      env: typecheckEnv,
       encoding: 'utf8',
       timeout: 60_000,
     })
@@ -44,7 +48,7 @@ describe('type inference regressions #107, #192, and #382', () => {
 
     const sharedTypecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', '.nuxt/tsconfig.shared.json'], {
       cwd: fixtureDir,
-      env,
+      env: typecheckEnv,
       encoding: 'utf8',
       timeout: 120_000,
     })
@@ -63,7 +67,7 @@ describe('type inference regressions #107, #192, and #382', () => {
     for (const project of ['app', 'shared']) {
       const typecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', `.nuxt/tsconfig.${project}.json`], {
         cwd: layerFixtureDir,
-        env,
+        env: typecheckEnv,
         encoding: 'utf8',
         timeout: 120_000,
       })

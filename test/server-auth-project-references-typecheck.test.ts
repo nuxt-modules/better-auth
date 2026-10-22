@@ -7,6 +7,10 @@ const env = {
   ...process.env,
   BETTER_AUTH_SECRET: 'test-secret-for-testing-only-32chars',
 }
+const typecheckEnv = {
+  ...env,
+  NODE_OPTIONS: `${process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} ` : ''}--import=${fileURLToPath(new URL('../scripts/typescript6-shim.mjs', import.meta.url))} --experimental-loader=${fileURLToPath(new URL('../scripts/typescript6-shim.mjs', import.meta.url))}`,
+}
 const rootDir = fileURLToPath(new URL('..', import.meta.url))
 
 beforeAll(() => {
@@ -35,7 +39,7 @@ function runProjectReferenceTypecheck(fixtureDir: string) {
 
   const typecheck = spawnSync('npx', ['vue-tsc', '-b', '--noEmit', '--pretty', 'false'], {
     cwd: fixtureDir,
-    env,
+    env: typecheckEnv,
     encoding: 'utf8',
     timeout: 120_000,
   })

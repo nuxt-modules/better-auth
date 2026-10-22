@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import ts from 'typescript'
+import ts from '@typescript/typescript6'
 import { organization } from 'better-auth/plugins'
 import { describe, expect, it } from 'vitest'
 import { buildSchemaExportTypes } from '../src/module/templates'
