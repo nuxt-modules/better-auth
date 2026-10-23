@@ -112,7 +112,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^9.3.0",
+    "@antfu/eslint-config": "^10.0.0",
     "@libsql/client": "^0.18.0",
     "@libsql/linux-x64-gnu": "0.5.29",
     "@nuxt/devtools": "^3.4.1",
