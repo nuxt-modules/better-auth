@@ -1,4 +1,10 @@
 minimumReleaseAgeExclude:
+  - '@antfu/eslint-config@10.0.0'
+  - '@es-joy/jsdoccomment@1.0.0'
+  - '@vitest/eslint-plugin@1.6.28'
+  - eslint-plugin-antfu@3.3.1
+  - eslint-plugin-jsdoc@65.4.1
+  - jsdoc-type-pratt-parser@9.4.0
   - '@nuxt/fonts@1.1.0'
   - h3@2.0.8
   - '@nuxthub/core@0.10.10'

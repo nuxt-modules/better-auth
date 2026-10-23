@@ -8,6 +8,7 @@ export default antfu(
   {
     rules: {
       'e18e/prefer-static-regex': 'off',
+      'antfu/reasonable-newline': 'off',
       'node/prefer-global/process': 'off',
       'perfectionist/sort-imports': 'off',
     },
