@@ -27,6 +27,7 @@ minimumReleaseAgeExclude:
   - wrangler@4.152.0
   - '@nuxt/fonts@1.1.0'
   - '@rollup/plugin-yaml@5.0.1'
+  - '@nuxt/icon@2.6.0'
 
 packages:
   - .
