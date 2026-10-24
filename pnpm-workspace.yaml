@@ -29,6 +29,7 @@ minimumReleaseAgeExclude:
   - '@nuxt/fonts@1.1.0'
   - '@rollup/plugin-yaml@5.0.1'
   - '@nuxt/icon@2.6.0'
+  - pkg-pr-new@0.0.92
 
 packages:
   - .
