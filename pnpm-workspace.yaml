@@ -8,6 +8,7 @@ minimumReleaseAgeExclude:
   - '@nuxt/fonts@1.1.0'
   - h3@2.0.8
   - '@nuxthub/core@0.10.10'
+  - '@nuxthub/core@0.10.11'
   - better-call@1.4.4
   - satori@0.63.1
   - '@better-auth/core@1.7.12'
