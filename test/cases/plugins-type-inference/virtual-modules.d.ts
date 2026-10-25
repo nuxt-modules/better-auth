@@ -1,6 +1,7 @@
 declare module '#auth/database' {
   export const db: any
   export function createDatabase(...args: any[]): any
+  export function isRequestScopedDatabase(...args: any[]): boolean
 }
 
 declare module '#better-auth/app-secret' {

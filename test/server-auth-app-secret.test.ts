@@ -9,6 +9,7 @@ const appSecret = { available: true }
 vi.mock('#auth/database', () => ({
   createDatabase: () => undefined,
   db: undefined,
+  isRequestScopedDatabase: () => false,
 }))
 
 vi.mock('#auth/server', () => ({

@@ -114,6 +114,11 @@ function registerClientCleanup(event, client) {
   response.once('close', cleanup)
 }
 
+// Hyperdrive clients belong to one request; any other database is shared by the whole process.
+export function isRequestScopedDatabase(event) {
+  return Boolean(resolveHyperdrive(event)?.connectionString)
+}
+
 export function createDatabase(event) {
   const hyperdrive = resolveHyperdrive(event)
   if (!hyperdrive?.connectionString)
@@ -152,11 +157,13 @@ import * as schema from './schema.${input.hubDialect}.mjs'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 const rawDialect = '${input.hubDialect}'
 const dialect = rawDialect === 'postgresql' ? 'pg' : rawDialect
+export function isRequestScopedDatabase() { return false }
 export function createDatabase() { return drizzleAdapter(db, { provider: dialect, schema, usePlural: ${input.usePlural}, camelCase: ${input.camelCase} }) }
 export { db }`
   }
 
-  return `export function createDatabase() { return undefined }
+  return `export function isRequestScopedDatabase() { return false }
+export function createDatabase() { return undefined }
 export const db = undefined`
 }
 
