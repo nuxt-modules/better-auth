@@ -106,13 +106,28 @@ export function toWebRequest(event: ServerEvent): Request {
   return new Request(getRequestURL(event), init)
 }
 
-type Nitro2Request = IncomingMessage & { body?: unknown, rawBody?: unknown, __unenv__?: unknown }
+const h3RawBody = Symbol.for('h3RawBody')
+
+type Nitro2Request = IncomingMessage & { body?: unknown, rawBody?: unknown, __unenv__?: unknown, [h3RawBody]?: Promise<Uint8Array | undefined> }
 
 // Nitro's in-process requests (eg `useFetch` during SSR) use unenv's mock
 // IncomingMessage, which holds the body on `req.body` and can't be streamed.
 // Use a buffered body when there is one, like h3 v1's `readRawBody`, and
 // stream real requests as before.
 function requestBody(req: Nitro2Request): BodyInit | undefined {
+  // h3 v1's `readBody` drains a real request and keeps its bytes on this
+  // symbol, eg when a server middleware reads the body before the auth handler.
+  const rawBody = req[h3RawBody]
+  if (rawBody) {
+    return new ReadableStream({
+      async start(controller) {
+        const bytes = await rawBody
+        if (bytes?.length)
+          controller.enqueue(bytes)
+        controller.close()
+      },
+    })
+  }
   const body = req.rawBody ?? req.body
   if (body === undefined || body === null)
     return '__unenv__' in req ? undefined : req as unknown as BodyInit
