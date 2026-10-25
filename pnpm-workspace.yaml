@@ -6,6 +6,7 @@ minimumReleaseAgeExclude:
   - eslint-plugin-jsdoc@65.4.1
   - jsdoc-type-pratt-parser@9.4.0
   - '@nuxt/fonts@1.1.0'
+  - '@nuxt/fonts@1.2.0'
   - h3@2.0.8
   - '@nuxthub/core@0.10.10'
   - '@nuxthub/core@0.10.11'
