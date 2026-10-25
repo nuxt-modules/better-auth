@@ -101,9 +101,24 @@ export function toWebRequest(event: ServerEvent): Request {
       : undefined,
     duplex: 'half',
   }
-  if (req?.method !== 'GET' && req?.method !== 'HEAD')
-    init.body = req as unknown as BodyInit
+  if (req && req.method !== 'GET' && req.method !== 'HEAD')
+    init.body = requestBody(req)
   return new Request(getRequestURL(event), init)
+}
+
+type Nitro2Request = IncomingMessage & { body?: unknown, rawBody?: unknown, __unenv__?: unknown }
+
+// Nitro's in-process requests (eg `useFetch` during SSR) use unenv's mock
+// IncomingMessage, which holds the body on `req.body` and can't be streamed.
+// Use a buffered body when there is one, like h3 v1's `readRawBody`, and
+// stream real requests as before.
+function requestBody(req: Nitro2Request): BodyInit | undefined {
+  const body = req.rawBody ?? req.body
+  if (body === undefined || body === null)
+    return '__unenv__' in req ? undefined : req as unknown as BodyInit
+  if (body.constructor === Object)
+    return JSON.stringify(body)
+  return body as BodyInit
 }
 
 export async function readBody(event: ServerEvent): Promise<unknown> {
