@@ -25,8 +25,8 @@ minimumReleaseAgeExclude:
   - better-call@1.4.4
   - satori@0.63.2
   - happy-dom@21.0.4
-  - miniflare@5.20261019.2-beta
-  - wrangler@4.152.0
+  - miniflare@5.20261023.0-beta
+  - wrangler@4.153.0
   - '@nuxt/fonts@1.1.0'
   - '@rollup/plugin-yaml@5.0.1'
   - '@nuxt/icon@2.6.0'
