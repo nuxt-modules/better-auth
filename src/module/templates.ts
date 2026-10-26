@@ -72,7 +72,8 @@ function getCloudflareContext(event) {
 
 function resolveHyperdrive(event) {
   const cloudflareEnv = getCloudflareContext(event)?.env
-  return cloudflareEnv?.POSTGRES || process.env.POSTGRES || globalThis.__env__?.POSTGRES || globalThis.POSTGRES
+  const runtimeEnv = event?.req?.runtime?.cloudflare?.env
+  return cloudflareEnv?.POSTGRES || runtimeEnv?.POSTGRES || process.env.POSTGRES || globalThis.__env__?.POSTGRES || globalThis.POSTGRES
 }
 
 function scheduleCleanup(event, cleanup) {
