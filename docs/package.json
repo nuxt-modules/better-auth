@@ -21,13 +21,13 @@
     "nuxt": "^4.6.0",
     "nuxt-shiki": "^0.3.2",
     "nuxt-site-config": "^5.0.0",
-    "satori": "^0.62.0"
+    "satori": "^0.63.0"
   },
   "devDependencies": {
     "@iconify-json/solar": "^1.2.8",
     "@rollup/plugin-yaml": "^5.0.0",
     "@vueuse/nuxt": "^15.0.0",
     "docus": "^5.12.3",
-    "wrangler": "4.147.0"
+    "wrangler": "4.152.0"
   }
 }

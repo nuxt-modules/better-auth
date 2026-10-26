@@ -19,10 +19,22 @@ describe('#auth/schema export', async () => {
 
   const hubSchemaEntry = readFileSync(join(rootDir, '.nuxt/hub/db/schema.entry.ts'), 'utf8')
   const betterAuthSchema = join(rootDir, '.nuxt/better-auth/schema.sqlite.ts')
+  const typecheckEnv = {
+    ...process.env,
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ? `${process.env.NODE_OPTIONS} ` : ''}--import=${fileURLToPath(new URL('../scripts/typescript6-shim.mjs', import.meta.url))} --experimental-loader=${fileURLToPath(new URL('../scripts/typescript6-shim.mjs', import.meta.url))}`,
+  }
 
-  await setup({
-    rootDir,
-  })
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await setup({ rootDir })
+      break
+    }
+    catch (error) {
+      if (attempt >= 2 || !String(error).includes('EADDRINUSE'))
+        throw error
+      await new Promise(resolve => setTimeout(resolve, 250))
+    }
+  }
 
   it('exports stable aliases for custom core model names with plural generation enabled', async () => {
     const res = await $fetch('/api/test/schema') as {
@@ -55,6 +67,7 @@ describe('#auth/schema export', async () => {
   it.each(['server', 'node'])('preserves generated Drizzle types in the %s context', (context) => {
     const typecheck = spawnSync('npx', ['vue-tsc', '--noEmit', '--pretty', 'false', '-p', `tsconfig.schema-${context}.json`], {
       cwd: rootDir,
+      env: typecheckEnv,
       encoding: 'utf8',
       timeout: 120_000,
     })

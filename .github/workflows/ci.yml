@@ -81,7 +81,7 @@ jobs:
       - name: Install compatibility dependencies
         timeout-minutes: 5
         working-directory: /tmp/nuxt-better-auth-compatibility
-        run: corepack pnpm@11.21.0 add --save-exact "nuxt@${{ matrix.nuxt.version }}" "better-auth@${{ matrix.better_auth }}" @nuxthub/core@0.10.8 @libsql/client@0.17.4 drizzle-orm@0.45.2 drizzle-kit@0.31.10 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/nuxtjs-better-auth-*.tgz
+        run: corepack pnpm@11.21.0 add --save-exact "nuxt@${{ matrix.nuxt.version }}" "better-auth@${{ matrix.better_auth }}" "auth@${{ matrix.better_auth }}" @nuxthub/core@0.10.8 @libsql/client@0.17.4 drizzle-orm@0.45.2 drizzle-kit@0.31.10 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/nuxtjs-better-auth-*.tgz
       - run: corepack pnpm@11.21.0 typecheck
         working-directory: /tmp/nuxt-better-auth-compatibility
       - run: corepack pnpm@11.21.0 db:generate && corepack pnpm@11.21.0 db:migrate
@@ -106,7 +106,7 @@ jobs:
       - run: corepack enable
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24.22.0
+          node-version: 24.22.1
           cache: pnpm
 
       - run: pnpm install
@@ -115,12 +115,13 @@ jobs:
       - name: Install minimum compatibility dependencies
         timeout-minutes: 5
         working-directory: /tmp/nuxt-better-auth-minimum-compatibility
-        run: corepack pnpm@11.21.0 add --save-exact nuxt@4.0.0 better-auth@1.7.3 @nuxthub/core@0.10.5 @libsql/client@0.17.4 drizzle-orm@0.45.2 drizzle-kit@0.31.10 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/nuxtjs-better-auth-*.tgz
+        run: corepack pnpm@11.21.0 add --save-exact nuxt@4.0.0 better-auth@1.7.3 auth@1.7.3 @nuxthub/core@0.10.5 @libsql/client@0.17.4 drizzle-orm@0.45.2 drizzle-kit@0.31.10 typescript@5.9.3 vue@3.5.40 vue-tsc@3.2.7 /tmp/nuxtjs-better-auth-*.tgz
       - name: Verify published minimum dependency graph
         working-directory: /tmp/nuxt-better-auth-minimum-compatibility
         run: |
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict'
+          import { readFileSync } from 'node:fs'
           import { createRequire } from 'node:module'
 
           const consumerRequire = createRequire(import.meta.url)
@@ -132,6 +133,13 @@ jobs:
           assert.ok(major === 4 && minor >= 6,
             `Expected the module's declared Kit ^4.6.0, got ${kitVersion}`)
           console.log(`Published consumer graph: Nuxt ${nuxtVersion}, module Kit ${kitVersion}`)
+
+          // auth pins an exact better-auth; a second copy breaks the consumer's Better Auth types.
+          const lockfile = readFileSync('pnpm-lock.yaml', 'utf8')
+          for (const name of ['better-auth', '@better-auth/core']) {
+            const versions = new Set([...lockfile.matchAll(new RegExp(`^  '?${name}@(\\d[^(:']*)`, 'gm'))].map(match => match[1]))
+            assert.deepEqual([...versions], ['1.7.3'], `Expected one ${name} version, got ${[...versions].join(', ')}`)
+          }
           NODE
       - run: corepack pnpm@11.21.0 typecheck
         working-directory: /tmp/nuxt-better-auth-minimum-compatibility

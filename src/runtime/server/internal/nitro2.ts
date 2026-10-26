@@ -1,39 +1,178 @@
 import type { H3Event } from 'h3'
+import type { IncomingMessage } from 'node:http'
 import type { AuthRouteRules } from '../../types'
 import { splitSetCookieString } from 'cookie-es'
-import {
-  createError,
-  defineEventHandler,
-  getQuery,
-  getRequestHost,
-  getRequestProtocol,
-  getRequestURL,
-  readBody,
-  toWebRequest,
-} from 'h3'
+import { defineEventHandler } from 'h3'
 import { getRouteRules, useRuntimeConfig } from 'nitropack/runtime'
 
 export {
   defineEventHandler,
-  getQuery,
-  getRequestHost,
-  getRequestProtocol,
-  getRequestURL,
-  readBody,
-  toWebRequest,
   useRuntimeConfig,
 }
 
 export type ServerEvent = H3Event
+type Nitro2Event = ServerEvent & { path?: string, node?: { req?: IncomingMessage }, web?: { request?: Request } }
+
+// Nitro 2's dev server serializes errors with h3 v1 while the module runs on h3 v2.
+function createNitro2AuthError(status: number, statusText: string): Error {
+  // Use a plain Error with both h3 generations' identity fields. Nitro 2's
+  // bundled h3 v1 recognizes the constructor marker, while h3 v2 recognizes
+  // the HTTPError name and status. Keeping the object independent of either
+  // package's Error subclass lets it cross the dev-server boundary intact.
+  const error = new Error(statusText)
+  const markerConstructor = function Nitro2ErrorConstructor() {}
+  Object.defineProperty(markerConstructor, '__h3_error__', { value: true })
+  Object.defineProperties(error, {
+    name: { value: 'HTTPError', configurable: true, enumerable: false, writable: true },
+    constructor: { value: markerConstructor, configurable: true },
+    __h3_error__: { value: true, configurable: true, enumerable: true, writable: true },
+    status: { value: status, configurable: true, enumerable: true, writable: true },
+    statusText: { value: statusText, configurable: true, enumerable: true, writable: true },
+    statusCode: { value: status, configurable: true, enumerable: true, writable: true },
+    statusMessage: { value: statusText, configurable: true, enumerable: true, writable: true },
+    toJSON: {
+      value: () => ({
+        status,
+        statusText,
+        statusCode: status,
+        statusMessage: statusText,
+        message: statusText,
+        unhandled: false,
+        fatal: false,
+      }),
+      configurable: true,
+    },
+    unhandled: { value: false, configurable: true, enumerable: true, writable: true },
+    fatal: { value: false, configurable: true, enumerable: true, writable: true },
+  })
+  return error
+}
+
+// Nitro 2 events expose Node's IncomingMessage while h3 v2 helpers expect a
+// Web Request based event. Keep this shim independent of h3's event shape so
+// Nitro 2 hosts continue to work when the project installs h3 v2.
+function requestHeaders(event: ServerEvent): IncomingMessage['headers'] {
+  return (event as Nitro2Event).node?.req?.headers ?? {}
+}
+
+export function getRequestHost(event: ServerEvent, options: { xForwardedHost?: boolean } = {}): string {
+  const headers = requestHeaders(event)
+  if (options.xForwardedHost) {
+    const forwarded = headers['x-forwarded-host']
+    const host = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0]?.trim()
+    if (host)
+      return host
+  }
+  const host = headers.host
+  return (Array.isArray(host) ? host[0] : host) || 'localhost'
+}
+
+export function getRequestProtocol(event: ServerEvent, options: { xForwardedProto?: boolean } = {}): string {
+  const headers = requestHeaders(event)
+  if (options.xForwardedProto !== false && headers['x-forwarded-proto'] === 'https')
+    return 'https'
+  return (event as Nitro2Event).node?.req?.socket && (event as Nitro2Event).node.req.socket['encrypted' as never] ? 'https' : 'http'
+}
+
+export function getRequestURL(event: ServerEvent): URL {
+  const req = (event as Nitro2Event).node?.req ?? {}
+  const path = req.originalUrl || req.url || (event as Nitro2Event).path || '/'
+  return new URL(path, `${getRequestProtocol(event)}://${getRequestHost(event)}`)
+}
+
+export function getQuery(event: ServerEvent): Record<string, string | string[]> {
+  const query: Record<string, string | string[]> = {}
+  for (const [key, value] of getRequestURL(event).searchParams) {
+    const previous = query[key]
+    query[key] = previous === undefined ? value : Array.isArray(previous) ? [...previous, value] : [previous, value]
+  }
+  return query
+}
+
+export function toWebRequest(event: ServerEvent): Request {
+  const req = (event as Nitro2Event).node?.req
+  const webRequest = (event as Nitro2Event).web?.request
+  if (webRequest)
+    return webRequest
+  const init: RequestInit & { duplex?: 'half' } = {
+    method: req?.method,
+    headers: req?.headers
+      ? Object.fromEntries(Object.entries(req.headers).flatMap(([key, value]) => value === undefined ? [] : [[key, Array.isArray(value) ? value.join(', ') : value]]))
+      : undefined,
+    duplex: 'half',
+  }
+  if (req && req.method !== 'GET' && req.method !== 'HEAD')
+    init.body = requestBody(req)
+  return new Request(getRequestURL(event), init)
+}
+
+const h3RawBody = Symbol.for('h3RawBody')
+
+type Nitro2Request = IncomingMessage & { body?: unknown, rawBody?: unknown, __unenv__?: unknown, [h3RawBody]?: Promise<Uint8Array | undefined> }
+
+// Nitro's in-process requests (eg `useFetch` during SSR) use unenv's mock
+// IncomingMessage, which holds the body on `req.body` and can't be streamed.
+// Use a buffered body when there is one, like h3 v1's `readRawBody`, and
+// stream real requests as before.
+function requestBody(req: Nitro2Request): BodyInit | undefined {
+  // h3 v1's `readBody` drains a real request and keeps its bytes on this
+  // symbol, eg when a server middleware reads the body before the auth handler.
+  const rawBody = req[h3RawBody]
+  if (rawBody) {
+    return new ReadableStream({
+      async start(controller) {
+        const bytes = await rawBody
+        if (bytes?.length)
+          controller.enqueue(bytes)
+        controller.close()
+      },
+    })
+  }
+  const body = req.rawBody ?? req.body
+  if (body === undefined || body === null)
+    return '__unenv__' in req ? undefined : req as unknown as BodyInit
+  if (body.constructor === Object)
+    return JSON.stringify(body)
+  return body as BodyInit
+}
+
+export async function readBody(event: ServerEvent): Promise<unknown> {
+  const request = toWebRequest(event)
+  const contentType = request.headers.get('content-type') || ''
+  if (contentType.includes('application/json'))
+    return request.json()
+  if (contentType.includes('application/x-www-form-urlencoded'))
+    return Object.fromEntries((await request.text()).split('&').filter(Boolean).map(pair => pair.split('=').map(decodeURIComponent)))
+  return request.text()
+}
 
 export function splitCookiesString(cookiesString: string | string[]): string[] {
   return splitSetCookieString(cookiesString)
 }
 
 export function getAuthRouteRules(event: ServerEvent): AuthRouteRules {
-  return getRouteRules(event) as AuthRouteRules
+  // h3 v2 events created by Nitro 2 compatibility handlers may omit the
+  // legacy context and path properties. Nitro's route-rules helper stores its
+  // cache there and reads the path directly from the event.
+  const eventWithContext = event as unknown as { context?: Record<string, unknown>, path?: string }
+  if (!eventWithContext.context)
+    eventWithContext.context = {}
+  if (!eventWithContext.path)
+    eventWithContext.path = getRequestURL(event).pathname
+  // Dev handlers may fall through before Nitro has initialized route rules on
+  // the event. Treat that as an unruled route so auth middleware can continue
+  // and apply the configured protection instead of throwing on `rules.auth`.
+  // A dev server handler can invoke middleware before Nitro has fully
+  // initialized its route-rule state. In that case the Nitro helper may
+  // throw; the caller can still resolve the generated auth rules below.
+  try {
+    return (getRouteRules(event) as AuthRouteRules | undefined) || {}
+  }
+  catch {
+    return {}
+  }
 }
 
 export function createAuthError(status: number, statusText: string): Error {
-  return createError({ statusCode: status, statusMessage: statusText })
+  return createNitro2AuthError(status, statusText)
 }

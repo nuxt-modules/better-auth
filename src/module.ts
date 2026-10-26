@@ -274,7 +274,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
         // Nuxt's CLI prints Error.message without the diagnostic fields. Keep
         // the structured diagnostic intact as the presentation error's cause.
         if (error instanceof Diagnostic)
-          throw new Error(formatDiagnostic(error), { cause: error })
+          throw new TypeError(formatDiagnostic(error), { cause: error })
         throw error
       })
       return setupPromise

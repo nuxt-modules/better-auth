@@ -1,56 +1,40 @@
-minimumReleaseAgeExcludePrune: true
-
 minimumReleaseAgeExclude:
-  - '@emnapi/core@1.14.0'
-  - '@emnapi/runtime@1.14.0'
-  - '@nuxt/cli@4.0.0'
-  - '@nuxt/kit@4.6.0'
-  - '@nuxt/nitro-server@4.6.0'
-  - '@nuxt/schema@4.6.0'
-  - '@nuxt/vite-builder@4.6.0'
-  - '@nuxt/vite-server@4.6.0'
-  - nuxt@4.6.0
-
-trustPolicy: no-downgrade
-trustPolicyExclude:
-  - '@emnapi/core@1.14.0'
-  - '@emnapi/runtime@1.14.0'
-  - chokidar@4.0.3
-  - cssnano@9.2.2
-  - cssnano-preset-default@9.2.2
-  - postcss-convert-values@9.0.7
-  - postcss-discard-empty@9.0.5
-  - postcss-merge-longhand@9.2.0
-  - postcss-ordered-values@9.0.6
-  - postcss-minify-params@9.0.6
-  - postcss-normalize-url@9.0.5
-  - postcss-minify-gradients@9.0.6
-  - postcss-reduce-initial@9.0.6
-  - postcss-normalize-string@9.0.5
-  - postcss-discard-comments@9.0.6
-  - postcss-minify-selectors@9.0.6
-  - postcss-merge-rules@9.0.8
-  - postcss-unique-selectors@9.0.5
-  - postcss-normalize-charset@9.0.5
-  - postcss-normalize-unicode@9.0.5
-  - postcss-reduce-transforms@9.0.4
-  - postcss-discard-overridden@9.0.5
-  - postcss-discard-duplicates@9.0.5
-  - postcss-normalize-positions@9.0.6
-  - postcss-minify-font-values@9.0.7
-  - postcss-normalize-whitespace@9.0.5
-  - postcss-normalize-repeat-style@9.0.5
-  - postcss-colormin@9.0.6
-  - postcss-normalize-timing-functions@9.0.5
-  - postcss-normalize-display-values@9.0.5
-  - cssnano-utils@8.2.0
-  - postcss-svgo@9.0.4
-  - stylehacks@9.0.7
-  - semver@6.3.1
-
-shellEmulator: true
+  - '@antfu/eslint-config@10.0.0'
+  - '@es-joy/jsdoccomment@1.0.0'
+  - '@vitest/eslint-plugin@1.6.28'
+  - eslint-plugin-antfu@3.3.1
+  - eslint-plugin-jsdoc@65.4.1
+  - jsdoc-type-pratt-parser@9.4.0
+  - '@nuxt/fonts@1.1.0'
+  - '@nuxt/fonts@1.2.0'
+  - h3@2.0.8
+  - '@nuxthub/core@0.10.10'
+  - '@nuxthub/core@0.10.11'
+  - better-call@1.4.4
+  - satori@0.63.1
+  - '@better-auth/core@1.7.13'
+  - '@better-auth/drizzle-adapter@1.7.13'
+  - '@better-auth/kysely-adapter@1.7.13'
+  - '@better-auth/memory-adapter@1.7.13'
+  - '@better-auth/mongo-adapter@1.7.13'
+  - '@better-auth/passkey@1.7.13'
+  - '@better-auth/prisma-adapter@1.7.13'
+  - '@better-auth/telemetry@1.7.13'
+  - auth@1.7.13
+  - better-auth@1.7.13
+  - better-call@1.4.4
+  - satori@0.63.2
+  - happy-dom@21.0.4
+  - miniflare@5.20261019.2-beta
+  - wrangler@4.152.0
+  - '@nuxt/fonts@1.1.0'
+  - '@rollup/plugin-yaml@5.0.1'
+  - '@nuxt/icon@2.6.0'
+  - '@nuxt/icon@2.6.1'
+  - pkg-pr-new@0.0.92
 
 packages:
+  - .
   - docs
   - playground
 

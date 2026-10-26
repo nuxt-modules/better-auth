@@ -3,6 +3,7 @@ import type { AppAuthClient, AuthSession, AuthUser, ClientAuthSession } from '#n
 import { parseJSON } from 'better-auth/client'
 import { useRequestFetch, useRequestHeaders } from '#imports'
 import { normalizeAuthActionError } from './auth-action-error'
+import { setIfChanged } from './utils'
 
 interface SessionResponse { session: AuthSession & { token?: string }, user: AuthUser }
 
@@ -55,8 +56,8 @@ export async function fetchSessionServer(
     })
 
     if (data?.session && data?.user) {
-      session.value = stripToken(data.session)
-      user.value = data.user
+      setIfChanged(session, stripToken(data.session))
+      setIfChanged(user, data.user)
     }
     else {
       session.value = null
@@ -92,8 +93,8 @@ export async function fetchSessionClient(
     const data = result.data as SessionResponse | null
 
     if (data?.session && data?.user) {
-      session.value = stripToken(data.session)
-      user.value = data.user
+      setIfChanged(session, stripToken(data.session))
+      setIfChanged(user, data.user)
     }
     else {
       session.value = null

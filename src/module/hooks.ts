@@ -2,7 +2,7 @@ import type { Nuxt, NuxtPage } from '@nuxt/schema'
 import type { AuthRouteRules } from '../runtime/types'
 import type { ServerImportsTypesFile } from './compatibility'
 import { existsSync, statSync } from 'node:fs'
-import { addComponentsDir, addImports, addNitroPlugin, addPlugin, addRouteMiddleware, addServerHandler, addServerImports, extendPages, updateTemplates } from '@nuxt/kit'
+import { addComponentsDir, addImports, addNitroPlugin, addPlugin, addRouteMiddleware, addServerHandler, addServerImports, addTypeTemplate, extendPages, updateTemplates } from '@nuxt/kit'
 import { defu } from 'defu'
 import { isAbsolute, join } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
@@ -92,6 +92,15 @@ export function registerAuthMiddleware(resolve: (path: string) => string): void 
 
 export function registerPrepareTypesHook(input: RegisterPrepareTypesHookInput): void {
   const { nuxt, serverDir, hasHubDb, serverImportsTypesFile } = input
+
+  addTypeTemplate({
+    filename: 'types/auth-route-rules.d.ts',
+    getContents: () => `
+declare module '#auth/route-rules' {
+  export const authRouteRules: Record<string, { auth?: unknown }>
+}
+`,
+  }, { nitro: true, node: true })
 
   nuxt.hook('prepare:types', ({ nodeTsConfig, nodeReferences, sharedReferences }) => {
     nodeTsConfig.compilerOptions ||= {}
