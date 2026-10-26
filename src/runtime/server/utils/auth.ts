@@ -1,7 +1,7 @@
 import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import type { ServerEvent } from '../internal/nitro-compat'
 import { betterAuth, env } from 'better-auth'
-import { createDatabase, db } from '#auth/database'
+import { createDatabase, db, isRequestScopedDatabase } from '#auth/database'
 import createServerAuth from '#auth/server'
 import type { DerivedAuthSecretState } from '../internal/auth-secret'
 import { getConfiguredAuthSecret, getDerivedAuthSecret, hasExplicitAuthSecret, prepareAuthSecret } from '../internal/auth-secret'
@@ -365,6 +365,18 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
   if (requestContext?.[requestAuthKey])
     return requestContext[requestAuthKey]
 
+  // Only a request-scoped database (a Hyperdrive client) forces a fresh instance per request. Otherwise
+  // a cached instance is returned before building the user config, which reruns every plugin factory.
+  const requestScopedDatabase = (isRequestScopedDatabase as (event?: ServerEvent) => boolean)(event)
+  if (!requestScopedDatabase) {
+    const cached = _authCache.get(cacheKey)
+    if (cached) {
+      if (requestContext)
+        requestContext[requestAuthKey] = cached
+      return cached
+    }
+  }
+
   userConfig ??= createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
 
   // Explicit secrets keep their existing precedence; Nuxt's appSecret only fills the gap (4.6+).
@@ -404,15 +416,7 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
     : userConfig.rateLimit
 
   // An instance without the derived secret must not outlive the request that needed it.
-  const cacheable = !database && !derivedSecretMissing
-  if (cacheable) {
-    const cached = _authCache.get(cacheKey)
-    if (cached) {
-      if (requestContext)
-        requestContext[requestAuthKey] = cached
-      return cached
-    }
-  }
+  const cacheable = !requestScopedDatabase && !derivedSecretMissing
 
   const authOptions = {
     ...userConfig,

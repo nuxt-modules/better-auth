@@ -10,7 +10,7 @@ const runtimeConfig = {
 }
 const createServerAuthMock = vi.fn()
 
-vi.mock('#auth/database', () => ({ createDatabase: () => undefined, db: {} }))
+vi.mock('#auth/database', () => ({ createDatabase: () => undefined, db: {}, isRequestScopedDatabase: () => false }))
 vi.mock('#auth/server', () => ({ default: createServerAuthMock }))
 vi.mock('better-auth', () => ({
   betterAuth: (options: BetterAuthOptions) => ({ options }),
