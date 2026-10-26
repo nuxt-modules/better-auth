@@ -3,12 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const betterAuthMock = vi.fn()
 const createDatabaseMock = vi.fn()
+const isRequestScopedDatabaseMock = vi.fn()
 const createServerAuthMock = vi.fn()
 const useRuntimeConfigMock = vi.fn()
 
 vi.mock('#auth/database', () => ({
   createDatabase: createDatabaseMock,
   db: { query: {} },
+  isRequestScopedDatabase: isRequestScopedDatabaseMock,
 }))
 
 vi.mock('#auth/server', () => ({
@@ -58,6 +60,7 @@ describe('serverAuth database cache and secret validation', () => {
     createServerAuthMock.mockReturnValue({
       trustedOrigins: undefined,
     })
+    isRequestScopedDatabaseMock.mockReturnValue(false)
 
     betterAuthMock.mockImplementation((options: Record<string, unknown>) => ({
       options,
@@ -291,8 +294,25 @@ describe('serverAuth database cache and secret validation', () => {
     expect(betterAuthMock).toHaveBeenCalledTimes(1)
   })
 
-  it('creates a fresh auth instance for each request when a database adapter is active', async () => {
+  it('shares one auth instance across requests when the database adapter is process-wide', async () => {
     createDatabaseMock.mockReturnValue({ kind: 'database-adapter' })
+
+    const { serverAuth } = await import('../src/runtime/server/utils/auth')
+
+    const first = serverAuth(createEvent())
+    const second = serverAuth(createEvent())
+    const third = serverAuth()
+
+    expect(first).toBe(second)
+    expect(third).toBe(first)
+    expect(createServerAuthMock).toHaveBeenCalledTimes(1)
+    expect(createDatabaseMock).toHaveBeenCalledTimes(1)
+    expect(betterAuthMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('creates a fresh auth instance for each request when the database is request-scoped', async () => {
+    createDatabaseMock.mockReturnValue({ kind: 'database-adapter' })
+    isRequestScopedDatabaseMock.mockReturnValue(true)
 
     const { serverAuth } = await import('../src/runtime/server/utils/auth')
 
@@ -304,8 +324,9 @@ describe('serverAuth database cache and secret validation', () => {
     expect(betterAuthMock).toHaveBeenCalledTimes(2)
   })
 
-  it('creates a fresh auth instance without request context when a database adapter is active', async () => {
+  it('creates a fresh auth instance without request context when the database is request-scoped', async () => {
     createDatabaseMock.mockReturnValue({ kind: 'database-adapter' })
+    isRequestScopedDatabaseMock.mockReturnValue(true)
 
     const { serverAuth } = await import('../src/runtime/server/utils/auth')
 
@@ -326,7 +347,8 @@ describe('serverAuth database cache and secret validation', () => {
     const second = serverAuth()
 
     expect(first).toBe(second)
-    expect(createDatabaseMock).toHaveBeenCalledTimes(2)
+    expect(createServerAuthMock).toHaveBeenCalledTimes(1)
+    expect(createDatabaseMock).toHaveBeenCalledTimes(1)
     expect(betterAuthMock).toHaveBeenCalledTimes(1)
   })
 

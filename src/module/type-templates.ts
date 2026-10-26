@@ -70,6 +70,7 @@ type AvailableRouterMethod<_ReqT extends NitroFetchRequest> = 'get' | 'head' | '
 declare module '#auth/database' {
   import type { BetterAuthOptions } from 'better-auth'
   export function createDatabase(event?: import('${h3TypesPath}').H3Event): BetterAuthOptions['database']
+  export function isRequestScopedDatabase(event?: import('${h3TypesPath}').H3Event): boolean
   export const db: ${hasHubDb ? `typeof import('@nuxthub/db')['db']` : 'undefined'}
 }
 `,

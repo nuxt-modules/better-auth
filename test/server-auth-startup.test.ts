@@ -24,6 +24,7 @@ vi.mock('../src/runtime/server/internal/nitro-compat', () => ({
 vi.mock('#auth/database', () => ({
   createDatabase: () => undefined,
   db: undefined,
+  isRequestScopedDatabase: () => false,
 }))
 
 vi.mock('#auth/server', () => ({
