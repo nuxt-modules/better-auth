@@ -80,7 +80,7 @@
   "peerDependencies": {
     "@nuxt/test-utils": "^4.1.0",
     "@nuxthub/core": ">=0.10.5",
-    "auth": "1.7.13",
+    "auth": "1.7.14",
     "better-auth": ">=1.7.3 <2"
   },
   "peerDependenciesMeta": {
@@ -125,8 +125,8 @@
     "@types/better-sqlite3": "^9.6.0",
     "@typescript/typescript6": "6.0.2",
     "@vue/test-utils": "^2.5.1",
-    "auth": "1.7.13",
-    "better-auth": "1.7.13",
+    "auth": "1.7.14",
+    "better-auth": "1.7.14",
     "better-call": "1.4.4",
     "better-sqlite3": "^13.0.3",
     "drizzle-kit": "^0.31.11",
