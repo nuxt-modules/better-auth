@@ -95,7 +95,7 @@
     }
   },
   "dependencies": {
-    "@nuxt/devtools-kit": "^3.4.1",
+    "@nuxt/devtools-kit": "^4.0.0",
     "@nuxt/kit": "^4.6.2",
     "@types/node": "^24.19.2",
     "consola": "^3.4.2",
