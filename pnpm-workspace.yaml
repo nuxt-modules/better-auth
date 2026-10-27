@@ -1,5 +1,8 @@
 minimumReleaseAgeExclude:
+  - '@nuxt/devtools@4.0.0'
+  - '@nuxt/devtools-assets@4.0.0'
   - '@nuxt/devtools-kit@4.0.0'
+  - magic-string@1.4.5
   - '@antfu/eslint-config@10.0.0'
   - '@es-joy/jsdoccomment@1.0.0'
   - '@vitest/eslint-plugin@1.6.28'
