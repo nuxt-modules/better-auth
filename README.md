@@ -1,5 +1,10 @@
 # `@nuxtjs/better-auth`
 
+[![npm version](https://comark-ui.onmax.me/badge.svg?source=npm-version&package=%40nuxtjs%2Fbetter-auth&icon=npm)](https://www.npmjs.com/package/@nuxtjs/better-auth)
+[![npm downloads](https://comark-ui.onmax.me/badge.svg?source=npm-downloads&package=%40nuxtjs%2Fbetter-auth&period=month&icon=npm)](https://www.npmjs.com/package/@nuxtjs/better-auth)
+[![license](https://comark-ui.onmax.me/badge.svg?label=license&value=MIT)](https://github.com/nuxt-modules/better-auth/blob/main/LICENSE)
+[![docs](https://comark-ui.onmax.me/badge.svg?label=docs&value=better-auth.nuxt.dev)](https://better-auth.nuxt.dev)
+
 Nuxt module for [Better Auth](https://better-auth.com) with Nuxt-native route protection, SSR-safe session access, auto-imported helpers, and optional NuxtHub-backed schema generation.
 
 ## Who this is for
