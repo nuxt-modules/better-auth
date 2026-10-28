@@ -13,10 +13,11 @@ const ownedUsers = new Set<string>()
 
 export default defineEventHandler(async (event) => {
   const token = useRuntimeConfig().betterAuthTestToken
-  if (!token || toWebRequest(event).headers.get('x-nuxt-auth-test') !== token)
+  const request = toWebRequest(event)
+  if (!token || request.headers.get('x-nuxt-auth-test') !== token)
     throw createAuthError(404, 'Not found')
 
-  const body = requestSchema.parse(parseJSON(await toWebRequest(event).text()))
+  const body = requestSchema.parse(parseJSON(await request.text()))
   const context = await serverAuth(event).$context
   const test = (context as typeof context & { test: TestHelpers }).test
 
