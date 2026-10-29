@@ -28,6 +28,6 @@
     "@rollup/plugin-yaml": "^5.0.1",
     "@vueuse/nuxt": "^15.0.0",
     "docus": "^5.15.0",
-    "wrangler": "4.155.0"
+    "wrangler": "4.156.0"
   }
 }
