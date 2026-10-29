@@ -138,7 +138,7 @@
     "pinia": "^4.1.0",
     "pkg-pr-new": "0.0.92",
     "playwright-core": "1.64.1",
-    "postgres": "^3.4.9",
+    "postgres": "^4.0.0",
     "typescript": "~7.0.0",
     "typescript-next": "npm:typescript@~7.0.0",
     "unstorage": "^1.17.5",
