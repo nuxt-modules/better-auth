@@ -32,8 +32,10 @@ minimumReleaseAgeExclude:
   - happy-dom@21.0.4
   - miniflare@5.20261023.0-beta
   - miniflare@5.20261023.1-beta
+  - miniflare@5.20261023.2-beta
   - wrangler@4.153.0
   - wrangler@4.154.0
+  - wrangler@4.155.0
   - '@nuxt/fonts@1.1.0'
   - '@rollup/plugin-yaml@5.0.1'
   - '@nuxt/icon@2.6.0'
