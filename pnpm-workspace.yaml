@@ -51,6 +51,7 @@ minimumReleaseAgeExclude:
   - resend@6.35.0
   - '@types/node@26.6.6'
   - motion-v@2.9.0
+  - postgres@4.0.0
 
 packages:
   - .
