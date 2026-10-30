@@ -17,7 +17,7 @@
     "better-auth": "1.7.14",
     "nuxt": "^4.6.2",
     "nuxt-qrcode": "^0.4.10",
-    "resend": "6.36.0"
+    "resend": "6.37.0"
   },
   "devDependencies": {
     "@libsql/client": "^0.18.0",
