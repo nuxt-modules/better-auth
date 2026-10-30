@@ -136,7 +136,7 @@
     "nitropack": "2.13.5",
     "nuxt": "^4.6.2",
     "pinia": "^4.1.0",
-    "pkg-pr-new": "0.0.92",
+    "pkg-pr-new": "0.0.93",
     "playwright-core": "1.64.1",
     "postgres": "^4.0.0",
     "typescript": "~7.0.0",
