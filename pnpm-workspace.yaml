@@ -52,7 +52,7 @@ minimumReleaseAgeExclude:
   - '@nuxt/vite-builder@4.6.3'
   - '@nuxt/vite-server@4.6.3'
   - nuxt@4.6.3
-  - resend@6.36.0
+  - resend@6.37.0
   - '@types/node@26.6.6'
   - motion-v@2.9.0
   - postgres@4.0.0
