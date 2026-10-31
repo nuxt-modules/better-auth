@@ -1,7 +1,7 @@
 {
   "name": "@nuxtjs/better-auth",
   "type": "module",
-  "version": "0.3.14",
+  "version": "0.3.15",
   "packageManager": "pnpm@12.16.1",
   "description": "Nuxt module for Better Auth integration with NuxtHub, route protection, session management, and role-based access",
   "author": "onmax",
