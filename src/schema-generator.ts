@@ -1,8 +1,8 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { generateDrizzleSchema as GenerateDrizzleSchema } from 'auth/api'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { consola } from 'consola'
 import { Diagnostic, formatDiagnostic } from 'nostics'
@@ -31,7 +31,7 @@ export interface PackageJson { name?: string, version?: string, dependencies?: R
 const EXACT_VERSION_RE = /^\d+\.\d+\.\d+(?:-[\w.]+)?$/
 const LOCKFILES = [['pnpm-lock.yaml', 'pnpm'], ['yarn.lock', 'yarn'], ['bun.lock', 'bun'], ['bun.lockb', 'bun'], ['package-lock.json', 'npm']] as const
 
-function readInstalledPackage(name: string, parent: string = import.meta.url): PackageJson | undefined {
+function findInstalledPackage(name: string, parent: string): { dir: string, pkg: PackageJson } | undefined {
   let entry: string
   try {
     entry = createRequire(parent).resolve(name === 'auth' ? 'auth/api' : name)
@@ -39,15 +39,19 @@ function readInstalledPackage(name: string, parent: string = import.meta.url): P
   catch {
     return undefined
   }
-  // Neither package exports its package.json, so walk up from the resolved entry.
+  // These packages don't export their package.json, so walk up from the resolved entry.
   for (let dir = dirname(entry); dir !== dirname(dir); dir = dirname(dir)) {
     const file = join(dir, 'package.json')
     if (!existsSync(file))
       continue
     const pkg = JSON.parse(readFileSync(file, 'utf8')) as PackageJson
     if (pkg.name === name)
-      return pkg
+      return { dir, pkg }
   }
+}
+
+function readInstalledPackage(name: string): PackageJson | undefined {
+  return findInstalledPackage(name, import.meta.url)?.pkg
 }
 
 function devInstallCommand(spec: string, rootDir: string): string {
@@ -120,8 +124,27 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
   return result.code
 }
 
+// Bump when this module changes how it builds the generator input or uses its output.
+const SCHEMA_CACHE_REVISION = 1
+
 // Packages whose code produces or formats the generated schema.
 const SCHEMA_GENERATOR_PACKAGES = ['auth', 'better-auth', '@better-auth/core', 'prettier']
+
+/**
+ * Identifies the code that turns auth tables into the schema. The `auth/api` bundle holds
+ * the whole Drizzle generator, so its contents are hashed and an in-place patch counts.
+ * The helper packages are identified by version and install directory, which pnpm and
+ * yarn patches and `link:`/`file:` replacements change.
+ */
+function getSchemaGeneratorIdentity(): string[] {
+  const authApi = createRequire(import.meta.url).resolve('auth/api')
+  const generatorHash = createHash('sha256').update(readFileSync(authApi)).digest('hex')
+  const packages = SCHEMA_GENERATOR_PACKAGES.map((name) => {
+    const installed = findInstalledPackage(name, authApi)
+    return `${name}@${installed?.pkg.version} ${installed?.dir}`
+  })
+  return [`revision ${SCHEMA_CACHE_REVISION}`, generatorHash, ...packages]
+}
 
 // Prefixes every primitive with its type so values that JSON would merge (NaN and
 // null, a function and its source string, undefined and null in arrays) stay distinct.
@@ -140,16 +163,14 @@ function tagSchemaValue(_key: string, value: unknown): unknown {
 /**
  * Hashes everything the `auth/api` Drizzle generator reads: the resolved auth tables
  * (plugin and additionalFields columns included), the id strategy, the adapter options,
- * and the versions of the generator packages. Returns undefined when the tables cannot
- * be serialized, for example when they contain a circular reference.
+ * and the generator code. Returns undefined when that can't be computed, for example
+ * when the tables contain a circular reference.
  */
 async function getDrizzleSchemaKey(authOptions: BetterAuthOptions, dialect: Dialect, schemaOptions?: SchemaOptions): Promise<string | undefined> {
   const { getAuthTables } = await import('better-auth/db')
   const { options, adapter } = resolveDrizzleSchemaInput(authOptions, dialect, schemaOptions)
-  const authApi = createRequire(import.meta.url).resolve('auth/api')
-  const packages = SCHEMA_GENERATOR_PACKAGES.map(name => `${name}@${readInstalledPackage(name, authApi)?.version}`)
   try {
-    const input = JSON.stringify([getAuthTables(options), options.advanced?.database?.generateId, adapter.options, packages], tagSchemaValue)
+    const input = JSON.stringify([getAuthTables(options), options.advanced?.database?.generateId, adapter.options, getSchemaGeneratorIdentity()], tagSchemaValue)
     return createHash('sha256').update(input).digest('hex')
   }
   catch {
@@ -167,6 +188,21 @@ async function readCachedSchema(cacheFile: string, key: string): Promise<string 
   }
 }
 
+// The cache only saves time, so a read-only or unwritable build dir must not fail the
+// build. Writing a temp file and renaming it keeps concurrent builds from mixing one
+// run's key with another's code.
+async function writeCachedSchema(cacheFile: string, key: string, code: string): Promise<void> {
+  const tempFile = `${cacheFile}.${randomUUID()}.tmp`
+  try {
+    await mkdir(dirname(cacheFile), { recursive: true })
+    await writeFile(tempFile, JSON.stringify({ key, code }))
+    await rename(tempFile, cacheFile)
+  }
+  catch {
+    await rm(tempFile, { force: true }).catch(() => {})
+  }
+}
+
 /**
  * `generateDrizzleSchema` imports `auth/api`, which loads prettier and the Prisma
  * parser, then formats the whole schema. Reuse the code stored in `cacheFile` when the
@@ -179,10 +215,8 @@ export async function generateCachedDrizzleSchema(authOptions: BetterAuthOptions
     return cached
 
   const code = await generateDrizzleSchema(authOptions, dialect, schemaOptions)
-  if (key) {
-    await mkdir(dirname(cacheFile), { recursive: true })
-    await writeFile(cacheFile, JSON.stringify({ key, code }))
-  }
+  if (key)
+    await writeCachedSchema(cacheFile, key, code)
   return code
 }
 

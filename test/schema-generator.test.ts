@@ -1,7 +1,10 @@
+import type { Buffer } from 'node:buffer'
 import type { Nuxt } from '@nuxt/schema'
 import type { ConsolaInstance } from 'consola'
 import type { BetterAuthModuleOptions } from '../src/runtime/config'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import * as fsPromises from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runWithNuxtContext } from '@nuxt/kit'
@@ -18,6 +21,15 @@ import { checkBetterAuthCli, generateDrizzleSchema, loadUserAuthConfig } from '.
 vi.mock('auth/api', async (importOriginal) => {
   const api = await importOriginal<typeof import('auth/api')>()
   return { ...api, generateDrizzleSchema: vi.fn(api.generateDrizzleSchema) }
+})
+// Pass-through spies, so tests can change installed package files and fail cache I/O.
+vi.mock('node:fs', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('node:fs')>()
+  return { ...fs, readFileSync: vi.fn(fs.readFileSync) }
+})
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const fs = await importOriginal<typeof import('node:fs/promises')>()
+  return { ...fs, readFile: vi.fn(fs.readFile), writeFile: vi.fn(fs.writeFile) }
 })
 
 const TEST_DIR = join(import.meta.dirname, '.test-configs')
@@ -57,7 +69,8 @@ const ADDITIONAL_FIELDS_CONFIG = `export default defineServerAuth({ user: { addi
  * reads: a sqlite hub dialect, a build dir to write into, and an auth config
  * whose contents each test chooses.
  */
-function createSchemaProject(options: { dev: boolean, config: string, configExtension?: '.js' | '.ts', moduleOptions?: Partial<BetterAuthModuleOptions> }) {
+function createSchemaProject(options: { dev: boolean, config: string, configExtension?: '.js' | '.ts', moduleOptions?: Partial<BetterAuthModuleOptions>, dialect?: 'sqlite' | 'postgresql' }) {
+  const dialect = options.dialect ?? 'sqlite'
   const rootDir = mkdtempSync(join(tmpdir(), 'nuxt-better-auth-project-'))
   projectDirs.push(rootDir)
 
@@ -80,7 +93,7 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
       rootDir,
       buildDir,
       build: { templates: [] },
-      hub: { db: 'sqlite' },
+      hub: { db: dialect },
     },
     callHook: async () => {},
     hook: (name: string, cb: (payload: { paths: string[], dialect: string }) => void | Promise<void>) => {
@@ -88,7 +101,8 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
     },
   } as unknown as Nuxt
 
-  const schemaPath = join(buildDir, 'better-auth', 'schema.sqlite.ts')
+  const schemaPath = join(buildDir, 'better-auth', `schema.${dialect}.ts`)
+  const cacheFile = join(buildDir, 'cache', 'better-auth', `schema.${dialect}.json`)
   const logger = { ...silentConsola, warn: vi.fn(), error: vi.fn() }
 
   let setupPromise: Promise<boolean> | undefined
@@ -110,12 +124,12 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
     await finishSetup()
   }
   /** Runs schema setup again, as the next `nuxi build` or dev restart of this project does. */
-  const rerun = (moduleOptions = options.moduleOptions) => runWithNuxtContext(nuxt, () => setupBetterAuthSchema(
+  const rerun = (moduleOptions = options.moduleOptions, hubSecondaryStorage?: BetterAuthModuleOptions['hubSecondaryStorage']) => runWithNuxtContext(nuxt, () => setupBetterAuthSchema(
     nuxt,
     serverConfigPath,
     (moduleOptions ?? {}) as BetterAuthModuleOptions,
     logger,
-    undefined,
+    hubSecondaryStorage,
   ))
   registerNuxtHubSchemaHook(nuxt, finishSetup)
 
@@ -127,11 +141,11 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
   /** Fires NuxtHub's `hub:db:schema:extend` hook and returns the paths it collected. */
   const collectHubSchemaPaths = async () => {
     const paths: string[] = []
-    await hooks.get('hub:db:schema:extend')?.({ paths, dialect: 'sqlite' })
+    await hooks.get('hub:db:schema:extend')?.({ paths, dialect })
     return paths
   }
 
-  return { run, rerun, writeConfig, schemaPath, writeExistingSchema, collectHubSchemaPaths, nuxt, logger, getSchemaModelNames: () => schemaModelNames }
+  return { run, rerun, writeConfig, schemaPath, cacheFile, writeExistingSchema, collectHubSchemaPaths, nuxt, logger, getSchemaModelNames: () => schemaModelNames }
 }
 
 type SchemaProject = ReturnType<typeof createSchemaProject>
@@ -560,10 +574,57 @@ describe('defineClientAuth', () => {
   })
 })
 
+const AUTH_API_PATH = createRequire(import.meta.url).resolve('auth/api')
+
+/** Makes `readFileSync` return `transform(contents)` for the file `match` selects. */
+function changeInstalledFile(match: (path: string) => boolean, transform: (contents: string) => string) {
+  const readFileSyncSpy = vi.mocked(readFileSync)
+  const read = readFileSyncSpy.getMockImplementation()!
+  readFileSyncSpy.mockImplementation(((path: unknown, ...rest: unknown[]) => {
+    const contents = (read as (...args: unknown[]) => string | Buffer)(path, ...rest)
+    return typeof path === 'string' && match(path) ? transform(contents.toString()) : contents
+  }) as typeof readFileSync)
+}
+
+function failCacheIO(method: 'readFile' | 'writeFile') {
+  const spy = vi.mocked(fsPromises[method])
+  const original = spy.getMockImplementation()!
+  spy.mockImplementation(((path: unknown, ...rest: unknown[]) => {
+    if (String(path).includes(join('cache', 'better-auth')))
+      return Promise.reject(Object.assign(new Error(`EACCES: permission denied, open '${String(path)}'`), { code: 'EACCES' }))
+    return (original as (...args: unknown[]) => Promise<unknown>)(path, ...rest)
+  }) as never)
+}
+
+const USER_FIELD = (attributes: string) => `export default defineServerAuth({ user: { additionalFields: { customField: { type: 'string', required: false${attributes} } } } })`
+const SESSION_OWNER = (onDelete: string) => `export default defineServerAuth({ session: { additionalFields: { ownerId: { type: 'string', required: false, references: { model: 'user', field: 'id', onDelete: '${onDelete}' } } } } })`
+const SEEN_AT = (onUpdate: string) => `export default defineServerAuth({ user: { additionalFields: { seenAt: { type: 'date', required: false, onUpdate: ${onUpdate} } } } })`
+const SECONDARY_STORAGE_CONFIG = `export default defineServerAuth({ secondaryStorage: { get: async () => null, set: async () => {}, delete: async () => {} } })`
+
+interface InvalidationCase {
+  label: string
+  dialect?: 'sqlite' | 'postgresql'
+  config?: string
+  change: (project: SchemaProject) => Promise<unknown>
+  check: (schema: string) => void
+}
+
+function changeConfig(config: string) {
+  return (project: SchemaProject) => {
+    project.writeConfig(config)
+    return project.rerun()
+  }
+}
+
 describe('setupBetterAuthSchema on a later run of the same project', () => {
   const generate = vi.mocked(authApi.generateDrizzleSchema)
   beforeEach(() => {
     generate.mockClear()
+  })
+  afterEach(() => {
+    vi.mocked(readFileSync).mockReset()
+    vi.mocked(fsPromises.readFile).mockReset()
+    vi.mocked(fsPromises.writeFile).mockReset()
   })
 
   /** `nuxi build` removes the generated schema, keeping only the build dir's `cache` folder. */
@@ -583,46 +644,78 @@ describe('setupBetterAuthSchema on a later run of the same project', () => {
     expect(readFileSync(project.schemaPath, 'utf8')).toBe(firstSchema)
   })
 
-  it.each<[string, (project: SchemaProject) => Promise<unknown>, string]>([
-    ['a config column', (project) => {
-      project.writeConfig(`export default defineServerAuth({ user: { additionalFields: { otherField: { type: 'string', required: false } } } })`)
-      return project.rerun()
-    }, 'otherField'],
-    ['the id strategy', (project) => {
-      project.writeConfig(`export default defineServerAuth({
+  it.each<InvalidationCase>([
+    { label: 'a config column', change: changeConfig(USER_FIELD('').replace('customField', 'otherField')), check: schema => expect(schema).toContain('otherField') },
+    { label: 'a model name', change: changeConfig(`export default defineServerAuth({ user: { modelName: 'member' } })`), check: schema => expect(schema).toContain('"member"') },
+    { label: 'a field name', change: changeConfig(`export default defineServerAuth({ user: { fields: { email: 'emailAddress' } } })`), check: schema => expect(schema).toContain('emailAddress') },
+    { label: 'an index', change: changeConfig(USER_FIELD(', index: true')), check: schema => expect(schema).toContain('user_customField_idx') },
+    { label: 'a reference onDelete', config: SESSION_OWNER('cascade'), change: changeConfig(SESSION_OWNER('set null')), check: schema => expect(schema).toContain('onDelete: "set null"') },
+    { label: 'an onUpdate callback', config: SEEN_AT('() => new Date()'), change: changeConfig(SEEN_AT('() => new Date(Date.now())')), check: schema => expect(schema).toContain('new Date(Date.now())') },
+    { label: 'the id strategy', change: changeConfig(`export default defineServerAuth({
         advanced: { database: { generateId: 'serial' } },
         user: { additionalFields: { customField: { type: 'string', required: false } } },
-      })`)
-      return project.rerun()
-    }, 'autoIncrement: true'],
-    ['a plugin added by better-auth:config:extend', (project) => {
+      })`), check: schema => expect(schema).toContain('autoIncrement: true') },
+    { label: 'a plugin added by better-auth:config:extend', change: (project) => {
       vi.spyOn(project.nuxt, 'callHook').mockImplementation((async (_name: string, config: { plugins?: unknown[] }) => {
         config.plugins = [{ id: 'audit', schema: { auditLog: { fields: { action: { type: 'string' } } } } }]
       }) as never)
       return project.rerun()
-    }, '"auditLog"'],
-    ['schema.usePlural', project => project.rerun({ schema: { usePlural: true } }), '"users"'],
-    ['schema.casing', project => project.rerun({ schema: { casing: 'snake_case' } }), 'email_verified'],
-  ])('regenerates the schema when %s changes', async (_label, change, expected) => {
-    const project = createSchemaProject({ dev: false, config: ADDITIONAL_FIELDS_CONFIG })
+    }, check: schema => expect(schema).toContain('"auditLog"') },
+    { label: 'the secondary storage injection', config: SECONDARY_STORAGE_CONFIG, change: project => project.rerun(undefined, 'custom'), check: schema => expect(schema).not.toContain('export const session ') },
+    { label: 'schema.usePlural', change: project => project.rerun({ schema: { usePlural: true } }), check: schema => expect(schema).toContain('"users"') },
+    { label: 'schema.casing', change: project => project.rerun({ schema: { casing: 'snake_case' } }), check: schema => expect(schema).toContain('email_verified') },
+    { label: 'schema.schemaName', dialect: 'postgresql', change: project => project.rerun({ schema: { schemaName: 'auth' } }), check: schema => expect(schema).toContain('pgSchema("auth")') },
+    { label: 'the generator code at the same version', change: (project) => {
+      changeInstalledFile(path => path === AUTH_API_PATH, code => `${code}\n// patched`)
+      return project.rerun()
+    }, check: schema => expect(schema).toContain('customField') },
+    { label: 'a generator package version', change: (project) => {
+      changeInstalledFile(path => /[\\/]prettier[\\/]package\.json$/.test(path), json => JSON.stringify({ ...JSON.parse(json), version: '99.0.0' }))
+      return project.rerun()
+    }, check: schema => expect(schema).toContain('customField') },
+  ])('regenerates the schema when $label changes', async ({ dialect, config, change, check }) => {
+    const project = createSchemaProject({ dev: false, dialect, config: config ?? ADDITIONAL_FIELDS_CONFIG })
     await project.rerun()
     clearGeneratedSchema(project)
 
     await change(project)
 
     expect(generate).toHaveBeenCalledTimes(2)
-    expect(readFileSync(project.schemaPath, 'utf8')).toContain(expected)
+    check(readFileSync(project.schemaPath, 'utf8'))
   })
 
-  it('regenerates the schema when the cached entry belongs to other inputs', async () => {
+  it.each([
+    ['belongs to other inputs', JSON.stringify({ key: 'other-inputs', code: PREVIOUS_SCHEMA })],
+    ['is not JSON', '{"key": "trunc'],
+  ])('regenerates the schema when the cache entry %s', async (_label, entry) => {
     const project = createSchemaProject({ dev: false, config: ADDITIONAL_FIELDS_CONFIG })
-    const cacheFile = join(project.schemaPath, '..', '..', 'cache', 'better-auth', 'schema.sqlite.json')
-    mkdirSync(join(cacheFile, '..'), { recursive: true })
-    writeFileSync(cacheFile, JSON.stringify({ key: 'other-inputs', code: PREVIOUS_SCHEMA }))
+    mkdirSync(join(project.cacheFile, '..'), { recursive: true })
+    writeFileSync(project.cacheFile, entry)
 
     await project.rerun()
 
     expect(generate).toHaveBeenCalledTimes(1)
-    expect(readFileSync(project.schemaPath, 'utf8')).not.toBe(PREVIOUS_SCHEMA)
+    expect(readFileSync(project.schemaPath, 'utf8')).toContain('customField')
+  })
+
+  it('regenerates the schema when the cache cannot be read', async () => {
+    const project = createSchemaProject({ dev: false, config: ADDITIONAL_FIELDS_CONFIG })
+    await project.rerun()
+    failCacheIO('readFile')
+
+    await project.rerun()
+
+    expect(generate).toHaveBeenCalledTimes(2)
+    expect(readFileSync(project.schemaPath, 'utf8')).toContain('customField')
+  })
+
+  it('writes the schema and leaves no cache file when the cache cannot be written', async () => {
+    const project = createSchemaProject({ dev: false, config: ADDITIONAL_FIELDS_CONFIG })
+    failCacheIO('writeFile')
+
+    await project.rerun()
+
+    expect(readFileSync(project.schemaPath, 'utf8')).toContain('customField')
+    expect(readdirSync(join(project.cacheFile, '..'))).toEqual([])
   })
 })
