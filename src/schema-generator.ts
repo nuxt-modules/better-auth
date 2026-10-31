@@ -1,6 +1,8 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { generateDrizzleSchema as GenerateDrizzleSchema } from 'auth/api'
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { consola } from 'consola'
 import { Diagnostic, formatDiagnostic } from 'nostics'
@@ -29,10 +31,10 @@ export interface PackageJson { name?: string, version?: string, dependencies?: R
 const EXACT_VERSION_RE = /^\d+\.\d+\.\d+(?:-[\w.]+)?$/
 const LOCKFILES = [['pnpm-lock.yaml', 'pnpm'], ['yarn.lock', 'yarn'], ['bun.lock', 'bun'], ['bun.lockb', 'bun'], ['package-lock.json', 'npm']] as const
 
-function readInstalledPackage(name: string): PackageJson | undefined {
+function readInstalledPackage(name: string, parent: string = import.meta.url): PackageJson | undefined {
   let entry: string
   try {
-    entry = createRequire(import.meta.url).resolve(name === 'auth' ? 'auth/api' : name)
+    entry = createRequire(parent).resolve(name === 'auth' ? 'auth/api' : name)
   }
   catch {
     return undefined
@@ -78,8 +80,7 @@ export function checkBetterAuthCli(
   return {}
 }
 
-export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dialect: Dialect, schemaOptions?: SchemaOptions): Promise<string> {
-  const { generateDrizzleSchema } = await import('auth/api')
+function resolveDrizzleSchemaInput(authOptions: BetterAuthOptions, dialect: Dialect, schemaOptions?: SchemaOptions) {
   const provider = dialectToProvider(dialect)
 
   const options: BetterAuthOptions = {
@@ -103,6 +104,12 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
     },
   }
 
+  return { options, adapter }
+}
+
+export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dialect: Dialect, schemaOptions?: SchemaOptions): Promise<string> {
+  const { generateDrizzleSchema } = await import('auth/api')
+  const { options, adapter } = resolveDrizzleSchemaInput(authOptions, dialect, schemaOptions)
   const result = await generateDrizzleSchema({
     adapter: adapter as unknown as DrizzleSchemaInput['adapter'],
     options: options as unknown as DrizzleSchemaInput['options'],
@@ -111,6 +118,72 @@ export async function generateDrizzleSchema(authOptions: BetterAuthOptions, dial
     throw diagnostics.NUXT_AUTH_EMPTY_SCHEMA({ dialect })
   }
   return result.code
+}
+
+// Packages whose code produces or formats the generated schema.
+const SCHEMA_GENERATOR_PACKAGES = ['auth', 'better-auth', '@better-auth/core', 'prettier']
+
+// Prefixes every primitive with its type so values that JSON would merge (NaN and
+// null, a function and its source string, undefined and null in arrays) stay distinct.
+function tagSchemaValue(_key: string, value: unknown): unknown {
+  switch (typeof value) {
+    case 'string': return `s:${value}`
+    case 'number': return Number.isFinite(value) ? value : `n:${value}`
+    case 'bigint': return `b:${value}`
+    case 'function': return `f:${String(value)}`
+    case 'symbol': return `y:${String(value)}`
+    case 'undefined': return 'u:'
+    default: return value
+  }
+}
+
+/**
+ * Hashes everything the `auth/api` Drizzle generator reads: the resolved auth tables
+ * (plugin and additionalFields columns included), the id strategy, the adapter options,
+ * and the versions of the generator packages. Returns undefined when the tables cannot
+ * be serialized, for example when they contain a circular reference.
+ */
+async function getDrizzleSchemaKey(authOptions: BetterAuthOptions, dialect: Dialect, schemaOptions?: SchemaOptions): Promise<string | undefined> {
+  const { getAuthTables } = await import('better-auth/db')
+  const { options, adapter } = resolveDrizzleSchemaInput(authOptions, dialect, schemaOptions)
+  const authApi = createRequire(import.meta.url).resolve('auth/api')
+  const packages = SCHEMA_GENERATOR_PACKAGES.map(name => `${name}@${readInstalledPackage(name, authApi)?.version}`)
+  try {
+    const input = JSON.stringify([getAuthTables(options), options.advanced?.database?.generateId, adapter.options, packages], tagSchemaValue)
+    return createHash('sha256').update(input).digest('hex')
+  }
+  catch {
+    return undefined
+  }
+}
+
+async function readCachedSchema(cacheFile: string, key: string): Promise<string | undefined> {
+  try {
+    const entry = JSON.parse(await readFile(cacheFile, 'utf8')) as { key?: unknown, code?: unknown }
+    return entry.key === key && typeof entry.code === 'string' ? entry.code : undefined
+  }
+  catch {
+    return undefined
+  }
+}
+
+/**
+ * `generateDrizzleSchema` imports `auth/api`, which loads prettier and the Prisma
+ * parser, then formats the whole schema. Reuse the code stored in `cacheFile` when the
+ * generator inputs match the previous run, and regenerate otherwise.
+ */
+export async function generateCachedDrizzleSchema(authOptions: BetterAuthOptions, dialect: Dialect, schemaOptions: SchemaOptions | undefined, cacheFile: string): Promise<string> {
+  const key = await getDrizzleSchemaKey(authOptions, dialect, schemaOptions)
+  const cached = key && await readCachedSchema(cacheFile, key)
+  if (cached)
+    return cached
+
+  const code = await generateDrizzleSchema(authOptions, dialect, schemaOptions)
+  if (key) {
+    await mkdir(dirname(cacheFile), { recursive: true })
+    await writeFile(cacheFile, JSON.stringify({ key, code }))
+  }
+  return code
 }
 
 // Type for cached runtime helper with reference counting

@@ -9,7 +9,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate } from '@nuxt/kit'
 import { Diagnostic, formatDiagnostic } from 'nostics'
 import { join } from 'pathe'
-import { checkBetterAuthCli, generateDrizzleSchema, loadUserAuthConfig } from '../schema-generator'
+import { checkBetterAuthCli, generateCachedDrizzleSchema, loadUserAuthConfig } from '../schema-generator'
 import { resolveAuthConfigFile } from './config-paths'
 import { diagnostics } from './diagnostics'
 import { getHubCasing, getHubDialect } from './hub'
@@ -158,7 +158,9 @@ export async function setupBetterAuthSchema(
 
     const hubCasing = getHubCasing(hub)
     const schemaOptions = { ...options.schema, useUuid: userConfig.advanced?.database?.generateId === 'uuid', casing: options.schema?.casing ?? hubCasing }
-    const schemaCode = await generateDrizzleSchema(authOptions, dialect as 'sqlite' | 'postgresql' | 'mysql', schemaOptions)
+    // `nuxi build` clears the build dir before building but keeps its `cache` folder.
+    const schemaCacheFile = join(nuxt.options.buildDir, 'cache', 'better-auth', `schema.${dialect}.json`)
+    const schemaCode = await generateCachedDrizzleSchema(authOptions, dialect as 'sqlite' | 'postgresql' | 'mysql', schemaOptions, schemaCacheFile)
     const { getAuthTables } = await import('better-auth/db')
     const { initGetModelName } = await import('better-auth/adapters')
     const authTables = getAuthTables(authOptions)

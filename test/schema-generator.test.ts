@@ -5,14 +5,20 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runWithNuxtContext } from '@nuxt/kit'
+import * as authApi from 'auth/api'
 import { getAuthTables } from 'better-auth/db'
 import { consola } from 'consola'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from '../src/module/schema'
 import { buildSchemaExportCode } from '../src/module/templates'
 import { defineClientAuth, defineServerAuth } from '../src/runtime/config'
 import type { PackageJson } from '../src/schema-generator'
 import { checkBetterAuthCli, generateDrizzleSchema, loadUserAuthConfig } from '../src/schema-generator'
+
+vi.mock('auth/api', async (importOriginal) => {
+  const api = await importOriginal<typeof import('auth/api')>()
+  return { ...api, generateDrizzleSchema: vi.fn(api.generateDrizzleSchema) }
+})
 
 const TEST_DIR = join(import.meta.dirname, '.test-configs')
 const projectDirs: string[] = []
@@ -61,7 +67,8 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
   mkdirSync(serverDir, { recursive: true })
 
   const serverConfigPath = join(serverDir, 'auth.config')
-  writeFileSync(`${serverConfigPath}${options.configExtension ?? '.ts'}`, options.config)
+  const writeConfig = (config: string) => writeFileSync(`${serverConfigPath}${options.configExtension ?? '.ts'}`, config)
+  writeConfig(options.config)
 
   const hooks = new Map<string, (payload: { paths: string[], dialect: string }) => void | Promise<void>>()
 
@@ -102,6 +109,14 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
   const run = async () => {
     await finishSetup()
   }
+  /** Runs schema setup again, as the next `nuxi build` or dev restart of this project does. */
+  const rerun = (moduleOptions = options.moduleOptions) => runWithNuxtContext(nuxt, () => setupBetterAuthSchema(
+    nuxt,
+    serverConfigPath,
+    (moduleOptions ?? {}) as BetterAuthModuleOptions,
+    logger,
+    undefined,
+  ))
   registerNuxtHubSchemaHook(nuxt, finishSetup)
 
   const writeExistingSchema = (contents: string) => {
@@ -116,8 +131,10 @@ function createSchemaProject(options: { dev: boolean, config: string, configExte
     return paths
   }
 
-  return { run, schemaPath, writeExistingSchema, collectHubSchemaPaths, nuxt, logger, getSchemaModelNames: () => schemaModelNames }
+  return { run, rerun, writeConfig, schemaPath, writeExistingSchema, collectHubSchemaPaths, nuxt, logger, getSchemaModelNames: () => schemaModelNames }
 }
+
+type SchemaProject = ReturnType<typeof createSchemaProject>
 
 describe('generateDrizzleSchema', () => {
   it('singular table names by default', async () => {
@@ -540,5 +557,72 @@ describe('defineClientAuth', () => {
     })
     factory('http://test.local')
     expect(capturedUrl).toBe('http://test.local')
+  })
+})
+
+describe('setupBetterAuthSchema on a later run of the same project', () => {
+  const generate = vi.mocked(authApi.generateDrizzleSchema)
+  beforeEach(() => {
+    generate.mockClear()
+  })
+
+  /** `nuxi build` removes the generated schema, keeping only the build dir's `cache` folder. */
+  function clearGeneratedSchema(project: SchemaProject) {
+    rmSync(join(project.schemaPath, '..'), { recursive: true, force: true })
+  }
+
+  it('reuses the previous schema without running the generator when nothing changed', async () => {
+    const project = createSchemaProject({ dev: false, config: ADDITIONAL_FIELDS_CONFIG })
+    await project.rerun()
+    const firstSchema = readFileSync(project.schemaPath, 'utf8')
+    clearGeneratedSchema(project)
+
+    await project.rerun()
+
+    expect(generate).toHaveBeenCalledTimes(1)
+    expect(readFileSync(project.schemaPath, 'utf8')).toBe(firstSchema)
+  })
+
+  it.each<[string, (project: SchemaProject) => Promise<unknown>, string]>([
+    ['a config column', (project) => {
+      project.writeConfig(`export default defineServerAuth({ user: { additionalFields: { otherField: { type: 'string', required: false } } } })`)
+      return project.rerun()
+    }, 'otherField'],
+    ['the id strategy', (project) => {
+      project.writeConfig(`export default defineServerAuth({
+        advanced: { database: { generateId: 'serial' } },
+        user: { additionalFields: { customField: { type: 'string', required: false } } },
+      })`)
+      return project.rerun()
+    }, 'autoIncrement: true'],
+    ['a plugin added by better-auth:config:extend', (project) => {
+      vi.spyOn(project.nuxt, 'callHook').mockImplementation((async (_name: string, config: { plugins?: unknown[] }) => {
+        config.plugins = [{ id: 'audit', schema: { auditLog: { fields: { action: { type: 'string' } } } } }]
+      }) as never)
+      return project.rerun()
+    }, '"auditLog"'],
+    ['schema.usePlural', project => project.rerun({ schema: { usePlural: true } }), '"users"'],
+    ['schema.casing', project => project.rerun({ schema: { casing: 'snake_case' } }), 'email_verified'],
+  ])('regenerates the schema when %s changes', async (_label, change, expected) => {
+    const project = createSchemaProject({ dev: false, config: ADDITIONAL_FIELDS_CONFIG })
+    await project.rerun()
+    clearGeneratedSchema(project)
+
+    await change(project)
+
+    expect(generate).toHaveBeenCalledTimes(2)
+    expect(readFileSync(project.schemaPath, 'utf8')).toContain(expected)
+  })
+
+  it('regenerates the schema when the cached entry belongs to other inputs', async () => {
+    const project = createSchemaProject({ dev: false, config: ADDITIONAL_FIELDS_CONFIG })
+    const cacheFile = join(project.schemaPath, '..', '..', 'cache', 'better-auth', 'schema.sqlite.json')
+    mkdirSync(join(cacheFile, '..'), { recursive: true })
+    writeFileSync(cacheFile, JSON.stringify({ key: 'other-inputs', code: PREVIOUS_SCHEMA }))
+
+    await project.rerun()
+
+    expect(generate).toHaveBeenCalledTimes(1)
+    expect(readFileSync(project.schemaPath, 'utf8')).not.toBe(PREVIOUS_SCHEMA)
   })
 })
