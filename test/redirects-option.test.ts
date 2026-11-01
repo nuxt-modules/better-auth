@@ -29,14 +29,12 @@ describe('auth.redirects option', async () => {
     expect(res.headers.get('location')).toContain('/protected')
   })
 
-  it('exposes auth.redirects.authenticated in runtime config endpoint', async () => {
-    const response = await fetch(url('/api/_better-auth/config'))
-    if (response.status === 404)
-      return
+  it('exposes authenticated and session-expired redirects in public runtime config', async () => {
+    const response = await fetch(url('/api/test/redirects'))
     expect(response.status).toBe(200)
 
     const payload = await response.json()
-    expect(payload.config.module.redirects.authenticated).toBe('/app')
-    expect(payload.config.module.redirects.sessionExpired).toBe('/session-expired')
+    expect(payload.authenticated).toBe('/app')
+    expect(payload.sessionExpired).toBe('/session-expired')
   })
 })

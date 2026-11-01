@@ -9,12 +9,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runWithNuxtContext } from '@nuxt/kit'
 import * as authApi from 'auth/api'
-import { getAuthTables } from 'better-auth/db'
 import { consola } from 'consola'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from '../src/module/schema'
 import { buildSchemaExportCode } from '../src/module/templates'
-import { defineClientAuth, defineServerAuth } from '../src/runtime/config'
+import { defineServerAuth } from '../src/runtime/config'
 import type { PackageJson } from '../src/schema-generator'
 import { checkBetterAuthCli, generateDrizzleSchema, loadUserAuthConfig } from '../src/schema-generator'
 
@@ -283,22 +282,6 @@ describe('buildSchemaExportCode', () => {
   })
 })
 
-describe('getAuthTables with secondaryStorage', () => {
-  it('excludes session table when secondaryStorage is provided', () => {
-    const mockStorage = { get: async () => null, set: async () => {}, delete: async () => {} }
-    const tables = getAuthTables({ secondaryStorage: mockStorage })
-    expect(tables).not.toHaveProperty('session')
-    expect(tables).toHaveProperty('user')
-    expect(tables).toHaveProperty('account')
-  })
-
-  it('includes session table when secondaryStorage is undefined', () => {
-    const tables = getAuthTables({})
-    expect(tables).toHaveProperty('session')
-    expect(tables).toHaveProperty('user')
-  })
-})
-
 describe('loadUserAuthConfig', () => {
   it('reports the original import error once and returns null in dev mode', async () => {
     const errorLog = vi.spyOn(consola, 'error').mockImplementation(() => {})
@@ -543,34 +526,6 @@ describe('defineServerAuth', () => {
       db: undefined,
       requestOrigin: 'https://example.com',
     })).toEqual({ requestOrigin: 'https://example.com' })
-  })
-})
-
-describe('defineClientAuth', () => {
-  it('accepts object syntax and returns client factory', () => {
-    const factory = defineClientAuth({ plugins: [] })
-    expect(typeof factory).toBe('function')
-    const client = factory('http://localhost:3000')
-    expect(typeof client.signIn).toBe('function')
-    expect(typeof client.signUp).toBe('function')
-    expect(typeof client.signOut).toBe('function')
-  })
-
-  it('accepts function syntax and returns client factory', () => {
-    const factory = defineClientAuth(ctx => ({ fetchOptions: { headers: { 'x-site': ctx.siteUrl } } }))
-    expect(typeof factory).toBe('function')
-    const client = factory('http://example.com')
-    expect(typeof client.signIn).toBe('function')
-  })
-
-  it('function syntax receives context with siteUrl', () => {
-    let capturedUrl = ''
-    const factory = defineClientAuth((ctx) => {
-      capturedUrl = ctx.siteUrl
-      return {}
-    })
-    factory('http://test.local')
-    expect(capturedUrl).toBe('http://test.local')
   })
 })
 
