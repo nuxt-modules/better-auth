@@ -1,7 +1,7 @@
 import type { BetterAuthOptions } from 'better-auth'
 import type { generateDrizzleSchema as GenerateDrizzleSchema } from 'auth/api'
 import { createHash, randomUUID } from 'node:crypto'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { consola } from 'consola'
@@ -130,18 +130,43 @@ const SCHEMA_CACHE_REVISION = 1
 // Packages whose code produces or formats the generated schema.
 const SCHEMA_GENERATOR_PACKAGES = ['auth', 'better-auth', '@better-auth/core', 'prettier']
 
+function hashPackageContents(dir: string): string {
+  const hash = createHash('sha256')
+  function visit(relativeDir: string) {
+    const entries = readdirSync(join(dir, relativeDir), { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name))
+    for (const entry of entries) {
+      if (entry.name === 'node_modules' || entry.name === '.git')
+        continue
+      const relativePath = join(relativeDir, entry.name)
+      if (entry.isDirectory()) {
+        visit(relativePath)
+      }
+      else {
+        hash.update(relativePath).update('\0')
+        hash.update(createHash('sha256').update(readFileSync(join(dir, relativePath))).digest())
+      }
+    }
+  }
+  visit('')
+  return hash.digest('hex')
+}
+
 /**
  * Identifies the code that turns auth tables into the schema. The `auth/api` bundle holds
  * the whole Drizzle generator, so its contents are hashed and an in-place patch counts.
- * The helper packages are identified by version and install directory, which pnpm and
- * yarn patches and `link:`/`file:` replacements change.
+ * Hash the Better Auth helper package contents too: linked/workspace edits can change
+ * table, model and index generation without changing the package version or directory.
  */
 function getSchemaGeneratorIdentity(): string[] {
   const authApi = createRequire(import.meta.url).resolve('auth/api')
   const generatorHash = createHash('sha256').update(readFileSync(authApi)).digest('hex')
   const packages = SCHEMA_GENERATOR_PACKAGES.map((name) => {
     const installed = findInstalledPackage(name, authApi)
-    return `${name}@${installed?.pkg.version} ${installed?.dir}`
+    const contentHash = installed && (name === 'better-auth' || name === '@better-auth/core')
+      ? hashPackageContents(installed.dir)
+      : ''
+    return `${name}@${installed?.pkg.version} ${installed?.dir} ${contentHash}`
   })
   return [`revision ${SCHEMA_CACHE_REVISION}`, generatorHash, ...packages]
 }

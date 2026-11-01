@@ -575,6 +575,8 @@ describe('defineClientAuth', () => {
 })
 
 const AUTH_API_PATH = createRequire(import.meta.url).resolve('auth/api')
+const GENERATOR_HELPERS = ['better-auth/adapters', '@better-auth/core/db/internal']
+  .map(name => ({ name, path: createRequire(AUTH_API_PATH).resolve(name) }))
 
 /** Makes `readFileSync` return `transform(contents)` for the file `match` selects. */
 function changeInstalledFile(match: (path: string) => boolean, transform: (contents: string) => string) {
@@ -669,6 +671,14 @@ describe('setupBetterAuthSchema on a later run of the same project', () => {
       changeInstalledFile(path => path === AUTH_API_PATH, code => `${code}\n// patched`)
       return project.rerun()
     }, check: schema => expect(schema).toContain('customField') },
+    ...GENERATOR_HELPERS.map(({ name, path }) => ({
+      label: `a generator helper at the same version and path (${name})`,
+      change: (project: SchemaProject) => {
+        changeInstalledFile(file => file === path, code => `${code}\n// patched in place`)
+        return project.rerun()
+      },
+      check: (schema: string) => expect(schema).toContain('customField'),
+    })),
     { label: 'a generator package version', change: (project) => {
       changeInstalledFile(path => /[\\/]prettier[\\/]package\.json$/.test(path), json => JSON.stringify({ ...JSON.parse(json), version: '99.0.0' }))
       return project.rerun()
@@ -682,6 +692,20 @@ describe('setupBetterAuthSchema on a later run of the same project', () => {
 
     expect(generate).toHaveBeenCalledTimes(2)
     check(readFileSync(project.schemaPath, 'utf8'))
+  })
+
+  it.each(GENERATOR_HELPERS)('regenerates without caching when $name cannot be fingerprinted', async ({ path }) => {
+    const project = createSchemaProject({ dev: false, config: ADDITIONAL_FIELDS_CONFIG })
+    changeInstalledFile(file => file === path, () => {
+      throw Object.assign(new Error('EACCES: cannot read generator helper'), { code: 'EACCES' })
+    })
+
+    await project.rerun()
+    await project.rerun()
+
+    expect(generate).toHaveBeenCalledTimes(2)
+    expect(readFileSync(project.schemaPath, 'utf8')).toContain('customField')
+    expect(existsSync(project.cacheFile)).toBe(false)
   })
 
   it.each([
