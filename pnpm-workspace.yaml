@@ -2,6 +2,19 @@ minimumReleaseAgeExclude:
   - '@nuxt/devtools@4.0.0'
   - '@nuxt/devtools-assets@4.0.0'
   - '@nuxt/devtools-kit@4.0.0'
+  - '@nuxt/devtools@4.1.0'
+  - '@nuxt/devtools-assets@4.1.0'
+  - '@nuxt/devtools-kit@4.1.0'
+  - '@devframes/hub@1.3.2'
+  - '@devframes/plugin-assets@1.3.2'
+  - '@devframes/plugin-code-server@1.3.2'
+  - '@devframes/plugin-data-inspector@1.3.2'
+  - '@devframes/plugin-og@1.3.2'
+  - '@devframes/service-open@1.3.2'
+  - '@devframes/vite@1.3.2'
+  - devframe@1.3.2
+  - local-pkg@2.0.0
+  - vite-plugin-vue-tracer@1.7.0
   - magic-string@1.4.5
   - '@antfu/eslint-config@10.0.0'
   - '@es-joy/jsdoccomment@1.0.0'
