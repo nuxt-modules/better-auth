@@ -86,6 +86,17 @@ minimumReleaseAgeExclude:
   - nuxt@4.6.4
   - nitropack@2.13.6
   - unrouting@0.3.2
+  - '@vitest/mocker@5.1.0'
+  - '@vitest/spy@5.1.0'
+  - vitest@5.1.0
+  - '@cloudflare/workerd-darwin-64@1.20261102.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261102.1'
+  - '@cloudflare/workerd-linux-64@1.20261102.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261102.1'
+  - '@cloudflare/workerd-windows-64@1.20261102.1'
+  - miniflare@5.20261102.0-beta
+  - workerd@1.20261102.1
+  - wrangler@4.156.2
   - resend@6.37.0
   - '@types/node@26.6.6'
   - motion-v@2.9.0
