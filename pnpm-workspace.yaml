@@ -77,6 +77,15 @@ minimumReleaseAgeExclude:
   - '@nuxt/vite-builder@4.6.3'
   - '@nuxt/vite-server@4.6.3'
   - nuxt@4.6.3
+  # Allow the Nuxt 4.6.4 security release and its security dependencies.
+  - '@nuxt/kit@4.6.4'
+  - '@nuxt/nitro-server@4.6.4'
+  - '@nuxt/schema@4.6.4'
+  - '@nuxt/vite-builder@4.6.4'
+  - '@nuxt/vite-server@4.6.4'
+  - nuxt@4.6.4
+  - nitropack@2.13.6
+  - unrouting@0.3.2
   - resend@6.37.0
   - '@types/node@26.6.6'
   - motion-v@2.9.0
