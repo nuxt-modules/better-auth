@@ -97,6 +97,14 @@ minimumReleaseAgeExclude:
   - miniflare@5.20261102.0-beta
   - workerd@1.20261102.1
   - wrangler@4.156.2
+  - '@cloudflare/workerd-darwin-64@1.20261103.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261103.1'
+  - '@cloudflare/workerd-linux-64@1.20261103.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261103.1'
+  - '@cloudflare/workerd-windows-64@1.20261103.1'
+  - miniflare@5.20261103.0-beta
+  - workerd@1.20261103.1
+  - wrangler@4.157.0
   - resend@6.37.0
   - '@types/node@26.6.6'
   - motion-v@2.9.0
