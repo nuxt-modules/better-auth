@@ -130,6 +130,11 @@ packages:
   - docs
   - playground
 
+overrides:
+  # Keep Better Auth's pinned dependency aligned with the direct dependency so
+  # Nitro does not trace two better-call versions into the production server.
+  better-call@1.4.4: 1.4.5
+
 patchedDependencies:
   '@peculiar/x509@1.14.3': patches/@peculiar__x509@1.14.3.patch
 
