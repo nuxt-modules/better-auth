@@ -132,6 +132,7 @@ minimumReleaseAgeExclude:
   - motion-v@2.9.0
   - motion-v@2.10.0
   - motion-v@2.11.0
+  - motion-v@2.11.1
   - postgres@4.0.0
   - eslint@10.14.0
   # Allow the Vue 3.5.45 and Wrangler 4.158.0 dev dependency updates.
