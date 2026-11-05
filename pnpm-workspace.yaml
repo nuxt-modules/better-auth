@@ -72,6 +72,16 @@ minimumReleaseAgeExclude:
   - '@better-auth/telemetry@1.7.17'
   - auth@1.7.17
   - better-auth@1.7.17
+  - '@better-auth/core@1.7.18'
+  - '@better-auth/drizzle-adapter@1.7.18'
+  - '@better-auth/kysely-adapter@1.7.18'
+  - '@better-auth/memory-adapter@1.7.18'
+  - '@better-auth/mongo-adapter@1.7.18'
+  - '@better-auth/passkey@1.7.18'
+  - '@better-auth/prisma-adapter@1.7.18'
+  - '@better-auth/telemetry@1.7.18'
+  - auth@1.7.18
+  - better-auth@1.7.18
   - better-call@1.4.4
   - satori@0.63.2
   - happy-dom@21.0.4
