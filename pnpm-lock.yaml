@@ -343,7 +343,7 @@ importers:
         version: 2.0.1(nuxt@4.6.4(43f2ff496c8cca746d2016385068561f))(vue@3.5.45(typescript@7.0.2))
       '@vercel/speed-insights':
         specifier: ^2.0.0
-        version: 2.0.0(nuxt@4.6.4(43f2ff496c8cca746d2016385068561f))(vue@3.5.45(typescript@7.0.2))
+        version: 2.1.0(nuxt@4.6.4(43f2ff496c8cca746d2016385068561f))(vue@3.5.45(typescript@7.0.2))
       '@vueuse/core':
         specifier: ^15.0.0
         version: 15.0.0(vue@3.5.45(typescript@7.0.2))
@@ -4761,10 +4761,10 @@ packages:
     resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
     engines: {node: '>= 20'}
 
-  '@vercel/speed-insights@2.0.0':
-    resolution: {integrity: sha512-jwkNcrTeafWxjmWq4AHBaptSqZiJkYU5adLC9QBSqeim0GcqDMgN5Ievh8OG1rJ6W3A4l1oiP7qr9CWxGuzu3w==}
+  '@vercel/speed-insights@2.1.0':
+    resolution: {integrity: sha512-tkDiIEjjmlwPpTFnOK14hBhsRLMo5yoCeK2Er3AHWlL7WTzHgFSyItps3TOW0HukErUlYlaUeHiVLCyfiE4WAA==}
     peerDependencies:
-      '@sveltejs/kit': ^1 || ^2
+      '@sveltejs/kit': ^1 || ^2 || ^3 || ^3.0.0-next.0
       next: '>= 13'
       nuxt: '>= 3'
       react: ^18 || ^19 || ^19.0.0-rc
@@ -16186,7 +16186,7 @@ snapshots:
 
   '@vercel/oidc@3.2.0': {}
 
-  '@vercel/speed-insights@2.0.0(nuxt@4.6.4(43f2ff496c8cca746d2016385068561f))(vue@3.5.45(typescript@7.0.2))':
+  '@vercel/speed-insights@2.1.0(nuxt@4.6.4(43f2ff496c8cca746d2016385068561f))(vue@3.5.45(typescript@7.0.2))':
     optionalDependencies:
       nuxt: 4.6.4(43f2ff496c8cca746d2016385068561f)
       vue: 3.5.45(typescript@7.0.2)
