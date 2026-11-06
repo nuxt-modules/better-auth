@@ -14,13 +14,14 @@ const eventFor = (req: object) => ({ node: { req } }) as unknown as H3Event
 
 // The shape of unenv's mock IncomingMessage, which Nitro uses for in-process
 // requests such as `useFetch` during SSR: the body is buffered on `req.body`,
-// and reading the request as a stream throws.
+// the request is never readable, and reading it as a stream throws.
 function unenvRequest(body: unknown) {
   return {
     method: 'POST',
     url: '/api/auth/admin/list-user-sessions',
     headers,
     body,
+    readable: false,
     __unenv__: {},
     async* [Symbol.asyncIterator]() {
       throw new Error('[unenv] Readable.asyncIterator is not implemented yet!')
@@ -46,6 +47,13 @@ describe('nitro2 toWebRequest', () => {
 
   it('streams the body of real requests', async () => {
     const req = Object.assign(Readable.from([Buffer.from('{"userId":"user-1"}')]), { method: 'POST', url: '/api/auth/sign-in/email', headers })
+    const request = toWebRequest(eventFor(req))
+    expect(await request.json()).toEqual({ userId: 'user-1' })
+  })
+
+  it('streams the body of real requests that carry Nitro platform context', async () => {
+    // Nitro's cloudflare-dev plugin sets `__unenv__` on real requests in `nuxt dev`.
+    const req = Object.assign(Readable.from([Buffer.from('{"userId":"user-1"}')]), { method: 'POST', url: '/api/auth/sign-in/email', headers, __unenv__: { waitUntil() {} } })
     const request = toWebRequest(eventFor(req))
     expect(await request.json()).toEqual({ userId: 'user-1' })
   })

@@ -108,12 +108,13 @@ export function toWebRequest(event: ServerEvent): Request {
 
 const h3RawBody = Symbol.for('h3RawBody')
 
-type Nitro2Request = IncomingMessage & { body?: unknown, rawBody?: unknown, __unenv__?: unknown, [h3RawBody]?: Promise<Uint8Array | undefined> }
+type Nitro2Request = IncomingMessage & { body?: unknown, rawBody?: unknown, [h3RawBody]?: Promise<Uint8Array | undefined> }
 
 // Nitro's in-process requests (eg `useFetch` during SSR) use unenv's mock
 // IncomingMessage, which holds the body on `req.body` and can't be streamed.
 // Use a buffered body when there is one, like h3 v1's `readRawBody`, and
-// stream real requests as before.
+// stream real requests as before. The mock is never `readable`. `__unenv__`
+// doesn't identify it, since Nitro's cloudflare-dev plugin sets it on real requests.
 function requestBody(req: Nitro2Request): BodyInit | undefined {
   // h3 v1's `readBody` drains a real request and keeps its bytes on this
   // symbol, eg when a server middleware reads the body before the auth handler.
@@ -130,7 +131,7 @@ function requestBody(req: Nitro2Request): BodyInit | undefined {
   }
   const body = req.rawBody ?? req.body
   if (body === undefined || body === null)
-    return '__unenv__' in req ? undefined : req as unknown as BodyInit
+    return req.readable ? req as unknown as BodyInit : undefined
   if (body.constructor === Object)
     return JSON.stringify(body)
   return body as BodyInit
