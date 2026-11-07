@@ -365,7 +365,7 @@ importers:
     devDependencies:
       '@iconify-json/solar':
         specifier: ^1.2.13
-        version: 1.2.13
+        version: 1.2.14
       '@rollup/plugin-yaml':
         specifier: ^5.0.1
         version: 5.0.1(rollup@4.67.4)
@@ -1899,8 +1899,8 @@ packages:
   '@iconify-json/simple-icons@1.2.101':
     resolution: {integrity: sha512-MXJkMZDancJ/9I+Bgdthi9kXvn3AwWStxoTHwEPwAFQ9kMLBASO1BSstg52fNtjXeizm1Wi91R+QnWxNGkWHPQ==}
 
-  '@iconify-json/solar@1.2.13':
-    resolution: {integrity: sha512-/ZWb6xRib6pzxD/qTkKWYhuzSU2yu0bY+EN0spgtz1NM3d5f4eYueQZpL3PfCdsg5uVfm4Ldtt3cAyQL+YI8/Q==}
+  '@iconify-json/solar@1.2.14':
+    resolution: {integrity: sha512-/qHbRF7i8NwZH+RIIc3cyzk8RiQT8TA4FcdpDLJVCWr0LCDxXSgpnnayb5aifAvoqNy9NKHENvgZipLELz4m0w==}
 
   '@iconify-json/vscode-icons@1.2.95':
     resolution: {integrity: sha512-/MUe/hDExxplspZAD+dag8Iiop8lvooSCflAiqzZHrMals+lfmj9jTfE6WfqSEq0MUi7SyKcWBAtmogb+5RqJA==}
@@ -11569,7 +11569,7 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@iconify-json/solar@1.2.13':
+  '@iconify-json/solar@1.2.14':
     dependencies:
       '@iconify/types': 2.0.0
 
