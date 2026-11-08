@@ -162,6 +162,8 @@ minimumReleaseAgeExclude:
   # Allow the Playwright 1.65.0 and Postgres 4.1.0 dev dependency updates.
   - playwright-core@1.65.0
   - postgres@4.1.0
+  # Allow the Solar icon set 1.2.14 dev dependency update.
+  - '@iconify-json/solar@1.2.14'
 
 packages:
   - .
