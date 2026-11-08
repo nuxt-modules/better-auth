@@ -164,6 +164,8 @@ minimumReleaseAgeExclude:
   - postgres@4.1.0
   # Allow the Solar icon set 1.2.14 dev dependency update.
   - '@iconify-json/solar@1.2.14'
+  # Allow the Nuxt test-utils 4.4.0 dev dependency update.
+  - '@nuxt/test-utils@4.4.0'
 
 packages:
   - .
