@@ -266,7 +266,7 @@ export async function resolveAuthModuleSetup(
     providerDefinition = resolvedProvider.definition
   }
 
-  setupRuntimeConfig({
+  await setupRuntimeConfig({
     nuxt,
     options,
     clientOnly,
