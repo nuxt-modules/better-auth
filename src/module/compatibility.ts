@@ -127,13 +127,12 @@ export async function resolveAppSecretShim(resolve: (path: string) => string): P
 }
 
 /**
- * The Nitro plugin that starts deriving the auth secret when the server starts, on Nuxt 4.6+.
- * `nuxt/server` has no plugin surface, so a non-Nitro `server.builder` gets none: the secret is
- * then derived on the first request, or by `ensureServerAuth()`.
+ * The Nitro plugin that checks the auth secret when the server starts, and on Nuxt 4.6+ starts
+ * deriving it from `appSecret`. `nuxt/server` has no plugin surface, so a non-Nitro
+ * `server.builder` gets none: a missing secret then fails the first auth call, and the secret is
+ * derived on the first request, or by `ensureServerAuth()`.
  */
-export async function resolveAuthSecretPlugin(resolve: (path: string) => string): Promise<string | undefined> {
-  if (!await hasNuxtCompatibility({ nuxt: '>=4.6.0-0' }))
-    return
+export function resolveAuthSecretPlugin(resolve: (path: string) => string): string | undefined {
   if (!resolveServerVariant({ nitro2: true, nitro3: true, nuxt: false }))
     return
   return resolve('./runtime/server/plugins/auth-secret')

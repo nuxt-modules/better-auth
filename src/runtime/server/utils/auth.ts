@@ -308,13 +308,48 @@ function withDevTrustedOrigins(
   }
 }
 
-function missingAuthSecretMessage(derived: DerivedAuthSecretState): string {
+const shortAuthSecretMessage = '[nuxt-better-auth] Singular auth secret must be at least 32 characters for security'
+
+/** `derivedSecretPending`: deriving the secret from NUXT_APP_SECRET has not finished yet. */
+function missingAuthSecretMessage(derived: DerivedAuthSecretState, derivedSecretPending: boolean): string {
   const message = '[nuxt-better-auth] An auth secret is required in production. Set NUXT_BETTER_AUTH_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_SECRETS, or defineServerAuth({ secrets })'
   if (!derived.available)
     return `${message}.`
-  if (derived.error !== undefined)
+  if (!derivedSecretPending)
     return `${message}, or set NUXT_APP_SECRET (at least 32 characters) to derive one from Nuxt's appSecret.`
   return `${message}. The secret derived from NUXT_APP_SECRET is resolved asynchronously, and serverAuth() was called before it was ready, outside a request. Use \`await ensureServerAuth()\` in code that runs at server startup.`
+}
+
+/** Without one of these, only `defineServerAuth({ secrets })` can provide the production secret. */
+function hasSecretOutsideServerAuthConfig(configuredSecret: string, derived: DerivedAuthSecretState): boolean {
+  return Boolean(configuredSecret || env.BETTER_AUTH_SECRETS || derived.secret)
+}
+
+/**
+ * Returns the error `serverAuth()` would throw in production for a missing or too short auth
+ * secret, once the secret derived from NUXT_APP_SECRET is ready. Like `serverAuth()`, it runs
+ * `defineServerAuth()` only when no other source is set, to read `secrets`. A config that throws
+ * outside a request passes, since only its first auth call can tell.
+ */
+export async function findStartupAuthSecretError(): Promise<string | undefined> {
+  await prepareAuthSecret()
+  const runtimeConfig = useRuntimeConfig()
+  const configuredSecret = getConfiguredAuthSecret(runtimeConfig)
+  if (configuredSecret && configuredSecret.length < 32)
+    return shortAuthSecretMessage
+
+  const derived = getDerivedAuthSecret()
+  if (hasSecretOutsideServerAuthConfig(configuredSecret, derived))
+    return undefined
+
+  let userConfig: UserAuthConfig
+  try {
+    userConfig = createServerAuth({ runtimeConfig, db, requestOrigin: undefined }) as UserAuthConfig
+  }
+  catch {
+    return undefined
+  }
+  return userConfig.secrets === undefined ? missingAuthSecretMessage(derived, false) : undefined
 }
 
 function warnDerivedSecretFallback(derived: DerivedAuthSecretState): void {
@@ -343,17 +378,17 @@ export function serverAuth(event?: ServerEvent): AuthInstance {
   const runtimeConfig = useRuntimeConfig()
   const configuredSecret = getConfiguredAuthSecret(runtimeConfig)
   if (configuredSecret && configuredSecret.length < 32)
-    throw new Error('[nuxt-better-auth] Singular auth secret must be at least 32 characters for security')
+    throw new Error(shortAuthSecretMessage)
 
   const derived = getDerivedAuthSecret()
   const requestOrigin = resolveEventOrigin(event)
   let userConfig: UserAuthConfig | undefined
-  if (!import.meta.dev && !configuredSecret && !env.BETTER_AUTH_SECRETS && !derived.secret) {
+  if (!import.meta.dev && !hasSecretOutsideServerAuthConfig(configuredSecret, derived)) {
     userConfig = createServerAuth({ runtimeConfig, db, requestOrigin }) as UserAuthConfig
     if (userConfig.secrets === undefined) {
       // Let a later call use the derived secret when this one ran before any request primed it.
       void prepareAuthSecret()
-      throw new Error(missingAuthSecretMessage(derived))
+      throw new Error(missingAuthSecretMessage(derived, derived.error === undefined))
     }
   }
 

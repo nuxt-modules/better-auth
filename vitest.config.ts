@@ -83,7 +83,35 @@ export default defineConfig({
         },
         test: {
           name: 'unit-dev',
-          include: ['test/get-base-url.test.ts', 'test/server-auth-app-secret.test.ts'],
+          include: ['test/get-base-url.test.ts', 'test/server-auth-app-secret.test.ts', 'test/server-auth-startup-secret-check.test.ts'],
+        },
+      },
+      {
+        // The production server that Nitro starts at build time to prerender routes.
+        define: {
+          'import.meta.dev': 'false',
+          'import.meta.prerender': 'true',
+        },
+        resolve: {
+          alias: nitroCompatibilityAlias,
+        },
+        test: {
+          name: 'unit-prerender',
+          include: ['test/server-auth-startup-secret-check.test.ts'],
+        },
+      },
+      {
+        define: {
+          'import.meta.dev': 'false',
+          'import.meta.prerender': 'false',
+          'import.meta.preset': '"cloudflare-module"',
+        },
+        resolve: {
+          alias: nitroCompatibilityAlias,
+        },
+        test: {
+          name: 'unit-cloudflare',
+          include: ['test/server-auth-startup-secret-check.test.ts'],
         },
       },
       {
