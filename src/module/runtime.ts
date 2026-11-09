@@ -4,6 +4,7 @@ import type { AuthPrivateRuntimeConfig, AuthRuntimeConfig, BetterAuthModuleOptio
 import type { NuxtHubOptions } from './hub'
 import { defu } from 'defu'
 import { diagnostics } from './diagnostics'
+import { registerRuntimeConfigSchema, supportsRuntimeConfigSchemas } from './runtime-config-schema'
 
 interface SetupRuntimeConfigInput {
   nuxt: Nuxt
@@ -36,13 +37,16 @@ function resolveSecondaryStorage(input: SetupRuntimeConfigInput): { hubSecondary
   return { hubSecondaryStorage: opt, secondaryStorageEnabled }
 }
 
-export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryStorageEnabled: boolean } {
+export async function setupRuntimeConfig(input: SetupRuntimeConfigInput): Promise<{ secondaryStorageEnabled: boolean }> {
   const { nuxt, options, clientOnly, databaseProvider, consola } = input
   const { hubSecondaryStorage, secondaryStorageEnabled } = resolveSecondaryStorage(input)
+  // On Nuxt 5 the schema supplies the empty default, so an app schema can still require the value.
+  const schemas = supportsRuntimeConfigSchemas(nuxt)
+  const unset = schemas ? undefined : ''
 
   nuxt.options.runtimeConfig.public = nuxt.options.runtimeConfig.public || {}
   const configuredSiteUrl = nuxt.options.runtimeConfig.public.siteUrl as string | undefined
-  nuxt.options.runtimeConfig.public.siteUrl = configuredSiteUrl || process.env.NUXT_PUBLIC_SITE_URL || ''
+  nuxt.options.runtimeConfig.public.siteUrl = configuredSiteUrl || process.env.NUXT_PUBLIC_SITE_URL || unset
 
   nuxt.options.runtimeConfig.public.auth = defu(nuxt.options.runtimeConfig.public.auth as Record<string, unknown>, {
     redirects: {
@@ -64,17 +68,20 @@ export function setupRuntimeConfig(input: SetupRuntimeConfigInput): { secondaryS
     if (!siteUrl)
       consola.warn('clientOnly mode: set runtimeConfig.public.siteUrl (or NUXT_PUBLIC_SITE_URL) to your auth backend URL, or set baseURL in defineClientAuth()')
     consola.info('clientOnly mode enabled - server utilities (serverAuth, getRequestSession, getUserSession, requireUserSession) are not available')
-    return { secondaryStorageEnabled }
+  }
+  else {
+    const currentSecret = nuxt.options.runtimeConfig.betterAuthSecret as string | undefined
+    nuxt.options.runtimeConfig.betterAuthSecret = currentSecret || process.env.NUXT_BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET || unset
+
+    const authRuntimeConfig = defu(nuxt.options.runtimeConfig.auth as Record<string, unknown>, {
+      hubSecondaryStorage,
+    }) as AuthPrivateRuntimeConfig
+    authRuntimeConfig.hubSecondaryStorage = hubSecondaryStorage
+    nuxt.options.runtimeConfig.auth = authRuntimeConfig
   }
 
-  const currentSecret = nuxt.options.runtimeConfig.betterAuthSecret as string | undefined
-  nuxt.options.runtimeConfig.betterAuthSecret = currentSecret || process.env.NUXT_BETTER_AUTH_SECRET || process.env.BETTER_AUTH_SECRET || ''
-
-  const authRuntimeConfig = defu(nuxt.options.runtimeConfig.auth as Record<string, unknown>, {
-    hubSecondaryStorage,
-  }) as AuthPrivateRuntimeConfig
-  authRuntimeConfig.hubSecondaryStorage = hubSecondaryStorage
-  nuxt.options.runtimeConfig.auth = authRuntimeConfig
+  if (schemas)
+    await registerRuntimeConfigSchema(nuxt, clientOnly)
 
   return { secondaryStorageEnabled }
 }
