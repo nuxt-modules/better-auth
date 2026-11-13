@@ -137,7 +137,7 @@
     "nuxt": "^4.6.2",
     "pinia": "^4.1.0",
     "pkg-pr-new": "0.0.93",
-    "playwright-core": "1.65.0",
+    "playwright-core": "1.65.1",
     "postgres": "^4.0.0",
     "typescript": "~7.0.0",
     "typescript-next": "npm:typescript@~7.0.0",
@@ -145,7 +145,7 @@
     "vitest": "^5.0.5",
     "vue": "3.5.45",
     "vue-tsc": "^3.3.13",
-    "wrangler": "4.161.0",
+    "wrangler": "4.162.0",
     "yaml": "^2.9.1"
   }
 }
