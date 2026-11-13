@@ -318,8 +318,8 @@ importers:
         specifier: ^3.3.13
         version: 3.3.14(typescript@7.0.2)
       wrangler:
-        specifier: 4.160.1
-        version: 4.160.1(@types/node@26.6.6)
+        specifier: 4.161.0
+        version: 4.161.0(@types/node@26.6.6)
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
@@ -365,7 +365,7 @@ importers:
     devDependencies:
       '@iconify-json/solar':
         specifier: ^1.2.13
-        version: 1.2.14
+        version: 1.2.15
       '@rollup/plugin-yaml':
         specifier: ^5.0.1
         version: 5.0.1(rollup@4.68.0)
@@ -376,8 +376,8 @@ importers:
         specifier: ^5.15.0
         version: 5.15.0(2457494eb1582bbf7ba614931a85905d)
       wrangler:
-        specifier: 4.160.1
-        version: 4.160.1(@types/node@26.6.6)
+        specifier: 4.161.0
+        version: 4.161.0(@types/node@26.6.6)
 
   playground:
     dependencies:
@@ -423,7 +423,7 @@ importers:
         version: 0.2.2
       wrangler:
         specifier: ^4.152.0
-        version: 4.160.1(@types/node@26.6.6)
+        version: 4.161.0(@types/node@26.6.6)
 
 packages:
 
@@ -1864,8 +1864,8 @@ packages:
   '@iconify-json/simple-icons@1.2.101':
     resolution: {integrity: sha512-MXJkMZDancJ/9I+Bgdthi9kXvn3AwWStxoTHwEPwAFQ9kMLBASO1BSstg52fNtjXeizm1Wi91R+QnWxNGkWHPQ==}
 
-  '@iconify-json/solar@1.2.14':
-    resolution: {integrity: sha512-/qHbRF7i8NwZH+RIIc3cyzk8RiQT8TA4FcdpDLJVCWr0LCDxXSgpnnayb5aifAvoqNy9NKHENvgZipLELz4m0w==}
+  '@iconify-json/solar@1.2.15':
+    resolution: {integrity: sha512-cChSPHQAqrqb59VaY082SjfT6QmUuRV7MjmHaaeJnaPY5feF/Qmr21W817bHAxXSMWfG9tuq43mxyIDhnodF1g==}
 
   '@iconify-json/vscode-icons@1.2.96':
     resolution: {integrity: sha512-JkH2lqzkp1dimpiZH5X7NmMo5ppPaQHf3ABTDc7BCahT1rHsmfkxroGBtl3JKVY3PwTnN6Sv0ehoR4ScHyOeOg==}
@@ -7601,8 +7601,8 @@ packages:
     resolution: {integrity: sha512-z0yWI+4FDrrweS8Zmt4Ej5HdJmky15+L2e6Wgn3+iK5fWzb6T3fhNFq2+MeTRb064c6Wr4N/wv0DzQTjNzHNGQ==}
     engines: {node: '>=10'}
 
-  miniflare@5.20261110.1-beta:
-    resolution: {integrity: sha512-CO8T1DO3/JFxEWvJ7yaHiPx5Ph/5FhRzYKve6cM8O2frHmY7yWudV5p8FU11bfGRAerChGpuK+l0HoxOCw2nFw==}
+  miniflare@5.20261110.2-beta:
+    resolution: {integrity: sha512-vzUwcal5OtR/1nr5cmjCbZSrsR3QRA1cDnRUDVgET17HeDkdpQNG2QxeIkuHFLyszjdBqme59w8Nrrj4FkuFsQ==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       kerberos: ^2.0.0
@@ -9954,8 +9954,8 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
-  wrangler@4.160.1:
-    resolution: {integrity: sha512-gM8daj5geYTEw+038dV5OQAmrSIo/9e97FoJuNf+r9PllWR0ZnqMI2LXZZDSHpGsMez3mKKFYH5o/hBsf1ZTHg==}
+  wrangler@4.161.0:
+    resolution: {integrity: sha512-yOHZUYEq9AP7vutWmkCADzCKAH9ynfvZdoKJRIGTzkiailf9/L+jhT7WRb+9p6jRDtuBXVFtCzLo7kGAcGw+pA==}
     engines: {node: '>=22.12.0'}
     hasBin: true
     peerDependencies:
@@ -11317,7 +11317,7 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@iconify-json/solar@1.2.14':
+  '@iconify-json/solar@1.2.15':
     dependencies:
       '@iconify/types': 2.0.0
 
@@ -19296,7 +19296,7 @@ snapshots:
 
   mimic-response@3.1.0: {}
 
-  miniflare@5.20261110.1-beta(@types/node@26.6.6):
+  miniflare@5.20261110.2-beta(@types/node@26.6.6):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       sharp: 0.35.5(@types/node@26.6.6)
@@ -23012,14 +23012,14 @@ snapshots:
       '@cloudflare/workerd-linux-arm64': 1.20261110.1
       '@cloudflare/workerd-windows-64': 1.20261110.1
 
-  wrangler@4.160.1(@types/node@26.6.6):
+  wrangler@4.161.0(@types/node@26.6.6):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.5.0
       '@cloudflare/unenv-preset': 2.16.2(unenv@2.0.0-rc.24)(workerd@1.20261110.1)
       '@cspotcode/source-map-support': 0.8.1
       blake3-wasm: 2.1.5
       esbuild: 0.28.2
-      miniflare: 5.20261110.1-beta(@types/node@26.6.6)
+      miniflare: 5.20261110.2-beta(@types/node@26.6.6)
       path-to-regexp: 6.3.0
       unenv: 2.0.0-rc.24
       workerd: 1.20261110.1
