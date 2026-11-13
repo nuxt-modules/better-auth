@@ -237,6 +237,17 @@ minimumReleaseAgeExclude:
   - '@iconify-json/solar@1.2.15'
   - miniflare@5.20261110.2-beta
   - wrangler@4.161.0
+  # Allow the Better Auth 1.7.23 monorepo update.
+  - '@better-auth/core@1.7.23'
+  - '@better-auth/drizzle-adapter@1.7.23'
+  - '@better-auth/kysely-adapter@1.7.23'
+  - '@better-auth/memory-adapter@1.7.23'
+  - '@better-auth/mongo-adapter@1.7.23'
+  - '@better-auth/passkey@1.7.23'
+  - '@better-auth/prisma-adapter@1.7.23'
+  - '@better-auth/telemetry@1.7.23'
+  - 'auth@1.7.23'
+  - 'better-auth@1.7.23'
 
 packages:
   - .
