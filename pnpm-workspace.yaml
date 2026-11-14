@@ -231,8 +231,9 @@ minimumReleaseAgeExclude:
   - postgres@4.1.1
   - miniflare@5.20261110.1-beta
   - wrangler@4.160.1
-  # Allow the Better SQLite3 13.1.1 dev dependency update.
+  # Allow the Better SQLite3 dev dependency updates.
   - better-sqlite3@13.1.1
+  - better-sqlite3@13.2.0
   # Allow the Solar 1.2.15 and Wrangler 4.161.0 dev dependency updates.
   - '@iconify-json/solar@1.2.15'
   - miniflare@5.20261110.2-beta
