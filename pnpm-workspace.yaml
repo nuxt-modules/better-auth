@@ -248,6 +248,18 @@ minimumReleaseAgeExclude:
   - '@better-auth/telemetry@1.7.23'
   - 'auth@1.7.23'
   - 'better-auth@1.7.23'
+  # Allow the ESLint 10.15.0, Playwright 1.65.1 and Wrangler 4.162.0 updates.
+  - '@eslint/config-array@0.23.6'
+  - eslint@10.15.0
+  - playwright-core@1.65.1
+  - '@cloudflare/workerd-darwin-64@1.20261113.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261113.1'
+  - '@cloudflare/workerd-linux-64@1.20261113.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261113.1'
+  - '@cloudflare/workerd-windows-64@1.20261113.1'
+  - miniflare@5.20261113.0-beta
+  - workerd@1.20261113.1
+  - wrangler@4.162.0
 
 packages:
   - .
