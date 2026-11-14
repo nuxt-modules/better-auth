@@ -16,8 +16,12 @@ type UserAuthConfig = AuthOptions & {
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
   secondaryStorage?: BetterAuthOptions['secondaryStorage']
 }
-type ResolvedAuthOptions = Omit<UserAuthConfig, 'secret' | 'baseURL' | 'trustedOrigins' | 'database' | 'plugins'> & {
-  plugins?: BetterAuthOptions['plugins']
+// Better Auth reads plugin endpoints with `Options['plugins'] extends (infer T)[]`, which a
+// readonly or optional `plugins` fails. Pass the user's tuple as a required mutable tuple.
+type ResolvedAuthPlugins = UserAuthConfig extends { plugins: infer P extends readonly BetterAuthPlugin[] }
+  ? { plugins: { -readonly [K in keyof P]: P[K] } }
+  : { plugins?: BetterAuthOptions['plugins'] }
+type ResolvedAuthOptions = Omit<UserAuthConfig, 'secret' | 'baseURL' | 'trustedOrigins' | 'database' | 'plugins'> & ResolvedAuthPlugins & {
   secret: string
   baseURL: string
   trustedOrigins?: BetterAuthOptions['trustedOrigins']
