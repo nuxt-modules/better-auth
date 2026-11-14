@@ -79,23 +79,28 @@ function getRequestHeaders(event: ServerEvent): Headers {
   return getRequestSessionContext(event).requestHeaders ?? getIncomingRequestHeaders(event)
 }
 
+// Better Auth 1.7.3+ returns `{ headers, response }` for `returnHeaders: true`, but leaves
+// `headers` undefined when a plugin before hook answers get-session, as the api-key plugin
+// does for API-key sessions. A bare session covers adapters that ignore returnHeaders.
+function toSessionWithHeaders(result: unknown): SessionWithHeaders {
+  if (result && typeof result === 'object' && 'response' in result) {
+    const { headers, response } = result as { headers?: unknown, response: AppSession | null }
+    return { headers: headers instanceof Headers ? headers : new Headers(), response }
+  }
+
+  return { headers: new Headers(), response: result as AppSession | null }
+}
+
 async function loadSession(event: ServerEvent): Promise<SessionWithHeaders> {
   // Await only while the derived secret is pending, so lookups keep their timing otherwise.
   const pendingSecret = prepareAuthSecret()
   if (pendingSecret)
     await pendingSecret
   const auth = serverAuth(event)
-  const result = await auth.api.getSession({
+  return toSessionWithHeaders(await auth.api.getSession({
     headers: getRequestHeaders(event),
     returnHeaders: true,
-  }) as unknown
-
-  // Keep unit-level and forward-compatible resilience if an auth adapter ignores
-  // returnHeaders, while Better Auth 1.7.3+ returns SessionWithHeaders here.
-  if (result && typeof result === 'object' && 'headers' in result && result.headers instanceof Headers && 'response' in result)
-    return result as SessionWithHeaders
-
-  return { headers: new Headers(), response: result as AppSession | null }
+  }))
 }
 
 function loadFreshSession(event: ServerEvent): Promise<SessionWithHeaders> {
@@ -108,7 +113,7 @@ function loadFreshSession(event: ServerEvent): Promise<SessionWithHeaders> {
     headers: getRequestHeaders(event),
     query: { disableCookieCache: true },
     returnHeaders: true,
-  }) as unknown as Promise<SessionWithHeaders>
+  }).then(toSessionWithHeaders)
 }
 
 function getServerAuthContext(event: ServerEvent): Promise<ServerAuthContextLike> {
