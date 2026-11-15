@@ -207,6 +207,8 @@ minimumReleaseAgeExclude:
   - '@iconify-json/solar@1.2.14'
   # Allow the Nuxt test-utils 4.4.0 dev dependency update.
   - '@nuxt/test-utils@4.4.0'
+  # Allow the Vue test-utils 2.6.0 dev dependency update.
+  - '@vue/test-utils@2.6.0'
   # Allow the Wrangler 4.159.0 dev dependency update and its Cloudflare dependencies.
   - '@cloudflare/workerd-darwin-64@1.20261109.1'
   - '@cloudflare/workerd-darwin-arm64@1.20261109.1'
