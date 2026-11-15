@@ -144,6 +144,22 @@ describe('getRequestSession', () => {
     expect(event.node.res.getHeader('set-cookie')).toBeUndefined()
   })
 
+  it.each([{}, { headers: undefined }, { headers: new Headers() }])('preserves a bare custom session with a response field and extra fields %j', async (extra) => {
+    const session = {
+      user: { id: 'u1' },
+      session: { id: 's1' },
+      response: { user: { id: 'other-user' }, session: { id: 'other-session' } },
+      ...extra,
+    }
+    getSessionMock.mockResolvedValue(session)
+    const { getRequestSession, getUserSession, requireUserSession, refreshSessionCookieCache } = await import('../src/runtime/server/utils/session')
+
+    await expect(getUserSession(createEvent())).resolves.toBe(session)
+    await expect(getRequestSession(createEvent())).resolves.toBe(session)
+    await expect(requireUserSession(createEvent())).resolves.toBe(session)
+    await expect(refreshSessionCookieCache(createEvent())).resolves.toBe(session)
+  })
+
   it('forwards session cookies returned by an ordinary session load', async () => {
     const session = {
       user: { id: 'u1' },

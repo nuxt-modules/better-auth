@@ -83,7 +83,9 @@ function getRequestHeaders(event: ServerEvent): Headers {
 // `headers` undefined when a plugin before hook answers get-session, as the api-key plugin
 // does for API-key sessions. A bare session covers adapters that ignore returnHeaders.
 function toSessionWithHeaders(result: unknown): SessionWithHeaders {
-  if (result && typeof result === 'object' && 'response' in result) {
+  // Prefer a bare session when custom fields make the result ambiguous.
+  if (result && typeof result === 'object' && 'headers' in result && 'response' in result
+    && !('user' in result && 'session' in result)) {
     const { headers, response } = result as { headers?: unknown, response: AppSession | null }
     return { headers: headers instanceof Headers ? headers : new Headers(), response }
   }
