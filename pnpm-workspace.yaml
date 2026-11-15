@@ -263,6 +263,18 @@ minimumReleaseAgeExclude:
   - workerd@1.20261113.1
   - wrangler@4.162.0
 
+  # Allow the Better Auth 1.7.25 monorepo update.
+  - '@better-auth/core@1.7.25'
+  - '@better-auth/drizzle-adapter@1.7.25'
+  - '@better-auth/kysely-adapter@1.7.25'
+  - '@better-auth/memory-adapter@1.7.25'
+  - '@better-auth/mongo-adapter@1.7.25'
+  - '@better-auth/passkey@1.7.25'
+  - '@better-auth/prisma-adapter@1.7.25'
+  - '@better-auth/telemetry@1.7.25'
+  - auth@1.7.25
+  - better-auth@1.7.25
+
 packages:
   - .
   - docs
