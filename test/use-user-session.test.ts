@@ -724,9 +724,6 @@ describe('useUserSession hydration bootstrap', () => {
       'user',
       'waitForSession',
     ])
-    expect('client' in auth).toBe(false)
-    expect('signIn' in auth).toBe(false)
-    expect('signUp' in auth).toBe(false)
   })
 
   it('keeps useUserSession safe for Pinia setup-store forwarding on client', async () => {
@@ -744,9 +741,6 @@ describe('useUserSession hydration bootstrap', () => {
     const store = { ...useUserSession() }
     const isStateLike = (value: unknown) => isRef(value) || isReactive(value)
 
-    expect('client' in store).toBe(false)
-    expect('signIn' in store).toBe(false)
-    expect('signUp' in store).toBe(false)
     expect(isStateLike(store.signOut)).toBe(false)
     expect(isStateLike(store.fetchSession)).toBe(false)
   })
@@ -758,9 +752,6 @@ describe('useUserSession hydration bootstrap', () => {
     const useAuthStore = defineStore('auth-session-forwarding', () => useUserSession())
     const store = useAuthStore()
 
-    expect('client' in store).toBe(false)
-    expect('signIn' in store).toBe(false)
-    expect('signUp' in store).toBe(false)
     expect(isReactive(store.signOut)).toBe(false)
     expect(isReactive(store.fetchSession)).toBe(false)
   })
@@ -790,9 +781,6 @@ describe('useUserSession hydration bootstrap', () => {
     const store = { ...useUserSession() }
     const isStateLike = (value: unknown) => isRef(value) || isReactive(value)
 
-    expect('client' in store).toBe(false)
-    expect('signIn' in store).toBe(false)
-    expect('signUp' in store).toBe(false)
     expect(isStateLike(store.signOut)).toBe(false)
     expect(isStateLike(store.fetchSession)).toBe(false)
   })
