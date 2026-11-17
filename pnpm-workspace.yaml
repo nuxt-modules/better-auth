@@ -1,4 +1,6 @@
 minimumReleaseAgeExclude:
+  # Allow the nostics 1.4.0 dependency update.
+  - nostics@1.4.0
   # Allow the Nuxt UI 4.12.2 dependency update.
   - '@nuxt/ui@4.12.2'
   # Allow the DevTools 4.2.0 update and its Devframe dependencies.
