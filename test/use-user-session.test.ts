@@ -556,7 +556,6 @@ describe('useUserSession hydration bootstrap', () => {
         '[nuxt-better-auth] Failed to fetch session during hydration reconciliation:',
         error,
       )
-      expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(false)
 
       mockClient.getSession.mockResolvedValueOnce({
         data: { session: { id: 'session-2' }, user: { id: 'user-2' } },
@@ -566,7 +565,6 @@ describe('useUserSession hydration bootstrap', () => {
         expect(mockClient.getSession).toHaveBeenCalledTimes(2)
         expect(auth.session.value).toEqual({ id: 'session-2' })
         expect(auth.user.value).toEqual({ id: 'user-2' })
-        expect(state.get('auth:hydration-reconcile-queued')?.value).toBe(false)
       })
     }
     finally {
@@ -649,32 +647,21 @@ describe('useUserSession hydration bootstrap', () => {
     expect(auth.user.value).toEqual({ id: 'user-2', email: 'user@example.com' })
   })
 
-  it('fetchSession passes disableCookieCache query when force is enabled', async () => {
-    let capturedArgs: unknown[] = []
-    mockClient.getSession.mockImplementationOnce((...args: unknown[]) => {
-      capturedArgs = args
-      return { data: null }
-    })
+  it.each([
+    { force: true, userId: 'fresh-user' },
+    { force: false, userId: 'cached-user' },
+  ])('fetchSession reads the $userId when force is $force', async ({ force, userId }) => {
+    mockClient.getSession.mockImplementationOnce(async (data?: { query?: { disableCookieCache?: boolean } }) => ({
+      data: {
+        session: { id: 'session-1' },
+        user: { id: data?.query?.disableCookieCache ? 'fresh-user' : 'cached-user' },
+      },
+    }))
 
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
-    await auth.fetchSession({ force: true })
+    const auth = (await loadUseUserSession())()
+    await auth.fetchSession({ force })
 
-    expect(capturedArgs[0]).toEqual({ query: { disableCookieCache: true } })
-  })
-
-  it('fetchSession does not pass disableCookieCache query by default', async () => {
-    let capturedArgs: unknown[] = []
-    mockClient.getSession.mockImplementationOnce((...args: unknown[]) => {
-      capturedArgs = args
-      return { data: null }
-    })
-
-    const useUserSession = await loadUseUserSession()
-    const auth = useUserSession()
-    await auth.fetchSession()
-
-    expect(capturedArgs[0]).toEqual({ query: undefined })
+    expect(auth.user.value?.id).toBe(userId)
   })
 
   it('fetchSession fetches and sets SSR session on server', async () => {

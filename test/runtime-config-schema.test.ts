@@ -75,7 +75,7 @@ describe('registerRuntimeConfigSchema', () => {
 
     const updates = (globalThis as { __kitUpdates?: Record<string, any>[] }).__kitUpdates
     expect(updates).toHaveLength(1)
-    expect(Object.keys(updates![0]!)).toEqual(['betterAuthSecret', 'public'])
+    expect(updates![0]).toEqual({ betterAuthSecret: expect.anything(), public: expect.anything() })
     expect(updates![0]!.public.siteUrl['~standard'].vendor).toBe('zod')
   })
 })
