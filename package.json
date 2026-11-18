@@ -127,7 +127,7 @@
     "@vue/test-utils": "^2.5.1",
     "auth": "1.7.25",
     "better-auth": "1.7.25",
-    "better-call": "1.4.5",
+    "better-call": "1.4.6",
     "better-sqlite3": "^13.0.3",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.4",
