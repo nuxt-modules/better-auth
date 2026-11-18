@@ -158,6 +158,7 @@ minimumReleaseAgeExclude:
   - '@nuxt/icon@2.6.0'
   - '@nuxt/icon@2.6.1'
   - '@nuxt/icon@2.6.2'
+  - '@nuxt/icon@2.6.3'
   - pkg-pr-new@0.0.93
   - '@nuxt/kit@4.6.3'
   - '@nuxt/nitro-server@4.6.3'
