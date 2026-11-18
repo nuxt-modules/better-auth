@@ -303,6 +303,16 @@ minimumReleaseAgeExclude:
   - miniflare@5.20261116.0-beta
   - wrangler@4.163.0
 
+  # Allow the Wrangler 4.164.0 update and its Cloudflare dependencies.
+  - '@cloudflare/workerd-darwin-64@1.20261117.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261117.1'
+  - '@cloudflare/workerd-linux-64@1.20261117.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261117.1'
+  - '@cloudflare/workerd-windows-64@1.20261117.1'
+  - miniflare@5.20261117.0-beta
+  - workerd@1.20261117.1
+  - wrangler@4.164.0
+
 packages:
   - .
   - docs
