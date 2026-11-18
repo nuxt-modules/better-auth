@@ -1,4 +1,8 @@
 minimumReleaseAgeExclude:
+  # Allow the Nuxt Content 3.17.0 update and its new dependencies.
+  - '@nuxt/content@3.17.0'
+  - '@nuxtjs/mdc@0.23.4'
+  - isomorphic-git@1.44.16
   # Allow the nostics 1.4.0 dependency update.
   - nostics@1.4.0
   # Allow the Nuxt UI 4.12.2 dependency update.
