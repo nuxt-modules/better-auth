@@ -182,6 +182,10 @@ minimumReleaseAgeExclude:
   - '@vitest/mocker@5.1.0'
   - '@vitest/spy@5.1.0'
   - vitest@5.1.0
+  # Allow the Vitest 5.1.1 dependency update.
+  - '@vitest/mocker@5.1.1'
+  - '@vitest/spy@5.1.1'
+  - vitest@5.1.1
   - '@cloudflare/workerd-darwin-64@1.20261102.1'
   - '@cloudflare/workerd-darwin-arm64@1.20261102.1'
   - '@cloudflare/workerd-linux-64@1.20261102.1'
