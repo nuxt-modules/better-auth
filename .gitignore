@@ -24,8 +24,6 @@ docs/content/6.errors
 .nuxt
 # Written by `nuxt-module-build prepare`, which runs the module's onInstall in the repository root
 /.nuxtrc
-/auth.config.ts
-/server/auth.config.ts
 .output
 .data
 .vercel_build_output
