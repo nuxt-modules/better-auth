@@ -229,6 +229,17 @@ minimumReleaseAgeExclude:
   - miniflare@5.20261104.0-beta
   - wrangler@4.158.0
   - '@vercel/speed-insights@2.1.0'
+  # Allow the Vue 3.5.46 dev dependency update.
+  - '@vue/compiler-core@3.5.46'
+  - '@vue/compiler-dom@3.5.46'
+  - '@vue/compiler-sfc@3.5.46'
+  - '@vue/compiler-ssr@3.5.46'
+  - '@vue/reactivity@3.5.46'
+  - '@vue/runtime-core@3.5.46'
+  - '@vue/runtime-dom@3.5.46'
+  - '@vue/server-renderer@3.5.46'
+  - '@vue/shared@3.5.46'
+  - vue@3.5.46
   # Allow the Playwright 1.65.0 and Postgres 4.1.0 dev dependency updates.
   - playwright-core@1.65.0
   - postgres@4.1.0
