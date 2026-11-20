@@ -7,7 +7,7 @@ import { createRequire } from 'node:module'
 import { consola } from 'consola'
 import { Diagnostic, formatDiagnostic } from 'nostics'
 import { dirname, join } from 'pathe'
-import { diagnostics } from './module/diagnostics'
+import { diagnostics } from './module/diagnostics.ts'
 import type { SchemaCasing } from './runtime/config'
 
 export interface SchemaOptions { usePlural?: boolean, useUuid?: boolean, casing?: SchemaCasing, schemaName?: string }
@@ -286,7 +286,7 @@ export async function loadUserAuthConfig(
   rootDir?: string,
 ): Promise<Partial<BetterAuthOptions> | null> {
   const { createJiti } = await import('jiti')
-  const { defineServerAuth: runtimeDefineServerAuth } = await import('./runtime/config')
+  const { defineServerAuth: runtimeDefineServerAuth } = await import('./runtime/config.ts')
   const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false, alias })
   const schemaGlobals = globalThis as typeof globalThis & SchemaGeneratorGlobals
 

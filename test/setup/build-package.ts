@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 // An existing dist may come from another version or a development stub build.
 export default function setup() {
   const shimPath = fileURLToPath(new URL('../../scripts/typescript6-shim.mjs', import.meta.url))
-  const build = spawnSync('pnpm', ['exec', 'nuxt-module-build', 'build'], {
+  const build = spawnSync('pnpm', ['exec', 'tsdown'], {
     cwd: fileURLToPath(new URL('../..', import.meta.url)),
     env: {
       ...process.env,
@@ -15,5 +15,5 @@ export default function setup() {
     timeout: 120_000,
   })
   if (build.status !== 0)
-    throw new Error(`nuxt-module-build failed: ${build.error || ''}\n${build.stdout}\n${build.stderr}`)
+    throw new Error(`tsdown failed: ${build.error || ''}\n${build.stdout}\n${build.stderr}`)
 }

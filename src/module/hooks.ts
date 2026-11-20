@@ -6,7 +6,7 @@ import { addComponentsDir, addImports, addNitroPlugin, addPlugin, addRouteMiddle
 import { defu } from 'defu'
 import { isAbsolute, join } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
-import { setupDevTools } from '../devtools'
+import { setupDevTools } from '../devtools.ts'
 
 interface ResolveInput {
   resolve: (path: string) => string

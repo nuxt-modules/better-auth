@@ -3,8 +3,8 @@ import type { ConsolaInstance } from 'consola'
 import type { AuthPrivateRuntimeConfig, AuthRuntimeConfig, BetterAuthModuleOptions, ModuleDatabaseProviderId } from '../runtime/config'
 import type { NuxtHubOptions } from './hub'
 import { defu } from 'defu'
-import { diagnostics } from './diagnostics'
-import { registerRuntimeConfigSchema, supportsRuntimeConfigSchemas } from './runtime-config-schema'
+import { diagnostics } from './diagnostics.ts'
+import { registerRuntimeConfigSchema, supportsRuntimeConfigSchemas } from './runtime-config-schema.ts'
 
 interface SetupRuntimeConfigInput {
   nuxt: Nuxt

@@ -9,18 +9,18 @@ import { addTemplate, createResolver, defineNuxtModule, getNitroVersion, hasNuxt
 import { consola as _consola } from 'consola'
 import { Diagnostic, formatDiagnostic } from 'nostics'
 import { dirname, isAbsolute, join, relative } from 'pathe'
-import { version } from '../package.json'
-import { resolveAuthConfigDescriptors, resolveAuthConfigFile } from './module/config-paths'
-import { resolveAppSecretShim, resolveAuthSecretPlugin, resolveH3TypesPath, resolveNitro3RouteRulesTarget, resolveServerImportsTypesFile, resolveServerRuntimeShim } from './module/compatibility'
-import { diagnostics } from './module/diagnostics'
-import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks'
-import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema'
-import { applyPromptedAppSecret, promptForSecret } from './module/secret'
-import { collectAuthRouteRules, registerAuthRouteRulesValidation, resolveAuthModuleSetup } from './module/setup'
-import { buildAuthRouteRulesCode, buildExtendedClientAuthCode, buildExtendedServerAuthCode, buildSchemaExportCode, buildSchemaExportTypes } from './module/templates'
-import { registerServerTypeTemplates, registerSharedTypeTemplates } from './module/type-templates'
+import pkg from '../package.json' with { type: 'json' }
+import { resolveAuthConfigDescriptors, resolveAuthConfigFile } from './module/config-paths.ts'
+import { resolveAppSecretShim, resolveAuthSecretPlugin, resolveH3TypesPath, resolveNitro3RouteRulesTarget, resolveServerImportsTypesFile, resolveServerRuntimeShim } from './module/compatibility.ts'
+import { diagnostics } from './module/diagnostics.ts'
+import { registerAuthMiddleware, registerDevtools, registerNuxtHubDatabaseExternalHook, registerPrepareTypesHook, registerRouteRulesMetaHook, registerServerRuntime, registerTemplateHmrHook } from './module/hooks.ts'
+import { registerNuxtHubSchemaHook, setupBetterAuthSchema } from './module/schema.ts'
+import { applyPromptedAppSecret, promptForSecret } from './module/secret.ts'
+import { collectAuthRouteRules, registerAuthRouteRulesValidation, resolveAuthModuleSetup } from './module/setup.ts'
+import { buildAuthRouteRulesCode, buildExtendedClientAuthCode, buildExtendedServerAuthCode, buildSchemaExportCode, buildSchemaExportTypes } from './module/templates.ts'
+import { registerServerTypeTemplates, registerSharedTypeTemplates } from './module/type-templates.ts'
 
-import './types/hooks'
+import './types/hooks.ts'
 
 const consola = _consola.withTag('nuxt-better-auth')
 const serverAliasImportRE = /from\s+['"]#server/
@@ -92,7 +92,7 @@ async function ensureSchemaBootstrap(schemaPath: string, dialect: DbDialect): Pr
 export type { BetterAuthModuleOptions, BetterAuthModuleOptions as ModuleOptions } from './runtime/config'
 
 export default defineNuxtModule<BetterAuthModuleOptions>({
-  meta: { name: '@nuxtjs/better-auth', version, configKey: 'auth', compatibility: { nuxt: '>=4.0.0' } },
+  meta: { name: '@nuxtjs/better-auth', version: pkg.version, configKey: 'auth', compatibility: { nuxt: '>=4.0.0' } },
   defaults: {
     clientOnly: false,
     serverConfig: 'server/auth.config',
@@ -287,5 +287,5 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
   },
 })
 
-export { defineClientAuth, defineServerAuth } from './runtime/config'
+export { defineClientAuth, defineServerAuth } from './runtime/config.ts'
 export type { AppSession, Auth, AuthActionError, AuthMeta, AuthMode, AuthRouteRules, AuthSession, AuthSocialProviderId, AuthUser, ClientAuthSession, InferSession, InferUser, RequireSessionOptions, ServerAuthContext, UserMatch } from './runtime/types'

@@ -9,10 +9,10 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { addTemplate } from '@nuxt/kit'
 import { Diagnostic, formatDiagnostic } from 'nostics'
 import { join } from 'pathe'
-import { checkBetterAuthCli, generateCachedDrizzleSchema, loadUserAuthConfig } from '../schema-generator'
-import { resolveAuthConfigFile } from './config-paths'
-import { diagnostics } from './diagnostics'
-import { getHubCasing, getHubDialect } from './hub'
+import { checkBetterAuthCli, generateCachedDrizzleSchema, loadUserAuthConfig } from '../schema-generator.ts'
+import { resolveAuthConfigFile } from './config-paths.ts'
+import { diagnostics } from './diagnostics.ts'
+import { getHubCasing, getHubDialect } from './hub.ts'
 
 interface SchemaContext {
   nuxt: Nuxt
