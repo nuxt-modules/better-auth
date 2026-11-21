@@ -370,6 +370,13 @@ minimumReleaseAgeExclude:
   - workerd@1.20261118.1
   - wrangler@4.165.0
 
+  # Allow the module-builder 2.0.0-alpha.1 and Wrangler 4.166.0 updates.
+  - '@cloudflare/workers-utils@0.56.0'
+  - '@nuxt/module-builder@2.0.0-alpha.1'
+  - miniflare@5.20261119.0-beta
+  - vue-sfc-transformer@0.3.5
+  - wrangler@4.166.0
+
 packages:
   - .
   - docs
