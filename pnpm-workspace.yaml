@@ -331,6 +331,18 @@ minimumReleaseAgeExclude:
   - auth@1.7.26
   - better-auth@1.7.26
 
+  # Allow the Better Auth 1.7.27 monorepo update.
+  - '@better-auth/core@1.7.27'
+  - '@better-auth/drizzle-adapter@1.7.27'
+  - '@better-auth/kysely-adapter@1.7.27'
+  - '@better-auth/memory-adapter@1.7.27'
+  - '@better-auth/mongo-adapter@1.7.27'
+  - '@better-auth/passkey@1.7.27'
+  - '@better-auth/prisma-adapter@1.7.27'
+  - '@better-auth/telemetry@1.7.27'
+  - auth@1.7.27
+  - better-auth@1.7.27
+
   # Allow the pkg-pr-new 0.0.94 and Wrangler 4.163.0 dev dependency updates.
   - pkg-pr-new@0.0.94
   - miniflare@5.20261116.0-beta
