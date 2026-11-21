@@ -1,6 +1,6 @@
 import type { ModuleDatabaseProviderId } from './runtime/config'
 import type { BetterAuthDatabaseProviderDefinition, BetterAuthDatabaseProviderEnabledContext } from './types/hooks'
-import { diagnostics } from './module/diagnostics'
+import { diagnostics } from './module/diagnostics.ts'
 
 export interface ResolveDatabaseProviderInput {
   providers: Record<string, BetterAuthDatabaseProviderDefinition>

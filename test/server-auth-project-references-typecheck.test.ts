@@ -19,13 +19,13 @@ beforeAll(() => {
     return
   }
 
-  const build = spawnSync('pnpm', ['exec', 'nuxt-module-build', 'build'], {
+  const build = spawnSync('pnpm', ['exec', 'tsdown'], {
     cwd: rootDir,
-    env,
+    env: typecheckEnv,
     encoding: 'utf8',
     timeout: 120_000,
   })
-  expect(build.status, `nuxt-module-build failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
+  expect(build.status, `tsdown failed:\n${build.stdout}\n${build.stderr}`).toBe(0)
 }, 180_000)
 
 function runProjectReferenceTypecheck(fixtureDir: string) {

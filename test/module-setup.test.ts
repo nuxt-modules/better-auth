@@ -4,7 +4,7 @@ import type { BetterAuthModuleOptions } from '../src/runtime/config'
 import { fileURLToPath } from 'node:url'
 import { loadNuxt } from '@nuxt/kit'
 import { Diagnostic, formatDiagnostic } from 'nostics'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, assert, describe, expect, it, vi } from 'vitest'
 import { diagnostics } from '../src/module/diagnostics'
 import { assertSafeAuthRouteRules, collectAuthRouteRules, registerAuthRouteRulesValidation, resolveAuthModuleSetup } from '../src/module/setup'
 
@@ -190,7 +190,7 @@ describe('resolveAuthModuleSetup', () => {
     })
   })
 
-  it('allows provider setup route-rule mutations to affect collected auth route rules', async () => {
+  it('includes provider setup route rules in the generated auth module', async () => {
     const nuxt = await loadCase('without-nuxthub')
 
     nuxt.hook('better-auth:database:providers', (providers) => {
@@ -205,20 +205,18 @@ describe('resolveAuthModuleSetup', () => {
       }
     })
 
-    const setup = await resolveAuthModuleSetup({
-      nuxt,
-      options: createModuleOptions(nuxt),
-      runtimeTypesAugmentPath: '/virtual/runtime-types/augment',
-      consola: createConsolaMock(),
-    })
+    await nuxt.ready()
 
-    await setup.database.providerDefinition?.setup?.({
+    const template = nuxt.options.build.templates.find(template => template.dst === nuxt.options.alias['#auth/route-rules'])
+    assert(template?.getContents)
+    const contents = await template.getContents({
       nuxt,
-      options: createModuleOptions(nuxt),
-      clientOnly: setup.clientOnly,
+      app: nuxt.apps.default,
+      options: template.options ?? {},
     })
+    const { authRouteRules } = await import(/* @vite-ignore */ `data:text/javascript,${encodeURIComponent(contents)}`)
 
-    expect(collectAuthRouteRules(nuxt)).toMatchObject({
+    expect(authRouteRules).toMatchObject({
       '/provider-protected': { auth: 'user' },
     })
   })

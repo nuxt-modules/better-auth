@@ -6,7 +6,7 @@ import { addComponentsDir, addImports, addNitroPlugin, addPlugin, addRouteMiddle
 import { defu } from 'defu'
 import { isAbsolute, join } from 'pathe'
 import { createRouter, toRouteMatcher } from 'radix3'
-import { setupDevTools } from '../devtools'
+import { setupDevTools } from '../devtools.ts'
 
 interface ResolveInput {
   resolve: (path: string) => string
@@ -14,7 +14,7 @@ interface ResolveInput {
 
 interface RegisterServerRuntimeInput extends ResolveInput {
   clientOnly: boolean
-  /** Nitro plugin that derives the auth secret from `appSecret` at startup (Nuxt 4.6+ on Nitro). */
+  /** Nitro plugin that checks the auth secret at startup and derives it from `appSecret` on Nuxt 4.6+. */
   authSecretPlugin?: string
 }
 

@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'node:url'
-import { $fetch, setup } from '@nuxt/test-utils/e2e'
+import { hasNuxtModule } from '@nuxt/kit'
+import { $fetch, setup, useTestContext } from '@nuxt/test-utils/e2e'
 import { describe, expect, it } from 'vitest'
 
 describe('no-db mode (NuxtHub without database)', async () => {
@@ -14,10 +15,11 @@ describe('no-db mode (NuxtHub without database)', async () => {
 
   it('auth API responds without database', async () => {
     const response = await $fetch('/api/auth/ok')
-    expect(response).toBeDefined()
+    expect(response).toEqual({ ok: true })
   })
 
   it('exposes runtime database metadata as none', async () => {
+    expect(hasNuxtModule('@nuxthub/core', useTestContext().nuxt)).toBe(true)
     const response = await $fetch('/api/test/config') as { useDatabase: boolean, databaseProvider: string }
     expect(response.useDatabase).toBe(false)
     expect(response.databaseProvider).toBe('none')

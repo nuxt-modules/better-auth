@@ -48,11 +48,14 @@ const rules: NitroRouteRules = {
 
 const auth = serverAuth()
 const signInUsername = auth.api.signInUsername
+// admin() adds this endpoint; only plugin inference can provide it (#742).
+const createUser: (...args: never[]) => unknown = auth.api.createUser
 
 void user
 void rules
 void auth
 void signInUsername
+void createUser
 void session
 void provider
 

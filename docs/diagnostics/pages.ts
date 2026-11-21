@@ -1,7 +1,7 @@
-import type { Diagnostic } from 'nostics'
+import type { Diagnostic, InferDiagnosticCodes } from 'nostics'
 import { diagnostics } from '../../src/module/diagnostics'
 
-export type DiagnosticCode = keyof typeof diagnostics
+export type DiagnosticCode = InferDiagnosticCodes<typeof diagnostics>
 
 export interface DiagnosticPage {
   title: string

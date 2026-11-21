@@ -1,65 +1,29 @@
 import { describe, expect, it, vi } from 'vitest'
-
-const { createAuthClient } = vi.hoisted(() => ({
-  createAuthClient: vi.fn((options: unknown) => options),
-}))
-
-vi.mock('better-auth/vue', () => ({
-  createAuthClient,
-}))
-
-const { defineClientAuth, extendClientAuth } = await import('../src/runtime/config')
+import { defineClientAuth, extendClientAuth } from '../src/runtime/config'
 
 describe('defineClientAuth', () => {
-  it('passes the inferred siteUrl to function syntax', () => {
-    let capturedUrl = ''
-    const factory = defineClientAuth((ctx) => {
-      capturedUrl = ctx.siteUrl
-      return {}
-    })
+  it.each([
+    { syntax: 'object', baseURL: undefined, expectedURL: 'https://derived.example/api/auth/get-session' },
+    { syntax: 'callback', baseURL: undefined, expectedURL: 'https://derived.example/api/auth/get-session' },
+    { syntax: 'object', baseURL: 'https://explicit.example/api/auth', expectedURL: 'https://explicit.example/api/auth/get-session' },
+    { syntax: 'callback', baseURL: 'https://explicit.example/api/auth', expectedURL: 'https://explicit.example/api/auth/get-session' },
+  ])('uses $syntax config with baseURL=$baseURL for client requests', async ({ syntax, baseURL, expectedURL }) => {
+    const customFetch = vi.fn<typeof globalThis.fetch>(async () => Response.json(null))
+    const options = { baseURL, fetchOptions: { customFetchImpl: customFetch } }
+    const factory = defineClientAuth(syntax === 'object'
+      ? options
+      : ({ siteUrl }) => ({
+          ...options,
+          fetchOptions: { ...options.fetchOptions, headers: { 'x-site': siteUrl } },
+        }))
 
-    factory('http://test.local')
+    await factory('https://derived.example/api/auth').getSession()
 
-    expect(capturedUrl).toBe('http://test.local')
-  })
-
-  it('keeps an explicit baseURL override', () => {
-    const factory = defineClientAuth({
-      baseURL: 'https://explicit.example/api/auth',
-      plugins: [],
-    })
-
-    const client = factory('https://derived.example/api/auth')
-
-    expect(client).toMatchObject({
-      baseURL: 'https://explicit.example/api/auth',
-    })
-  })
-
-  it('falls back to the inferred baseURL when object syntax leaves it undefined', () => {
-    const factory = defineClientAuth({
-      baseURL: undefined,
-      plugins: [],
-    })
-
-    const client = factory('https://derived.example/api/auth')
-
-    expect(client).toMatchObject({
-      baseURL: 'https://derived.example/api/auth',
-    })
-  })
-
-  it('falls back to the inferred baseURL when function syntax leaves it undefined', () => {
-    const factory = defineClientAuth(() => ({
-      baseURL: undefined,
-      plugins: [],
-    }))
-
-    const client = factory('https://derived.example/api/auth')
-
-    expect(client).toMatchObject({
-      baseURL: 'https://derived.example/api/auth',
-    })
+    const requests = customFetch.mock.calls.map(args => new Request(...args))
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.url).toBe(expectedURL)
+    if (syntax === 'callback')
+      expect(requests[0]?.headers.get('x-site')).toBe('https://derived.example/api/auth')
   })
 
   it('appends contributed plugins after the app plugins', () => {
@@ -67,8 +31,6 @@ describe('defineClientAuth', () => {
     const layerPlugin = { id: 'layer' }
     const factory = extendClientAuth(defineClientAuth({ plugins: [appPlugin] }), [layerPlugin])
 
-    expect(factory('https://example.test')).toMatchObject({
-      plugins: [appPlugin, layerPlugin],
-    })
+    expect(factory.resolveOptions('https://example.test').plugins).toEqual([appPlugin, layerPlugin])
   })
 })

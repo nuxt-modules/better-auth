@@ -7,16 +7,15 @@ import '../src/types/hooks'
 
 type SchemaExtension = Parameters<NuxtHooks['better-auth:config:extend']>[0]
 
-it('accepts only schema plugin contributions', () => {
-  const pluginConfig = { plugins: [] as BetterAuthPlugin[] } satisfies SchemaExtension
+it('accepts schema plugins and rejects runtime options during typechecking', { timeout: 180_000 }, () => {
+  const plugins: BetterAuthPlugin[] = []
+  const pluginConfig = { plugins } satisfies SchemaExtension
   // @ts-expect-error The build hook does not extend runtime auth options.
   const runtimeConfig = { appName: 'runtime option' } satisfies SchemaExtension
 
-  expect(pluginConfig.plugins).toEqual([])
-  expect(runtimeConfig.appName).toBe('runtime option')
-})
+  void pluginConfig
+  void runtimeConfig
 
-it('rejects runtime options during typechecking', { timeout: 180_000 }, () => {
   const typecheck = spawnSync('pnpm', [
     'exec',
     'tsc',

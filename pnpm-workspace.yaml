@@ -1,7 +1,42 @@
 minimumReleaseAgeExclude:
+  # Allow the Nuxt Content 3.17.0 update and its new dependencies.
+  - '@nuxt/content@3.17.0'
+  - '@nuxtjs/mdc@0.23.4'
+  - isomorphic-git@1.44.16
+  # Allow the nostics 1.4.0 dependency update.
+  - nostics@1.4.0
+  # Allow the Nuxt UI 4.12.2 dependency update.
+  - '@nuxt/ui@4.12.2'
+  # Allow the Nuxt UI 4.13.0 dependency update.
+  - '@nuxt/ui@4.13.0'
+  # Allow the DevTools 4.2.0 update and its Devframe dependencies.
+  - '@nuxt/devtools@4.2.0'
+  - '@nuxt/devtools-assets@4.2.0'
+  - '@nuxt/devtools-kit@4.2.0'
+  - '@devframes/hub@1.3.5'
+  - '@devframes/plugin-assets@1.3.5'
+  - '@devframes/plugin-code-server@1.3.5'
+  - '@devframes/plugin-data-inspector@1.3.5'
+  - '@devframes/plugin-og@1.3.5'
+  - '@devframes/service-open@1.3.5'
+  - '@devframes/vite@1.3.5'
+  - 'devframe@1.3.5'
   - '@nuxt/devtools@4.0.0'
   - '@nuxt/devtools-assets@4.0.0'
   - '@nuxt/devtools-kit@4.0.0'
+  - '@nuxt/devtools@4.1.0'
+  - '@nuxt/devtools-assets@4.1.0'
+  - '@nuxt/devtools-kit@4.1.0'
+  - '@devframes/hub@1.3.2'
+  - '@devframes/plugin-assets@1.3.2'
+  - '@devframes/plugin-code-server@1.3.2'
+  - '@devframes/plugin-data-inspector@1.3.2'
+  - '@devframes/plugin-og@1.3.2'
+  - '@devframes/service-open@1.3.2'
+  - '@devframes/vite@1.3.2'
+  - devframe@1.3.2
+  - local-pkg@2.0.0
+  - vite-plugin-vue-tracer@1.7.0
   - magic-string@1.4.5
   - '@antfu/eslint-config@10.0.0'
   - '@es-joy/jsdoccomment@1.0.0'
@@ -27,30 +62,324 @@ minimumReleaseAgeExclude:
   - '@better-auth/telemetry@1.7.14'
   - auth@1.7.14
   - better-auth@1.7.14
+  - '@better-auth/core@1.7.15'
+  - '@better-auth/drizzle-adapter@1.7.15'
+  - '@better-auth/kysely-adapter@1.7.15'
+  - '@better-auth/memory-adapter@1.7.15'
+  - '@better-auth/mongo-adapter@1.7.15'
+  - '@better-auth/passkey@1.7.15'
+  - '@better-auth/prisma-adapter@1.7.15'
+  - '@better-auth/telemetry@1.7.15'
+  - auth@1.7.15
+  - better-auth@1.7.15
+  # Allow the Better Auth 1.7.16 security release and its new dependency.
+  - '@better-auth/core@1.7.16'
+  - '@better-auth/drizzle-adapter@1.7.16'
+  - '@better-auth/kysely-adapter@1.7.16'
+  - '@better-auth/memory-adapter@1.7.16'
+  - '@better-auth/mongo-adapter@1.7.16'
+  - '@better-auth/passkey@1.7.16'
+  - '@better-auth/prisma-adapter@1.7.16'
+  - '@better-auth/telemetry@1.7.16'
+  - auth@1.7.16
+  - better-auth@1.7.16
+  - better-call@1.4.5
+  - better-call@1.4.6
+  - '@better-auth/core@1.7.17'
+  - '@better-auth/drizzle-adapter@1.7.17'
+  - '@better-auth/kysely-adapter@1.7.17'
+  - '@better-auth/memory-adapter@1.7.17'
+  - '@better-auth/mongo-adapter@1.7.17'
+  - '@better-auth/passkey@1.7.17'
+  - '@better-auth/prisma-adapter@1.7.17'
+  - '@better-auth/telemetry@1.7.17'
+  - auth@1.7.17
+  - better-auth@1.7.17
+  - '@better-auth/core@1.7.18'
+  - '@better-auth/drizzle-adapter@1.7.18'
+  - '@better-auth/kysely-adapter@1.7.18'
+  - '@better-auth/memory-adapter@1.7.18'
+  - '@better-auth/mongo-adapter@1.7.18'
+  - '@better-auth/passkey@1.7.18'
+  - '@better-auth/prisma-adapter@1.7.18'
+  - '@better-auth/telemetry@1.7.18'
+  - auth@1.7.18
+  - better-auth@1.7.18
+  - '@better-auth/core@1.7.19'
+  - '@better-auth/drizzle-adapter@1.7.19'
+  - '@better-auth/kysely-adapter@1.7.19'
+  - '@better-auth/memory-adapter@1.7.19'
+  - '@better-auth/mongo-adapter@1.7.19'
+  - '@better-auth/passkey@1.7.19'
+  - '@better-auth/prisma-adapter@1.7.19'
+  - '@better-auth/telemetry@1.7.19'
+  - auth@1.7.19
+  - better-auth@1.7.19
+  - '@better-auth/core@1.7.20'
+  - '@better-auth/drizzle-adapter@1.7.20'
+  - '@better-auth/kysely-adapter@1.7.20'
+  - '@better-auth/memory-adapter@1.7.20'
+  - '@better-auth/mongo-adapter@1.7.20'
+  - '@better-auth/passkey@1.7.20'
+  - '@better-auth/prisma-adapter@1.7.20'
+  - '@better-auth/telemetry@1.7.20'
+  - auth@1.7.20
+  - better-auth@1.7.20
+  - '@better-auth/core@1.7.21'
+  - '@better-auth/drizzle-adapter@1.7.21'
+  - '@better-auth/kysely-adapter@1.7.21'
+  - '@better-auth/memory-adapter@1.7.21'
+  - '@better-auth/mongo-adapter@1.7.21'
+  - '@better-auth/passkey@1.7.21'
+  - '@better-auth/prisma-adapter@1.7.21'
+  - '@better-auth/telemetry@1.7.21'
+  - auth@1.7.21
+  - better-auth@1.7.21
+  - '@better-auth/core@1.7.22'
+  - '@better-auth/drizzle-adapter@1.7.22'
+  - '@better-auth/kysely-adapter@1.7.22'
+  - '@better-auth/memory-adapter@1.7.22'
+  - '@better-auth/mongo-adapter@1.7.22'
+  - '@better-auth/passkey@1.7.22'
+  - '@better-auth/prisma-adapter@1.7.22'
+  - '@better-auth/telemetry@1.7.22'
+  - auth@1.7.22
+  - better-auth@1.7.22
   - better-call@1.4.4
   - satori@0.63.2
   - happy-dom@21.0.4
   - miniflare@5.20261023.0-beta
   - miniflare@5.20261023.1-beta
+  - miniflare@5.20261023.2-beta
+  - miniflare@5.20261023.3-beta
+  - miniflare@5.20261101.0-beta
   - wrangler@4.153.0
   - wrangler@4.154.0
+  - wrangler@4.155.0
+  - wrangler@4.156.0
+  - wrangler@4.156.1
+  - '@vue/language-core@3.3.14'
+  - vue-tsc@3.3.14
   - '@nuxt/fonts@1.1.0'
   - '@rollup/plugin-yaml@5.0.1'
   - '@nuxt/icon@2.6.0'
   - '@nuxt/icon@2.6.1'
-  - pkg-pr-new@0.0.92
+  - '@nuxt/icon@2.6.2'
+  - '@nuxt/icon@2.6.3'
+  - pkg-pr-new@0.0.93
   - '@nuxt/kit@4.6.3'
   - '@nuxt/nitro-server@4.6.3'
   - '@nuxt/schema@4.6.3'
   - '@nuxt/vite-builder@4.6.3'
   - '@nuxt/vite-server@4.6.3'
   - nuxt@4.6.3
-  - resend@6.35.0
+  # Allow the Nuxt 4.6.4 security release and its security dependencies.
+  - '@nuxt/kit@4.6.4'
+  - '@nuxt/nitro-server@4.6.4'
+  - '@nuxt/schema@4.6.4'
+  - '@nuxt/vite-builder@4.6.4'
+  - '@nuxt/vite-server@4.6.4'
+  - nuxt@4.6.4
+  - nitropack@2.13.6
+  - unrouting@0.3.2
+  - '@vitest/mocker@5.1.0'
+  - '@vitest/spy@5.1.0'
+  - vitest@5.1.0
+  # Allow the Vitest 5.1.1 dependency update.
+  - '@vitest/mocker@5.1.1'
+  - '@vitest/spy@5.1.1'
+  - vitest@5.1.1
+  - '@cloudflare/workerd-darwin-64@1.20261102.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261102.1'
+  - '@cloudflare/workerd-linux-64@1.20261102.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261102.1'
+  - '@cloudflare/workerd-windows-64@1.20261102.1'
+  - miniflare@5.20261102.0-beta
+  - workerd@1.20261102.1
+  - wrangler@4.156.2
+  - '@cloudflare/workerd-darwin-64@1.20261103.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261103.1'
+  - '@cloudflare/workerd-linux-64@1.20261103.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261103.1'
+  - '@cloudflare/workerd-windows-64@1.20261103.1'
+  - miniflare@5.20261103.0-beta
+  - workerd@1.20261103.1
+  - wrangler@4.157.0
+  - resend@6.39.0
+  - '@types/node@26.6.6'
+  - motion-v@2.9.0
+  - motion-v@2.10.0
+  - motion-v@2.11.0
+  - motion-v@2.11.1
+  - motion-v@2.12.0
+  - motion-v@2.13.0
+  - postgres@4.0.0
+  - eslint@10.14.0
+  # Allow the Vue 3.5.45 and Wrangler 4.158.0 dev dependency updates.
+  - '@vue/compiler-core@3.5.45'
+  - '@vue/compiler-dom@3.5.45'
+  - '@vue/compiler-sfc@3.5.45'
+  - '@vue/compiler-ssr@3.5.45'
+  - '@vue/reactivity@3.5.45'
+  - '@vue/runtime-core@3.5.45'
+  - '@vue/runtime-dom@3.5.45'
+  - '@vue/server-renderer@3.5.45'
+  - '@vue/shared@3.5.45'
+  - vue@3.5.45
+  - miniflare@5.20261104.0-beta
+  - wrangler@4.158.0
+  - '@vercel/speed-insights@2.1.0'
+  # Allow the Vue 3.5.46 dev dependency update.
+  - '@vue/compiler-core@3.5.46'
+  - '@vue/compiler-dom@3.5.46'
+  - '@vue/compiler-sfc@3.5.46'
+  - '@vue/compiler-ssr@3.5.46'
+  - '@vue/reactivity@3.5.46'
+  - '@vue/runtime-core@3.5.46'
+  - '@vue/runtime-dom@3.5.46'
+  - '@vue/server-renderer@3.5.46'
+  - '@vue/shared@3.5.46'
+  - vue@3.5.46
+  # Allow the Playwright 1.65.0 and Postgres 4.1.0 dev dependency updates.
+  - playwright-core@1.65.0
+  - postgres@4.1.0
+  # Allow the Solar icon set 1.2.14 dev dependency update.
+  - '@iconify-json/solar@1.2.14'
+  # Allow the Nuxt test-utils 4.4.0 dev dependency update.
+  - '@nuxt/test-utils@4.4.0'
+  # Allow the Vue test-utils 2.6.0 dev dependency update.
+  - '@vue/test-utils@2.6.0'
+  # Allow the Wrangler 4.159.0 dev dependency update and its Cloudflare dependencies.
+  - '@cloudflare/workerd-darwin-64@1.20261109.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261109.1'
+  - '@cloudflare/workerd-linux-64@1.20261109.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261109.1'
+  - '@cloudflare/workerd-windows-64@1.20261109.1'
+  - miniflare@5.20261109.0-beta
+  - workerd@1.20261109.1
+  - wrangler@4.159.0
+  # Allow the Wrangler 4.160.0 dev dependency update and its Cloudflare dependencies.
+  - '@cloudflare/workerd-darwin-64@1.20261110.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261110.1'
+  - '@cloudflare/workerd-linux-64@1.20261110.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261110.1'
+  - '@cloudflare/workerd-windows-64@1.20261110.1'
+  - miniflare@5.20261110.0-beta
+  - workerd@1.20261110.1
+  - wrangler@4.160.0
+  # Allow the Nuxt module-builder 1.0.4 dev dependency update.
+  - '@nuxt/module-builder@1.0.4'
+  # Allow the Nuxt module-builder 2.0.0-alpha.0 dev dependency update.
+  - '@nuxt/module-builder@2.0.0-alpha.0'
+  # Allow the Postgres 4.1.1 and Wrangler 4.160.1 dev dependency updates.
+  - postgres@4.1.1
+  - miniflare@5.20261110.1-beta
+  - wrangler@4.160.1
+  # Allow the Better SQLite3 dev dependency updates.
+  - better-sqlite3@13.1.1
+  - better-sqlite3@13.2.0
+  # Allow the Solar 1.2.15 and Wrangler 4.161.0 dev dependency updates.
+  - '@iconify-json/solar@1.2.15'
+  - '@iconify-json/solar@1.2.16'
+  - miniflare@5.20261110.2-beta
+  - wrangler@4.161.0
+  # Allow the Better Auth 1.7.23 monorepo update.
+  - '@better-auth/core@1.7.23'
+  - '@better-auth/drizzle-adapter@1.7.23'
+  - '@better-auth/kysely-adapter@1.7.23'
+  - '@better-auth/memory-adapter@1.7.23'
+  - '@better-auth/mongo-adapter@1.7.23'
+  - '@better-auth/passkey@1.7.23'
+  - '@better-auth/prisma-adapter@1.7.23'
+  - '@better-auth/telemetry@1.7.23'
+  - 'auth@1.7.23'
+  - 'better-auth@1.7.23'
+  # Allow the ESLint 10.15.0, Playwright 1.65.1 and Wrangler 4.162.0 updates.
+  - '@eslint/config-array@0.23.6'
+  - eslint@10.15.0
+  - playwright-core@1.65.1
+  - '@cloudflare/workerd-darwin-64@1.20261113.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261113.1'
+  - '@cloudflare/workerd-linux-64@1.20261113.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261113.1'
+  - '@cloudflare/workerd-windows-64@1.20261113.1'
+  - miniflare@5.20261113.0-beta
+  - workerd@1.20261113.1
+  - wrangler@4.162.0
+
+  # Allow the Better Auth 1.7.25 monorepo update.
+  - '@better-auth/core@1.7.25'
+  - '@better-auth/drizzle-adapter@1.7.25'
+  - '@better-auth/kysely-adapter@1.7.25'
+  - '@better-auth/memory-adapter@1.7.25'
+  - '@better-auth/mongo-adapter@1.7.25'
+  - '@better-auth/passkey@1.7.25'
+  - '@better-auth/prisma-adapter@1.7.25'
+  - '@better-auth/telemetry@1.7.25'
+  - auth@1.7.25
+  - better-auth@1.7.25
+
+  # Allow the Better Auth 1.7.26 monorepo update.
+  - '@better-auth/core@1.7.26'
+  - '@better-auth/drizzle-adapter@1.7.26'
+  - '@better-auth/kysely-adapter@1.7.26'
+  - '@better-auth/memory-adapter@1.7.26'
+  - '@better-auth/mongo-adapter@1.7.26'
+  - '@better-auth/passkey@1.7.26'
+  - '@better-auth/prisma-adapter@1.7.26'
+  - '@better-auth/telemetry@1.7.26'
+  - auth@1.7.26
+  - better-auth@1.7.26
+
+  # Allow the Better Auth 1.7.27 monorepo update.
+  - '@better-auth/core@1.7.27'
+  - '@better-auth/drizzle-adapter@1.7.27'
+  - '@better-auth/kysely-adapter@1.7.27'
+  - '@better-auth/memory-adapter@1.7.27'
+  - '@better-auth/mongo-adapter@1.7.27'
+  - '@better-auth/passkey@1.7.27'
+  - '@better-auth/prisma-adapter@1.7.27'
+  - '@better-auth/telemetry@1.7.27'
+  - auth@1.7.27
+  - better-auth@1.7.27
+
+  # Allow the pkg-pr-new 0.0.94 and Wrangler 4.163.0 dev dependency updates.
+  - pkg-pr-new@0.0.94
+  - miniflare@5.20261116.0-beta
+  - wrangler@4.163.0
+
+  # Allow the Wrangler 4.164.0 update and its Cloudflare dependencies.
+  - '@cloudflare/workerd-darwin-64@1.20261117.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261117.1'
+  - '@cloudflare/workerd-linux-64@1.20261117.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261117.1'
+  - '@cloudflare/workerd-windows-64@1.20261117.1'
+  - miniflare@5.20261117.0-beta
+  - workerd@1.20261117.1
+  - wrangler@4.164.0
+
+  # Allow the Wrangler 4.165.0 update and its Cloudflare dependencies.
+  - '@cloudflare/kv-asset-handler@0.5.1'
+  - '@cloudflare/workerd-darwin-64@1.20261118.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20261118.1'
+  - '@cloudflare/workerd-linux-64@1.20261118.1'
+  - '@cloudflare/workerd-linux-arm64@1.20261118.1'
+  - '@cloudflare/workerd-windows-64@1.20261118.1'
+  - '@cloudflare/workers-utils@0.55.0'
+  - miniflare@5.20261118.0-beta
+  - workerd@1.20261118.1
+  - wrangler@4.165.0
 
 packages:
   - .
   - docs
   - playground
+
+overrides:
+  # Keep Better Auth's pinned dependency aligned with the direct dependency so
+  # Nitro does not trace two better-call versions into the production server.
+  better-call@1.4.4: 1.4.6
+  better-call@1.4.5: 1.4.6
 
 patchedDependencies:
   '@peculiar/x509@1.14.3': patches/@peculiar__x509@1.14.3.patch

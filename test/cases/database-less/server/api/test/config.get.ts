@@ -3,7 +3,7 @@ export default defineEventHandler(() => {
   const auth = runtimeConfig.public.auth as { useDatabase?: boolean, databaseProvider?: string } | undefined
 
   return {
-    useDatabase: auth?.useDatabase ?? false,
-    databaseProvider: auth?.databaseProvider ?? 'none',
+    useDatabase: auth?.useDatabase,
+    databaseProvider: auth?.databaseProvider,
   }
 })

@@ -64,19 +64,17 @@ describe('auth secret startup plugin', () => {
     return runWithNuxtContext(nuxt, () => resolveAuthSecretPlugin(path => path))
   }
 
+  // It checks the auth secret on every Nitro host, and derives it from appSecret only on Nuxt 4.6+.
   it.each([
+    ['4.5.2', 2],
     ['4.6.0', 2],
     ['5.0.0-2610052343-36eafab', 3],
-  ])('is registered on Nuxt %s with Nitro %i', async (version, nitroMajor) => {
-    await expect(resolvePluginFor(version, { nitroMajor })).resolves.toBe('./runtime/server/plugins/auth-secret')
+  ])('is registered on Nuxt %s with Nitro %i', (version, nitroMajor) => {
+    expect(resolvePluginFor(version, { nitroMajor })).toBe('./runtime/server/plugins/auth-secret')
   })
 
-  it('is not registered before Nuxt 4.6', async () => {
-    await expect(resolvePluginFor('4.5.2', { nitroMajor: 2 })).resolves.toBeUndefined()
-  })
-
-  it('is not registered when server.builder is not Nitro', async () => {
-    await expect(resolvePluginFor('4.6.0', { nitroMajor: 2, builder: '@nuxt/vite-server' })).resolves.toBeUndefined()
+  it('is not registered when server.builder is not Nitro', () => {
+    expect(resolvePluginFor('4.6.0', { nitroMajor: 2, builder: '@nuxt/vite-server' })).toBeUndefined()
   })
 })
 

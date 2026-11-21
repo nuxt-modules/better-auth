@@ -63,10 +63,14 @@ beforeEach(() => {
     appSecret,
   }
   betterAuthMock.mockImplementation((options: Record<string, unknown>) => ({ options }))
+  // The startup plugin stops the server when no secret is set; keep the test process running.
+  vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+  vi.spyOn(console, 'error').mockImplementation(() => {})
 })
 
 afterEach(() => {
   vi.unstubAllEnvs()
+  vi.restoreAllMocks()
 })
 
 describe.skipIf(import.meta.dev)('serverAuth at server startup with only NUXT_APP_SECRET', () => {
