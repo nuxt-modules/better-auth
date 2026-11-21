@@ -377,6 +377,8 @@ minimumReleaseAgeExclude:
   - vue-sfc-transformer@0.3.5
   - wrangler@4.166.0
 
+  - '@iconify-json/solar@1.2.17'
+
 packages:
   - .
   - docs
