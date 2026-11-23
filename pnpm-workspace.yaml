@@ -379,6 +379,9 @@ minimumReleaseAgeExclude:
   - wrangler@4.166.0
 
   - '@iconify-json/solar@1.2.17'
+  - '@vueuse/core@15.1.0'
+  - '@vueuse/metadata@15.1.0'
+  - '@vueuse/shared@15.1.0'
 
 packages:
   - .
