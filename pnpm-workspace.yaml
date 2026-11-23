@@ -395,6 +395,10 @@ minimumReleaseAgeExclude:
   - workerd@1.20261123.1
   - wrangler@4.167.0
 
+  - nuxt-site-config@5.0.4
+  - nuxt-site-config-kit@5.0.4
+  - site-config-stack@5.0.4
+
 packages:
   - .
   - docs
