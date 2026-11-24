@@ -133,7 +133,7 @@
     "drizzle-orm": "^0.45.4",
     "eslint": "^10.13.0",
     "happy-dom": "^21.0.4",
-    "nitropack": "2.13.6",
+    "nitropack": "2.14.0",
     "nuxt": "^4.6.2",
     "pinia": "^4.1.0",
     "pkg-pr-new": "0.0.94",
