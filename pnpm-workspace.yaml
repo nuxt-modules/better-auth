@@ -399,6 +399,16 @@ minimumReleaseAgeExclude:
   - nuxt-site-config-kit@5.0.4
   - site-config-stack@5.0.4
 
+  - '@nuxt/kit@4.7.0'
+  - '@nuxt/nitro-server@4.7.0'
+  - '@nuxt/nitro-v3-server@4.7.0'
+  - '@nuxt/schema@4.7.0'
+  - '@nuxt/vite-builder@4.7.0'
+  - '@nuxt/vite-server@4.7.0'
+  - '@vercel/nft@1.11.12'
+  - nitropack@2.14.0
+  - nuxt@4.7.0
+
 packages:
   - .
   - docs
