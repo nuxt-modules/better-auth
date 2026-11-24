@@ -258,6 +258,7 @@ export default defineNuxtModule<BetterAuthModuleOptions>({
       registerServerRuntime({
         clientOnly: setup.clientOnly,
         resolve: resolver.resolve,
+        nitroMajor,
         authSecretPlugin: setup.clientOnly ? undefined : resolveAuthSecretPlugin(resolver.resolve),
       })
       registerAuthMiddleware(resolver.resolve)

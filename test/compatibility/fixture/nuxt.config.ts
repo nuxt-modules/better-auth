@@ -3,6 +3,7 @@ export default defineNuxtConfig({
   hub: { db: { dialect: 'sqlite', applyMigrationsDuringBuild: false } },
   routeRules: {
     '/api/guest': { auth: 'guest' },
+    '/api/protected': { auth: 'user' },
   },
   runtimeConfig: {
     betterAuthSecret: 'test-secret-for-testing-only-32chars!',
