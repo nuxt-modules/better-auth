@@ -44,6 +44,7 @@ async function checkAuthLifecycle() {
   assert.equal(session.user.email, email)
   assert.equal(session.user.preferredLocale, 'en')
   assert.equal((await request('/api/private')).email, email)
+  assert.equal((await request('/api/protected')).reached, true)
 
   await request('/api/auth/sign-out', { body: {} })
   assert.equal(await request('/api/auth/get-session'), null)
@@ -98,13 +99,14 @@ async function main() {
     assert.ok(response?.ok, 'Compatibility server did not respond successfully')
     assert.equal((await response.json()).ok, true)
     assert.equal((await request('/api/guest')).guest, true)
+    await request('/api/protected', {}, 401)
 
     if (process.env.COMPATIBILITY_DATABASE === 'true') {
       await checkAuthLifecycle()
       process.stdout.write('Packed consumer signup, sign-in, session, protected route, and logout passed.\n')
     }
     else {
-      process.stdout.write('Packed consumer auth and guest route smoke checks passed.\n')
+      process.stdout.write('Packed consumer auth, guest route and route-access middleware smoke checks passed.\n')
     }
   }
   catch (error) {
