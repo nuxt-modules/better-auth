@@ -14,6 +14,7 @@ interface ResolveInput {
 
 interface RegisterServerRuntimeInput extends ResolveInput {
   clientOnly: boolean
+  nitroMajor: number | undefined
   /** Nitro plugin that checks the auth secret at startup and derives it from `appSecret` on Nuxt 4.6+. */
   authSecretPlugin?: string
 }
@@ -42,7 +43,7 @@ export function registerTemplateHmrHook(nuxt: Nuxt): void {
 }
 
 export function registerServerRuntime(input: RegisterServerRuntimeInput): void {
-  const { authSecretPlugin, clientOnly, resolve } = input
+  const { authSecretPlugin, clientOnly, nitroMajor, resolve } = input
 
   if (!clientOnly) {
     addServerImports([
@@ -52,7 +53,12 @@ export function registerServerRuntime(input: RegisterServerRuntimeInput): void {
       ...['getRequestSession', 'getUserSession', 'setRequestSession', 'refreshSessionCookieCache', 'setSessionCookie', 'createSession', 'requireUserSession']
         .map(name => ({ name, from: resolve('./runtime/server/utils/session') })),
     ])
-    addServerHandler({ middleware: true, handler: resolve('./runtime/server/middleware/route-access') })
+    addServerHandler({
+      middleware: true,
+      // Nitro v2 mounts middleware by path prefix, so `/**` would match nothing there.
+      ...(nitroMajor === 3 ? { route: '/**' } : {}),
+      handler: resolve('./runtime/server/middleware/route-access'),
+    })
     addServerHandler({ route: '/api/auth/**', handler: resolve('./runtime/server/api/auth/[...all]') })
     if (authSecretPlugin)
       addNitroPlugin({ nitro2: authSecretPlugin, nitro3: authSecretPlugin })
