@@ -426,8 +426,8 @@ importers:
         specifier: ^0.4.10
         version: 0.4.10(@nuxt/schema@4.7.0)(confbox@0.2.4)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.141.0)(rolldown@1.2.19)(unplugin@3.7.0(esbuild@0.28.2)(rolldown@1.2.19)(rollup@4.68.8)(vite@8.3.8))(vue@3.5.46(typescript@7.0.2))
       resend:
-        specifier: 6.39.0
-        version: 6.39.0
+        specifier: 6.40.0
+        version: 6.40.0
     devDependencies:
       '@libsql/client':
         specifier: ^0.18.0
@@ -8870,8 +8870,8 @@ packages:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
 
-  resend@6.39.0:
-    resolution: {integrity: sha512-szNf/OR2I5rreOt5dQr7+aZLGFhkNJ0pSjzQIkU1oIrfh7kMZFDJQ3/Cc9s1yVeapafYFg0/aNyj41lsbHPeUw==}
+  resend@6.40.0:
+    resolution: {integrity: sha512-UgVngdBE9802jB2TRzcb4m+x6xBC9qSa5zLQg1j/PFHVxBlGMO3992LHJtx1vgc0dXYBQWmaErwuaZhzPtN4BA==}
     engines: {node: '>=20'}
     peerDependencies:
       '@react-email/render': '*'
@@ -21956,7 +21956,7 @@ snapshots:
 
   require-from-string@2.0.2: {}
 
-  resend@6.39.0:
+  resend@6.40.0:
     dependencies:
       postal-mime: 2.7.6
       standardwebhooks: 1.1.1
