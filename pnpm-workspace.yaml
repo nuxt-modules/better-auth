@@ -408,6 +408,12 @@ minimumReleaseAgeExclude:
   - workerd@1.20261123.1
   - wrangler@4.167.0
 
+  - '@nuxt/devtools@4.2.1'
+  - '@nuxt/devtools-assets@4.2.1'
+  - '@nuxt/devtools-kit@4.2.1'
+  - miniflare@5.20261123.1-beta
+  - wrangler@4.168.0
+
   - nuxt-site-config@5.0.4
   - nuxt-site-config-kit@5.0.4
   - site-config-stack@5.0.4
