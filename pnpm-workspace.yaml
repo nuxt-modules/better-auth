@@ -210,6 +210,7 @@ minimumReleaseAgeExclude:
   - resend@6.39.0
   - '@types/node@26.6.6'
   - '@types/node@26.6.7'
+  - '@types/node@26.6.10'
   - motion-v@2.9.0
   - motion-v@2.10.0
   - motion-v@2.11.0
