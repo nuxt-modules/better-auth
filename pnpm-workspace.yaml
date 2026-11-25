@@ -194,6 +194,11 @@ minimumReleaseAgeExclude:
   - '@vitest/mocker@5.1.1'
   - '@vitest/spy@5.1.1'
   - vitest@5.1.1
+  - '@vitest/mocker@5.1.2'
+  - '@vitest/spy@5.1.2'
+  - vitest@5.1.2
+  - '@nuxtjs/mcp-toolkit@0.24.4'
+  - docus@5.15.1
   - '@cloudflare/workerd-darwin-64@1.20261102.1'
   - '@cloudflare/workerd-darwin-arm64@1.20261102.1'
   - '@cloudflare/workerd-linux-64@1.20261102.1'
