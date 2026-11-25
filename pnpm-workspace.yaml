@@ -436,6 +436,7 @@ minimumReleaseAgeExclude:
   - '@vercel/nft@1.11.12'
   - nitropack@2.14.0
   - nuxt@4.7.0
+  - '@nuxtjs/i18n@10.7.0'
 
 packages:
   - .
