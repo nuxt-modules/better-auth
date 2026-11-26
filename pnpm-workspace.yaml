@@ -421,6 +421,9 @@ minimumReleaseAgeExclude:
 
   - '@nuxt/devtools@4.2.1'
   - '@nuxt/devtools-assets@4.2.1'
+  - '@nuxt/devtools@4.2.2'
+  - '@nuxt/devtools-assets@4.2.2'
+  - '@nuxt/devtools-kit@4.2.2'
   - miniflare@5.20261123.1-beta
   - wrangler@4.168.0
 
