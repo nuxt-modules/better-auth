@@ -217,7 +217,7 @@ minimumReleaseAgeExclude:
   - miniflare@5.20261103.0-beta
   - workerd@1.20261103.1
   - wrangler@4.157.0
-  - resend@6.40.0
+  - resend@6.40.1
   - '@types/node@26.6.6'
   - '@types/node@26.6.7'
   - '@types/node@26.6.10'

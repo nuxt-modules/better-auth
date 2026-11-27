@@ -1,6 +1,17 @@
 export default defineNuxtConfig({
   modules: [...(process.env.COMPATIBILITY_DATABASE === 'true' ? ['@nuxthub/core'] : []), '@nuxtjs/better-auth'],
   hub: { db: { dialect: 'sqlite', applyMigrationsDuringBuild: false } },
+  vite: {
+    environments: {
+      ssr: {
+        build: {
+          rolldownOptions: {
+            external: [/[\\/]node_modules[\\/]unctx[\\/]dist[\\/]index\.mjs$/],
+          },
+        },
+      },
+    },
+  },
   routeRules: {
     '/api/guest': { auth: 'guest' },
     '/api/protected': { auth: 'user' },
