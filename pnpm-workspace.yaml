@@ -446,6 +446,12 @@ minimumReleaseAgeExclude:
   - nitropack@2.14.0
   - nuxt@4.7.0
   - '@nuxtjs/i18n@10.7.0'
+  - '@cloudflare/workers-utils@0.58.0'
+  - '@eslint/config-array@0.23.7'
+  - eslint@10.16.0
+  - miniflare@5.20261127.0-beta
+  - pkg-pr-new@0.0.95
+  - wrangler@4.169.0
 
 packages:
   - .
